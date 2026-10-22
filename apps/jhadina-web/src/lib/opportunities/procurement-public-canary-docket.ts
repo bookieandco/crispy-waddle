@@ -14,6 +14,11 @@ export type PublicNoticeCanary={
  addenda:Array<{number:number;url:string;summary:string;fullAttachmentsVerified:false;acknowledged:false}>
  sourceVerified:'official_public_notice';lastChecked:'2026-10-22';fullPortalDocumentSetComplete:false
  bidSubmissionAuthorized:false;contactAuthorized:false;priceVerified:false
+ historicalBidTab?:{
+  priorSpecification:string;bidOpenedOn:string;officialTabulationUrl:string
+  biddingCompanies:Array<{name:string;role:'historical_bidder';currentTeamingConsent:false;qualifiedForCurrentScope:false}>
+  namedSubcontractors:string[];priorBidIsNotAward:true;priorBidIsNotCurrentQuote:true
+ }
  complianceEvidenceMissing:string[]
 }
 const buyer='City of Oxnard'
@@ -47,6 +52,16 @@ export const PUBLIC_PROCUREMENT_CANARY_NOTICES:readonly PublicNoticeCanary[]=[
    fullAttachmentsVerified:false,acknowledged:false}],
   sourceVerified:'official_public_notice',lastChecked:'2026-10-22',fullPortalDocumentSetComplete:false,
   bidSubmissionAuthorized:false,contactAuthorized:false,priceVerified:false,
+  historicalBidTab:{
+   priorSpecification:'PW 23-98',bidOpenedOn:'2023-05-25',
+   officialTabulationUrl:'https://www.oxnard.gov/wp-content/uploads/Bid-Tabulation-PW-23-98.pdf',
+   biddingCompanies:[
+    {name:'Best Drilling and Pump, Inc.',role:'historical_bidder',currentTeamingConsent:false,qualifiedForCurrentScope:false},
+    {name:'Weber Water Resources CA, LLC',role:'historical_bidder',currentTeamingConsent:false,qualifiedForCurrentScope:false},
+   ],
+   namedSubcontractors:['Pacific Surveys, LLC','Longmire Swaging, Inc.','Hydropressure Cleaning, Inc. / Welljet','Total Barricade Services, Inc.','Victory Well Surveys'],
+   priorBidIsNotAward:true,priorBidIsNotCurrentQuote:true,
+  },
   complianceEvidenceMissing:[
    ...missing,'10% bid security must be delivered physically by deadline at City Clerk office',
    '10/22 pre-bid meeting has no verified attendance or minutes; do not claim site visit',
