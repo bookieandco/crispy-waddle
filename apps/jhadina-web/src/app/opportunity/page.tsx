@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import Link from "next/link"
+import Link from "next/link"\nimport AutonomyTools from "./autonomy-tools"
 import type { OpportunityHubCategory } from "@jhadina/opportunity-core"
 import type { AutomationLevel, Opportunity, OpportunityKind } from "@/lib/opportunities/sideIncome"
 
@@ -171,7 +171,7 @@ export default function OpportunityCommandCenter() {
           <span style={federalArrow}>→</span>
         </Link>
 
-        <div style={metricsRow}>
+        <AutonomyTools onImported={() => { void load() }} />\n\n        <div style={metricsRow}>
           <Metric label="Found" value={summary.found} />
           <Metric label="Best matches" value={summary.bestMatches} />
           <Metric label="AI can do it" value={summary.aiCanDoIt} />
