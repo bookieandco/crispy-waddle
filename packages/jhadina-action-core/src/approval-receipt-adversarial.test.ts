@@ -60,7 +60,7 @@ test('DENY blocks handler, even with an approved receipt', async () => {
   await x.service.approve(pending.id, r.userId);
   await assert.rejects(x.executor.execute({ ...r, approvalReceiptId: pending.id }), /Action denied/);
   assert.equal(x.getInvocations(), 0);
-  assert.equal(x.ledger.list().at(-1)?.status, 'denied');
+  assert.equal(x.ledger.list().slice(-1)[0]?.status, 'denied');
   // Denial does not consume a receipt. Policy remains authoritative.
   assert.equal(await x.store.consume(pending.id, {
     actionId: r.id, userId: r.userId, type: r.type, fingerprint: fingerprint(r),
@@ -71,7 +71,7 @@ test('APPROVAL_REQUIRED without a receipt never executes', async () => {
   const x = setup();
   await assert.rejects(x.executor.execute(request()), /Approval required/);
   assert.equal(x.getInvocations(), 0);
-  assert.equal(x.ledger.list().at(-1)?.status, 'approval_required');
+  assert.equal(x.ledger.list().slice(-1)[0]?.status, 'approval_required');
 });
 
 test('pending approval cannot execute; wrong approver cannot approve', async () => {
@@ -92,7 +92,7 @@ test('approved receipt executes exactly once; replay is denied and audited', asy
   assert.equal(await x.executor.execute(authorized), 'executed');
   await assert.rejects(x.executor.execute(authorized), /Invalid approval receipt/);
   assert.equal(x.getInvocations(), 1);
-  assert.equal(x.ledger.list().at(-1)?.status, 'denied');
+  assert.equal(x.ledger.list().slice(-1)[0]?.status, 'denied');
 });
 
 test('receipt refuses wrong user, action ID, type, or full payload fingerprint', async () => {
