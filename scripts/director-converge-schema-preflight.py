@@ -66,7 +66,8 @@ def inventory(migrations: Path, applied: set[str] | None = None) -> dict:
         "sourceCheckFailures": missing,
         "appliedHistorySupplied": applied is not None,
         "pendingRequiredVersions": pending,
-        "safeForAutomaticReplay": not collisions and not missing and applied is not None,
+        "sourceChecksPass": not collisions and not missing,
+        "safeForAutomaticReplay": False,  # staging, restore proof and approval are not established here
         "next": ("MANUAL_MIGRATION_VERSION_RECONCILIATION_REQUIRED"
                  if collisions else "ISOLATED_STAGING_AND_RESTORE_PROOF_REQUIRED"),
     }
