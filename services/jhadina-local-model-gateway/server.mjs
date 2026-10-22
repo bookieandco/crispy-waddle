@@ -68,7 +68,6 @@ export function createGateway({token,model,fetchImpl=fetch,now=Date.now,maxReque
     /:cloud$/i.test(model))throw Error("LOCAL_MODEL_ONLY")
  let active=0,windowStarted=now(),count=0
  const server=createServer(async(req,res)=>{
-  res.setHeader("access-control-allow-origin","null")
   if(!authorized(req.headers.authorization,token)){cleanStatus(res,401,"AUTH_REQUIRED");return}
   if(req.method==="GET"&&req.url==="/health"){
    res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"})
