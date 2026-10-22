@@ -43,9 +43,9 @@ export type JllmReasoningReadiness = Readonly<{
   note: string
 }>
 
-export function readJllmReasoningReadiness(env: Pick<NodeJS.ProcessEnv,
-  "JHADINA_REASONING_PROVIDER" | "ANTHROPIC_API_KEY" | "GEMINI_API_KEY"
-> = process.env): JllmReasoningReadiness {
+export function readJllmReasoningReadiness(env: Partial<Record<
+  "JHADINA_REASONING_PROVIDER" | "ANTHROPIC_API_KEY" | "GEMINI_API_KEY", string | undefined
+>> = process.env): JllmReasoningReadiness {
   const selected = env.JHADINA_REASONING_PROVIDER === "gemini" ? "gemini" : "anthropic"
   const configured = Boolean((selected === "gemini" ? env.GEMINI_API_KEY : env.ANTHROPIC_API_KEY)?.trim())
   const alternative = selected === "gemini" ? "anthropic" : "gemini"
