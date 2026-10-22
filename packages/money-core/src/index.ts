@@ -369,3 +369,6 @@ export * from './sniper-latency-telemetry.js';
 export * from './sniper-execution-calibration.js';
 export * from './sniper-exit-sentinel.js';
 export * from './sniper-shadow-purse-handoff.js';
+export * from './sniper-landing-route-study.js';
+export * from './sniper-paper-soak.js';
+export * from './sniper-live-wiring-acceptance.js';
