@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 export type ApprovalReceiptStatus = 'pending' | 'approved' | 'consumed' | 'expired';
 
 export interface ApprovalReceipt {
@@ -25,6 +27,17 @@ export interface ApprovalReceiptStore {
   consume(receiptId: string, expected: { actionId: string; userId: string; type: string; fingerprint: string }): Promise<boolean>;
 }
 
+/** A malformed expiry must never behave like an approval with no expiration. */
+function isExpiredOrInvalid(expiresAt: string): boolean {
+  const timestamp = Date.parse(expiresAt);
+  return !Number.isFinite(timestamp) || timestamp <= Date.now();
+}
+
+/**
+ * Test/development only: all data is lost on a process restart, and separate
+ * server instances do not share receipts. Production must inject a durable
+ * ApprovalReceiptStore with an atomic, conditional consume operation.
+ */
 export class InMemoryApprovalReceiptStore implements ApprovalReceiptStore {
   private readonly receipts = new Map<string, ApprovalReceipt>();
 
@@ -35,6 +48,12 @@ export class InMemoryApprovalReceiptStore implements ApprovalReceiptStore {
     fingerprint: string;
     expiresAt: string;
   }): Promise<ApprovalReceipt> {
+    if (!input.actionId || !input.userId || !input.type || !input.fingerprint) {
+      throw new Error('Approval receipt binding incomplete');
+    }
+    if (!Number.isFinite(Date.parse(input.expiresAt))) {
+      throw new Error('Approval receipt expiry invalid');
+    }
     const receipt: ApprovalReceipt = {
       id: crypto.randomUUID(),
       ...input,
@@ -50,7 +69,7 @@ export class InMemoryApprovalReceiptStore implements ApprovalReceiptStore {
     if (!receipt || receipt.status !== 'pending' || receipt.userId !== userId) {
       throw new Error('Approval receipt cannot be approved');
     }
-    if (Date.parse(receipt.expiresAt) <= Date.now()) {
+    if (isExpiredOrInvalid(receipt.expiresAt)) {
       const expired = { ...receipt, status: 'expired' as const };
       this.receipts.set(receiptId, expired);
       throw new Error('Approval receipt expired');
@@ -63,13 +82,15 @@ export class InMemoryApprovalReceiptStore implements ApprovalReceiptStore {
   async consume(receiptId: string, expected: { actionId: string; userId: string; type: string; fingerprint: string }): Promise<boolean> {
     const receipt = this.receipts.get(receiptId);
     if (!receipt || receipt.status !== 'approved') return false;
-    if (Date.parse(receipt.expiresAt) <= Date.now()) {
+    if (isExpiredOrInvalid(receipt.expiresAt)) {
       this.receipts.set(receiptId, { ...receipt, status: 'expired' });
       return false;
     }
     if (receipt.actionId !== expected.actionId || receipt.userId !== expected.userId || receipt.type !== expected.type || receipt.fingerprint !== expected.fingerprint) {
       return false;
     }
+    // This map update is synchronous, so concurrent calls within this ONE
+    // process cannot consume the receipt twice. It is not a distributed lock.
     this.receipts.set(receiptId, { ...receipt, status: 'consumed', consumedAt: new Date().toISOString() });
     return true;
   }
@@ -81,6 +102,58 @@ export interface ApprovalRequestLike<TAction = unknown> {
   type: string;
   action: TAction;
   requestedAt: string;
+}
+
+/**
+ * Canonical encoding for JSON-like action payloads. Reject functions, cycles,
+ * nonfinite numbers, unsupported object prototypes and symbols rather than
+ * accidentally treating two different payloads as equal.
+ */
+function canonicalAction(value: unknown, ancestors: Set<object> = new Set()): string {
+  if (value === null) return 'null';
+  if (typeof value === 'string') return `string:${JSON.stringify(value)}`;
+  if (typeof value === 'boolean') return `bool:${value}`;
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error('Unsupported approval action number');
+    return `number:${Object.is(value, -0) ? '-0' : value}`;
+  }
+  if (typeof value === 'bigint') return `bigint:${value.toString()}`;
+  if (typeof value === 'undefined') return 'undefined';
+  if (typeof value !== 'object') throw new Error('Unsupported approval action value');
+  if (ancestors.has(value)) throw new Error('Circular approval action payload');
+  if (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) {
+    throw new Error('Unsupported approval action object');
+  }
+  ancestors.add(value);
+  try {
+    if (Array.isArray(value)) {
+      return `array:[${value.map((item) => canonicalAction(item, ancestors)).join(',')}]`;
+    }
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record).sort();
+    return `object:{${keys.map((key) => `${JSON.stringify(key)}:${canonicalAction(record[key], ancestors)}`).join(',')}}`;
+  } finally {
+    ancestors.delete(value);
+  }
+}
+
+/**
+ * Opt-in hardened fingerprint for NEW approval flows. Includes the entire
+ * action payload even when the caller's domain fingerprint is accidentally
+ * constant. Existing domain receipts keep their original fingerprint contract
+ * until their caller-specific migrations are tested.
+ */
+export function createActionBoundFingerprint<TAction>(
+  domainFingerprint: (request: ApprovalRequestLike<TAction>) => string,
+): (request: ApprovalRequestLike<TAction>) => string {
+  return (request) => {
+    const domain = domainFingerprint(request);
+    if (typeof domain !== 'string' || !domain) throw new Error('Approval domain fingerprint invalid');
+    const payload = canonicalAction(request.action);
+    return createHash('sha256')
+      .update(`jhadina.action-approval.v2:${JSON.stringify([domain, payload])}`)
+      .digest('hex');
+  };
 }
 
 export interface ApprovalReceiptVerifier<TAction = unknown> {
