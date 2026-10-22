@@ -71,7 +71,7 @@ export function parseOxnardPublicProjectBids(
    const c=cells(row[1]??'')
    const id=(c[idAt]??'').trim(),title=(c[titleAt]??'').trim()
    const due=dueDate(c[dateAt]??'')
-   if(!id||!title||!due||due<=now||!/^(?:PW|SD)\s+\d{2}-[0-9A-Za-z-]+$/i.test(id)||
+   if(!id||!title||!due||due<=now||!/^(?:PW|SD|FD)\s+\d{2}-[0-9A-Za-z-]+$/i.test(id)||
     /\b(cancelled|canceled|withdrawn|awarded|closed)\b/i.test(title)){skippedRows++;continue}
    const externalId='OXNARD:'+id.replace(/\s+/g,' ').toUpperCase()
    if(seen.has(externalId)){skippedRows++;continue}
