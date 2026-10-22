@@ -142,7 +142,8 @@ function errorCode(error:unknown):string{
 export class GovernedDexRouteRouter{
  private readonly adapters:readonly DexQuoteOnlyAdapter[]
  private readonly policy:DexRouteGatePolicy
- constructor(input:{adapters:readonly DexQuoteOnlyAdapter[];policy:DexRouteGatePolicy}){
+ private readonly quoteTimeoutMs?:number
+ constructor(input:{adapters:readonly DexQuoteOnlyAdapter[];policy:DexRouteGatePolicy;quoteTimeoutMs?:number}){
   const seen=new Set<DexRouteProvider>()
   for(const adapter of input.adapters){
    if(seen.has(adapter.provider))throw new Error('DEX_ROUTER_DUPLICATE_PROVIDER')
@@ -151,6 +152,10 @@ export class GovernedDexRouteRouter{
   if(!input.adapters.length)throw new Error('DEX_ROUTER_ADAPTER_REQUIRED')
   this.adapters=Object.freeze([...input.adapters])
   this.policy=input.policy
+  if(input.quoteTimeoutMs!==undefined&&(!Number.isSafeInteger(input.quoteTimeoutMs)||input.quoteTimeoutMs<1||input.quoteTimeoutMs>30000)){
+   throw new Error('DEX_ROUTER_QUOTE_TIMEOUT_INVALID')
+  }
+  this.quoteTimeoutMs=input.quoteTimeoutMs
  }
  async route(input:{request:DexQuoteRequest;consecutiveRealizedLosses:number;lossHaltActive?:boolean}):Promise<DexRouteDecision>{
   // Quote independent approved venues concurrently. Promise.all preserves configured order
@@ -158,7 +163,14 @@ export class GovernedDexRouteRouter{
   // This is quote-only and cannot sign, broadcast, or authorize spending.
   const attempts:DexRouteAttempt[]=await Promise.all(this.adapters.map(async(adapter):Promise<DexRouteAttempt>=>{
    try{
-    const quote=await adapter.quote(input.request)
+    // Timeout bounds the DECISION wait only; transport cancellation is not
+    // guaranteed by this interface. Late responses cannot change the decision.
+    const quote=await (this.quoteTimeoutMs===undefined
+     ? adapter.quote(input.request)
+     : new Promise<DexRouteQuote>((resolve,reject)=>{
+       const timer=setTimeout(()=>reject(new Error('DEX_ROUTER_QUOTE_DEADLINE_EXCEEDED')),this.quoteTimeoutMs!)
+       adapter.quote(input.request).then(value=>{clearTimeout(timer);resolve(value)},error=>{clearTimeout(timer);reject(error)})
+      }))
     if(quote.provider!==adapter.provider)throw new Error('DEX_ROUTER_PROVIDER_BINDING_MISMATCH')
     const gate=evaluateDexRouteQuote({quote,policy:this.policy,now:input.request.now,consecutiveRealizedLosses:input.consecutiveRealizedLosses,lossHaltActive:input.lossHaltActive})
     return Object.freeze({provider:adapter.provider,quote,gate,authority:'ROUTE_ATTEMPT_EVIDENCE_ONLY' as const})
