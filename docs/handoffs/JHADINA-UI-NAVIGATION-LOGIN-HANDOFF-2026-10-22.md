@@ -109,3 +109,13 @@ Inspect iPhone portrait screenshots, touch targets, overflow, menus, login and f
 5. Review actual iPhone portrait layout alongside Chromium evidence; then obtain explicit permission before any production promotion or broad visibility change. Preserve spending, wallet signing, publishing and trading approval gates.
 
 **No merge, production deploy, Vercel protection change, Supabase mutation, credential read/reset, paid provisioning or live actions in this continuation.**
+
+
+## JH-UI.AUTH-CONVERGE — callback compatibility, October 22
+
+- Certified prior HEAD `545858892bea6b4207bde58a202486f01d792f50`: all 13 exact-head GitHub Actions workflow runs completed successfully, including 34 clicked Worlds/menu destinations in local mobile Chromium QA. No actual iPhone/Face ID owner session claim.
+- Draft #1463 PKCE email-link route `/auth/callback` is intentionally **not** copied: it checked for a non-anonymous user but did not enforce `isVerifiedPersonalOwner`. It also overlaps four already-modified owner-login files in PR #1470.
+- Add `/auth/callback` as a compatibility re-export of the pre-existing `/auth/confirm` server handler. Canonical handler already supports both `verifyOtp` email-token links and `exchangeCodeForSession` PKCE codes; it checks the live provider-verified owner and signs out a different account. No new authentication provider or session system.
+- Harden sensitive redirect responses with `Cache-Control: private, no-store` and `Referrer-Policy: no-referrer`; cap incoming PKCE code length; test callback success, non-owner denial, hostile next-path rejection and missing/overlong credentials.
+- These changes require **new exact-head CI verification** after commit. Do not count the 13/13 run at the prior SHA as a pass for the new commit. No deployed protected origin/redirect-allowlist, iPhone Safari, real passkey, or third-party provider readiness verified.
+- No merge, live deployment, account changes, new emails, password reset, spending, publishing, or permission widening in this continuation.
