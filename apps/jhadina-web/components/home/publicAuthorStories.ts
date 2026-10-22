@@ -3,11 +3,11 @@ import type {Story} from "./storyTypes"
 /** Convert real, read-only public author results to Home stories.
  * Never infer a private connection from public API output.
  */
-export type PublicPreviewProvider="bluesky"|"mastodon"
+export type PublicPreviewProvider="bluesky"|"mastodon"|"github"
 export function publicAuthorStories(raw:unknown, provider:PublicPreviewProvider):Story[]{
  if(!Array.isArray(raw))return []
- const source:Story["source"]=provider==="bluesky"?"Bluesky":"Mastodon"
- const requiredHost=provider==="bluesky"?"bsky.app":"mastodon.social"
+ const source:Story["source"]=provider==="bluesky"?"Bluesky":provider==="mastodon"?"Mastodon":"GitHub"
+ const requiredHost=provider==="bluesky"?"bsky.app":provider==="mastodon"?"mastodon.social":"github.com"
  const seen=new Set<string>()
  return raw.slice(0,10).flatMap((entry):Story[]=>{
   if(!entry||typeof entry!=="object"||Array.isArray(entry))return []
@@ -31,7 +31,7 @@ export function publicAuthorStories(raw:unknown, provider:PublicPreviewProvider)
   return [{
    id:"public-author:"+key,source,kind:"social",title:item.title,body:item.summary,
    occurredAt:new Date(timestamp).toISOString(),age:new Date(timestamp).toLocaleString(),
-   action:{label:"View original post",href:url.toString()},
+   action:{label:provider==="github"?"Open source repository":"View original post",href:url.toString()},
    details:[
     {label:"Author",value:item.sourceAccount},
     {label:"Connection",value:"Public author preview, not a linked account"},

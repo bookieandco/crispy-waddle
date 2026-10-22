@@ -27,6 +27,11 @@ describe("public author preview Home adapter",()=>{
   expect(publicAuthorStories(list,"bluesky")).toHaveLength(10)
   expect(publicAuthorStories([item(),item()],"bluesky")).toHaveLength(1)
  })
+ it("shows only verified public GitHub activity and bounds host",()=>{
+  const rows=[item({provider:"github",url:"https://github.com/owner/repo",sourceAccount:"owner"})]
+  expect(publicAuthorStories(rows,"github")[0].source).toBe("GitHub")
+  expect(publicAuthorStories([item({provider:"github",url:"https://github.com.evil.invalid/"})],"github")).toEqual([])
+ })
  it("can show public mastodon posts but never future dated updates",()=>{
   const m=item({provider:"mastodon",url:"https://mastodon.social/@author/123"})
   expect(publicAuthorStories([m],"mastodon")[0].source).toBe("Mastodon")

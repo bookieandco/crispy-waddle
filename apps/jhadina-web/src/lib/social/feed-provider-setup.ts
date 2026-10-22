@@ -6,7 +6,7 @@
 export type SocialFeedTarget = {
   id: "youtube" | "facebook" | "instagram" | "tiktok" | "reddit" | "x" |
     "threads" | "snapchat" | "linkedin" | "bluesky" | "mastodon" |
-    "pinterest" | "tumblr"
+    "pinterest" | "tumblr" | "github"
   label: string
   canRead: string
   limitation: string
@@ -40,6 +40,8 @@ export const SOCIAL_FEED_TARGETS: readonly SocialFeedTarget[] = [
    limitation:"Not the private personalized home recommendations feed."},
   {id:"tumblr",label:"Tumblr",setup:"provider_app_required",canRead:"Public blog posts and authorized account data where permitted",
    limitation:"A private Tumblr dashboard feed is not yet commissioned."},
+  {id:"github",label:"GitHub",setup:"public_preview",canRead:"Public user events through GitHub’s official API",
+   limitation:"Does not grant account access or show private repositories, notifications, or authenticated activity."},
 ]
 
 export type FeedReadiness = {label:string;details:string;kind:"ready"|"pending"|"limited"|"error"}

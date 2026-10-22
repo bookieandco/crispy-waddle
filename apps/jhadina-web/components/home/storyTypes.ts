@@ -12,6 +12,7 @@ export type FeedSource =
   | 'Threads'
   | 'Bluesky'
   | 'Mastodon'
+  | 'GitHub'
   | 'Tumblr'
   | 'VK'
   | 'Director'
@@ -22,7 +23,7 @@ export type FeedSource =
   | 'PupsonStuff';
 
 export const HOME_FEED_SOURCES: FeedSource[] = [
-  'All','Social','TikTok','Facebook','Snapchat','Instagram','YouTube','Reddit','X','LinkedIn','Threads','Bluesky','Mastodon','Tumblr','VK','Director','JhadinaTV','Opportunities','Money','Sports','PupsonStuff',
+  'All','Social','TikTok','Facebook','Snapchat','Instagram','YouTube','Reddit','X','LinkedIn','Threads','Bluesky','Mastodon','GitHub','Tumblr','VK','Director','JhadinaTV','Opportunities','Money','Sports','PupsonStuff',
 ];
 
 export type StoryKind = 'social' | 'youtube' | 'director' | 'jhadina' | 'tv' | 'opportunity' | 'money' | 'sports' | 'commerce';

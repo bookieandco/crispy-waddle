@@ -2,8 +2,8 @@ import {normalizeFeedCandidate,type ExternalFeedCandidate} from "./connected-sou
 
 type Fetcher=typeof fetch
 const maxItems=10
-const readJSON=async(url:URL,fetcher:Fetcher)=>{
-  const response=await fetcher(url,{method:"GET",cache:"no-store",redirect:"error",headers:{"accept":"application/json"},signal:AbortSignal.timeout(7000)})
+const readJSON=async(url:URL,fetcher:Fetcher,headers:Record<string,string>={})=>{
+  const response=await fetcher(url,{method:"GET",cache:"no-store",redirect:"error",headers:{"accept":"application/json",...headers},signal:AbortSignal.timeout(7000)})
   if(!response.ok)throw Error("PUBLIC_FEED_UNAVAILABLE")
   const size=Number(response.headers.get("content-length")??"0")
   if(size>200000)throw Error("PUBLIC_FEED_TOO_LARGE")
@@ -80,4 +80,55 @@ export async function readMastodonPublicAuthor(input:{handle:string;instance?:st
       })]
     }catch{return []}
   })
+}
+
+/** Public GitHub activity, not an OAuth session or the user's notifications.
+ * Source inspiration: lonekorean/super-feed, MIT (Will Boyd, 2017).
+ * Unlike the 2013 Atom scraper, this uses GitHub's supported public Events API.
+ */
+export function safeGitHubUsername(raw:string):string{
+ const username=raw.trim().replace(/^@/,"")
+ if(username.length<1 || username.length>39 ||
+    !/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(username) ||
+    username.includes("--"))throw Error("GITHUB_HANDLE_INVALID")
+ return username
+}
+const githubPublicEventTypes:Record<string,string>={
+ PushEvent:"pushed commits",PullRequestEvent:"updated a pull request",
+ IssuesEvent:"worked on an issue",IssueCommentEvent:"commented on an issue",
+ PullRequestReviewEvent:"reviewed a pull request",
+ PullRequestReviewCommentEvent:"commented on a review",
+ CreateEvent:"created a reference",DeleteEvent:"deleted a reference",
+ ForkEvent:"forked a repository",ReleaseEvent:"published a release",
+ WatchEvent:"starred a repository",PublicEvent:"made a repository public",
+}
+export async function readGitHubPublicActivity(username:string,fetcher:Fetcher=fetch):Promise<ExternalFeedCandidate[]>{
+ const handle=safeGitHubUsername(username)
+ const url=new URL("https://api.github.com/users/"+encodeURIComponent(handle)+"/events/public")
+ url.searchParams.set("per_page",String(maxItems))
+ const response=await readJSON(url,fetcher,{"accept":"application/vnd.github+json","user-agent":"JhadinaPublicFeeds/1.0"})
+ if(!Array.isArray(response))throw Error("GITHUB_PUBLIC_EVENTS_INVALID")
+ return response.slice(0,maxItems).flatMap((candidate):ExternalFeedCandidate[]=>{
+  try{
+   if(!candidate||typeof candidate!=="object")return []
+   const item=candidate as {
+    id?:unknown;type?:unknown;created_at?:unknown;
+    actor?:{login?:unknown};repo?:{name?:unknown};payload?:{action?:unknown}
+   }
+   if(typeof item.id!=="string"||!/^[0-9]{1,32}$/.test(item.id))return []
+   if(typeof item.actor?.login!=="string"||item.actor.login.toLowerCase()!==handle.toLowerCase())return []
+   const repo=item.repo?.name
+   if(typeof repo!=="string"||repo.length>200||!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo) ||
+      repo.split("/").some(part=>part==="."||part===".."))return []
+   if(typeof item.type!=="string"||!Object.prototype.hasOwnProperty.call(githubPublicEventTypes,item.type))return []
+   const action=typeof item.payload?.action==="string"&&/^[a-z_]{1,32}$/.test(item.payload.action)
+    ?item.payload.action.replaceAll("_"," ")+" · ":""
+   const summary=handle+" "+action+githubPublicEventTypes[item.type]+" in "+repo
+   return [normalizeFeedCandidate({
+    provider:"github",sourceAccount:handle,externalId:item.id,title:summary,summary,
+    occurredAt:item.created_at,url:"https://github.com/"+repo,
+    provenance:["github:official-public-events","read-only:user-activity"],
+   })]
+  }catch{return []}
+ })
 }

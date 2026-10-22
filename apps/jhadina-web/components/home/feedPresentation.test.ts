@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest"
-import {selectHomeStories,storyInView} from "./feedPresentation"
+import {selectHomeStories,storyInView,searchHomeStories} from "./feedPresentation"
 import type {Story} from "./storyTypes"
 const story=(id:string,source:Story["source"],occurredAt?:string):Story=>({id,source,kind:source==="YouTube"?"youtube":"social",title:id,body:"Evidence only",occurredAt})
 describe("Connected Home feed presentation",()=>{
@@ -19,6 +19,12 @@ describe("Connected Home feed presentation",()=>{
     story("d","Instagram","2026-10-17T10:00:00Z")]
   expect(selectHomeStories(posts,"updates","All","latest").map(x=>x.id)).toEqual(["a","b","c","d"])
   expect(selectHomeStories(posts,"updates","All","balanced").map(x=>x.id)).toEqual(["a","d","b","c"])
+ })
+ it("searches observed stories locally by platform, title and text",()=>{
+  const rows=[story("My project","GitHub"),story("Dogs","Instagram"),story("Reels","TikTok")]
+  expect(searchHomeStories(rows,"github").map(x=>x.id)).toEqual(["My project"])
+  expect(searchHomeStories(rows,"  DOGS ").map(x=>x.id)).toEqual(["Dogs"])
+  expect(searchHomeStories(rows,"").length).toBe(3)
  })
  it("deduplicates within a platform and excludes shortcuts from observed feed",()=>{
   const first=story("same","Social","2026-10-17T12:00:00Z")
