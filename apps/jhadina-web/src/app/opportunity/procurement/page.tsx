@@ -35,6 +35,8 @@ export default function GovernmentProcurementWorkspace(){
  const [samId,setSamId]=useState("")
  const [samDraft,setSamDraft]=useState<Draft|null>(null)
  const [reviewing,setReviewing]=useState(false)
+ const [reviewingPilot,setReviewingPilot]=useState<string|null>(null)
+ const [pilotDrafts,setPilotDrafts]=useState<Record<string,Draft>>({})
  async function load(){
   setLoading(true);setError("")
   try{
@@ -52,7 +54,20 @@ export default function GovernmentProcurementWorkspace(){
   finally{setLoading(false)}
  }
  useEffect(()=>{void load()},[])
- async function reviewSam(){
+ async function reviewPilot(pilotId:string){
+  setReviewingPilot(pilotId);setError("")
+  try{
+   const res=await fetch("/api/opportunities/procurement",{
+    method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({pilotId}),cache:"no-store"
+   })
+   const json=await res.json() as Draft
+   if(!res.ok||!json.ok)throw new Error(json.error??"Pilot packet could not be prepared")
+   setPilotDrafts(prev=>({...prev,[pilotId]:json}))
+  }catch(e){setError(e instanceof Error?e.message:"Pilot evidence review failed")}
+  finally{setReviewingPilot(null)}
+ }
+  async function reviewSam(){
   if(!/^[a-f0-9]{32}$/i.test(samId.trim())){setError("Enter a 32-character SAM notice ID from the federal contracts workspace.");return}
   setReviewing(true);setError("");setSamDraft(null)
   try{
@@ -93,6 +108,16 @@ export default function GovernmentProcurementWorkspace(){
        <p style={{marginBottom:0}}><SourceLink href={v.sourceUrl}>Company capability evidence</SourceLink></p>
       </div>)}
       </div>}
+     <div style={{marginTop:16,display:"grid",gap:8}}>
+      <button type="button" disabled={reviewingPilot!==null} onClick={()=>void reviewPilot(c.id)} style={{...btn,width:"fit-content",opacity:reviewingPilot!==null?0.6:1}}>
+       {reviewingPilot===c.id?"Preparing review…":"Generate no-send bid review"}
+      </button>
+      {pilotDrafts[c.id]&&<div style={{border:"1px solid #8b6240",background:"#271f1a",borderRadius:12,padding:12}}>
+       <div style={{fontWeight:700}}>Server review: {pilotDrafts[c.id]?.packet?.status??"Not ready"}</div>
+       <p style={{...dim,fontSize:13}}>This packet cannot authorize outreach, a quote request, a bid, or spending. Missing evidence:</p>
+       <ul style={{...dim,fontSize:13}}>{(pilotDrafts[c.id]?.packet?.blockers??[]).map(b=><li key={b}>{b}</li>)}</ul>
+      </div>}
+     </div>
      <details style={{marginTop:16}} open={c.id==="RUSD-2026-27-11"}>
       <summary style={{cursor:"pointer",fontWeight:750}}>Missing evidence / blockers ({c.blockers.length})</summary>
       <ul style={dim}>{c.blockers.map(x=><li key={x}>{x}</li>)}</ul>
