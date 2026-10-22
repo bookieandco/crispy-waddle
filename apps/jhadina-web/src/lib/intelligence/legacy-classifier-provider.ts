@@ -28,14 +28,15 @@ export class LegacyClassifierProvider implements ModelProvider {
     return {
       id: `proposal_${context.id}_legacy_${crypto.randomUUID()}`,
       contextId: context.id,
-      disposition: "PROCEED",
-      recommendation: message,
-      rationale: classification.reasoning ?? "pattern-matched by the legacy classifier",
+      disposition: "DEFER",
+      recommendation: "JLLM's primary reasoning model is unavailable, so I cannot produce a reliable general answer to that request. Existing specialist tools may still be available through their own verified routes. Check the reasoning connection or retry after it is restored.",
+      rationale: "Only the non-generative legacy classifier was available. It classified the request but did not answer or verify it; no action was authorized.",
+
       evidence: [],
-      uncertainty:
-        classification.confidence < 0.7
-          ? [`low pattern-match confidence: ${classification.confidence.toFixed(2)}`]
-          : [],
+      uncertainty: [
+        "Primary model reasoning and source-grounded general answers were unavailable.",
+        `Non-generative request classification confidence: ${classification.confidence.toFixed(2)}`,
+      ],
       alternatives: [],
     }
   }

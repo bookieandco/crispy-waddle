@@ -28,3 +28,68 @@ export function createProductionIntelligenceRouter(
     onEvent,
   })
 }
+
+/**
+ * Configuration-only health projection for Ask. This intentionally performs
+ * no model API request, bills no provider and never exports credential values.
+ * Operational success remains UNVERIFIED until an owner-authenticated canary.
+ */
+export type JllmReasoningReadiness = Readonly<{
+  selected: "anthropic" | "gemini"
+  status: "CONFIGURED_UNVERIFIED" | "NOT_CONFIGURED"
+  alternativeAvailable: "anthropic" | "gemini" | null
+  fallback: "legacy-classifier"
+  generalReasoningReady: false
+  note: string
+}>
+
+export function readJllmReasoningReadiness(env?: Partial<Record<
+  "JHADINA_REASONING_PROVIDER" | "ANTHROPIC_API_KEY" | "GEMINI_API_KEY", string | undefined
+>>): JllmReasoningReadiness {
+  // Construct the optional-key shape explicitly: some builds narrow NodeJS.ProcessEnv.
+  const config = env ?? {
+    JHADINA_REASONING_PROVIDER: process.env.JHADINA_REASONING_PROVIDER,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  }
+  const selected = config.JHADINA_REASONING_PROVIDER === "gemini" ? "gemini" : "anthropic"
+  const configured = Boolean((selected === "gemini" ? config.GEMINI_API_KEY : config.ANTHROPIC_API_KEY)?.trim())
+  const alternative = selected === "gemini" ? "anthropic" : "gemini"
+  const alternateConfigured = Boolean((alternative === "gemini" ? config.GEMINI_API_KEY : config.ANTHROPIC_API_KEY)?.trim())
+  return {
+    selected,
+    status: configured ? "CONFIGURED_UNVERIFIED" : "NOT_CONFIGURED",
+    alternativeAvailable: alternateConfigured ? alternative : null,
+    fallback: "legacy-classifier",
+    generalReasoningReady: false,
+    note: configured
+      ? "A primary reasoning credential is configured. A successful authenticated model answer has not been verified by this status check."
+      : "The selected reasoning model is not configured. The legacy classifier can classify requests but cannot produce a general reasoning answer.",
+  }
+}
+
+/** Per-turn factual routing receipt. A model response is not third-party fact verification. */
+export type JllmReasoningReceipt = Readonly<{
+  provider: "anthropic" | "gemini" | "legacy-classifier"
+  mode: "MODEL_RESPONSE" | "CLASSIFICATION_ONLY"
+  externallyVerified: false
+  note: string
+}>
+
+export function resolveJllmReasoningReceipt(
+  selected: "anthropic" | "gemini",
+  stages: readonly IntelligenceRouterEvent["stage"][],
+): JllmReasoningReceipt {
+  if (stages.includes("fallback_used")) return {
+    provider: "legacy-classifier",
+    mode: "CLASSIFICATION_ONLY",
+    externallyVerified: false,
+    note: "The primary model failed. A deterministic classifier returned a limited routing response, not a generated answer.",
+  }
+  return {
+    provider: selected,
+    mode: "MODEL_RESPONSE",
+    externallyVerified: false,
+    note: "A primary model returned a response, but external facts require separate source verification.",
+  }
+}

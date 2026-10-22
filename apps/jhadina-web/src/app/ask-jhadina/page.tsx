@@ -5,6 +5,7 @@ import { Suspense,useCallback,useEffect,useRef,useState } from "react"
 import {JHADINA_CANONICAL_VOICE_IDENTITY_ID, type ExpressionProsodyGenome} from "@jhadina/core-spine"
 import { useSearchParams } from "next/navigation"
 import { getCurrentUserId } from "@/lib/auth/current-user"
+import { JHADINA_WORLDS, worldAssistantHref, worldDirectHref } from "@/lib/jhadina/jhadina-world-registry"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
 import { chunkSpeechText, isAbortLike, planGovernedSpeech, projectNativeSpeechDelivery, type JhadinaConversationLine, type JhadinaInteractivePhase, type PlannedSpeechSegment } from "./interactive-runtime"
 import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-runtime"
@@ -12,6 +13,7 @@ import { rememberWorkSession, resumeOwnerWorkSession, type SessionPointerStorage
 import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
 import { SportsHistoryCard, type SportsHistoryViewForUi } from "./sports-history-card"
 import { SportsWatchSubscriptionCard } from "./sports-watch-subscription-card"
+import { VisualResponseCard } from "./visual-response-card"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
@@ -26,7 +28,8 @@ type GrowthWorkPlan={kind:"growth_intelligence";operation:string;authority:"READ
 type VideoJobSummary={id:string;projectId:string;status:string;mode?:string;aspectRatio?:string;providerId?:string;error?:string;previewAssetId?:string}
 type SpatialContextUsageReceipt={used:boolean;authority:"INTELLIGENCE_ONLY";observationCount:number;evidenceCount:number;claimCount:number;realityCount:number;provenanceCount:number;sources:string[];conflictCount:number;uncertaintyCount:number;limitationCount:number}
 type SpatialGeographicScope={lat:number;lon:number;radiusKm?:number}
-type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;sportsHistoryView?:SportsHistoryViewForUi;feedbackEligible?:boolean}
+type ReasoningReceipt={provider:"anthropic"|"gemini"|"legacy-classifier";mode:"MODEL_RESPONSE"|"CLASSIFICATION_ONLY";externallyVerified:false;note:string}
+type CommandResult={reasoningReceipt?:ReasoningReceipt;proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;sportsHistoryView?:SportsHistoryViewForUi;visualResponse?:unknown;feedbackEligible?:boolean}
 
 function sessionPointerStorage():SessionPointerStorage|undefined{
  try{return typeof window!=="undefined"?window.localStorage:undefined}catch{return undefined}
@@ -45,6 +48,8 @@ function AskJhadina(){
  const [task,setTask]=useState(()=>params.get("prompt")??"")
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState("")
+ const [worldFilter,setWorldFilter]=useState("")
+ const [modelReadiness,setModelReadiness]=useState<{selected:"anthropic"|"gemini";status:"CONFIGURED_UNVERIFIED"|"NOT_CONFIGURED";alternativeAvailable:"anthropic"|"gemini"|null;note:string}|null>(null)
  const [sessionWarning,setSessionWarning]=useState("")
  const [pendingSessionSave,setPendingSessionSave]=useState(false)
  const [retryingSessionSave,setRetryingSessionSave]=useState(false)
@@ -78,6 +83,20 @@ function AskJhadina(){
  const pendingSessionSaveRef=useRef<{userId:string;command:string;data:CommandResult}|null>(null)
  const commandAbortRef=useRef<AbortController|null>(null)
  const speechAbortRef=useRef<AbortController|null>(null)
+
+ // Owner-only configuration readiness; never touches model providers or credentials.
+ useEffect(()=>{
+  let cancelled=false
+  void (async()=>{
+   const userId=await getCurrentUserId()
+   if(!userId)return
+   const response=await fetch("/api/jhadina/model-status",{cache:"no-store",headers:{"x-jhadina-user-id":userId}})
+   if(!response.ok)return
+   const json=await response.json()
+   if(!cancelled&&json?.success&&json?.data)setModelReadiness(json.data)
+  })().catch(()=>{})
+  return()=>{cancelled=true}
+ },[])
 
  // Keep child effect callbacks stable: changing their identity on every render
  // re-admits an empty array and can trap the entire Ask page in an update loop.
@@ -582,6 +601,10 @@ function AskJhadina(){
  return <main className="jh-page"><div className="jh-wrap" style={{maxWidth:900}}>
   <p className="jh-eyebrow">Ask Jhadina · {surface}</p>
   <h1 className="jh-title">Think across the whole OS.</h1>
+  {modelReadiness?<p className={modelReadiness.status==="NOT_CONFIGURED"?"jh-error":"jh-meta"} role="status">
+   Reasoning model: {modelReadiness.selected} · {modelReadiness.status==="NOT_CONFIGURED"?"not configured":"credential configured; live answer unverified"}.
+   {modelReadiness.alternativeAvailable?` An alternative (${modelReadiness.alternativeAvailable}) has a credential but is not automatically enabled.`:""}
+  </p>:null}
   <p className="jh-copy">Ask is Jhadina’s governed LLM surface. It can reason across approved context and subsystem intelligence, explain its evidence, and propose next steps. The model itself does not mutate policy, memory, values, money, or external systems.</p>
   <div className="jh-card jh-card--wide" style={{marginTop:28}}>
    <div className="jh-between" style={{gap:16,alignItems:"center"}}>
@@ -649,12 +672,30 @@ function AskJhadina(){
     ].map(example=><button key={example} type="button" className="jh-button" disabled={busy} onClick={()=>setTask(example)}>{example}</button>)}
    </div>
   </div>
+  <details className="jh-section" style={{marginTop:16}}>
+   <summary style={{cursor:"pointer",fontWeight:600}}>Tools and workspaces</summary>
+   <p className="jh-card-copy">Choose an existing Jhadina world, or open its workspace. A workspace link is not proof that its provider is connected or authorized to execute. No action runs when you browse this directory.</p>
+   <label className="jh-eyebrow" htmlFor="ask-world-filter">Find a capability</label>
+   <input id="ask-world-filter" className="jh-input" value={worldFilter} onChange={event=>setWorldFilter(event.target.value)} placeholder="Search worlds, tools and work" style={{width:"100%",marginTop:8}}/>
+   <div className="jh-grid" style={{marginTop:12}}>
+    {JHADINA_WORLDS.filter(world=>[world.label,world.description,...world.capabilities.map(capability=>capability.label)].join(" ").toLowerCase().includes(worldFilter.toLowerCase().trim())).slice(0,12).map(world=><div key={world.id} className="jh-item">
+     <strong>{world.label}</strong>
+     <p className="jh-meta">{world.description}</p>
+     <div className="jh-row" style={{marginTop:8}}>
+      <Link className="jh-button" href={worldAssistantHref(world)}>Ask about this</Link>
+      {world.href?<Link className="jh-button" href={worldDirectHref(world)}>Open workspace</Link>:null}
+     </div>
+    </div>)}
+   </div>
+  </details>
   {error&&<div className="jh-error" role="alert">{error}</div>}
   {result?<section className="jh-section">
    <article className="jh-card jh-card--wide">
-    <div className="jh-between"><div><span className={result.verified?"jh-status jh-status--success":"jh-status jh-status--danger"}><span className="jh-dot"/>{result.verified?"Verified response":"Verification failed"}</span><p className="jh-eyebrow" style={{marginTop:14}}>{result.proposal.disposition} · {result.expression.presentation.mode}</p></div><span className="jh-meta">Reasoning {result.reasoningEventId.slice(0,10)}…</span></div>
+    <div className="jh-between"><div><span className={result.verified?"jh-status jh-status--success":"jh-status jh-status--danger"}><span className="jh-dot"/>{result.reasoningReceipt?.mode==="CLASSIFICATION_ONLY"?"Classifier-only · no LLM answer":result.verified?"Governed response":"Verification failed"}</span><p className="jh-eyebrow" style={{marginTop:14}}>{result.proposal.disposition} · {result.expression.presentation.mode}</p></div><span className="jh-meta">Reasoning {result.reasoningEventId.slice(0,10)}…</span></div>
     <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{void speakExpression(result.expression.segments,undefined,result.expression.presentation).finally(()=>setInteractivePhase(conversationActive?"listening":"idle"))}}>Speak response</button><button type="button" className="jh-button" onClick={()=>{stopSpeech();setInteractivePhase(conversationActive?"listening":"idle")}}>Stop speech</button></div>
     <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
+    {result.reasoningReceipt?<p className="jh-meta" role="status">Answer source: {result.reasoningReceipt.provider} · {result.reasoningReceipt.mode==="MODEL_RESPONSE"?"Model response (external facts not independently verified)":"Request classification only"}</p>:null}
+    {result.visualResponse?<VisualResponseCard raw={result.visualResponse}/>:null}
     <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
     {result.spatialContext?.used?<SpatialContextCard receipt={result.spatialContext}/>:null}
     {result.sportsHistoryView?<><SportsHistoryCard view={result.sportsHistoryView}/><SportsWatchSubscriptionCard defaultQuery={result.sportsHistoryView.records[0]?.entityLabel??""}/></>:null}
