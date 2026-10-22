@@ -32,7 +32,7 @@ describe('Director background readiness diagnostics',()=>{
     expect(fixture({directSupabaseUrl:true,directServiceRoleKey:true}).credentialMode)
       .toBe('direct-service-role')
     expect(fixture({directSupabaseUrl:true,directServiceRoleKey:false}).credentialMode)
-      .toBe('scheduler-oidc-proxy')
+      .toBe('vercel-runtime-oidc-proxy')
   })
 
   it('does not grant proxy authority without workflow authentication or Vercel production',()=>{
