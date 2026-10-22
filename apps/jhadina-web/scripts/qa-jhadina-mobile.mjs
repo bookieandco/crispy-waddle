@@ -144,6 +144,13 @@ try {
     const command = page.locator("#jhadina-command")
     await command.fill("Navigation responsiveness check")
     assert.equal(await command.inputValue(), "Navigation responsiveness check")
+    // ChatGPT-style Ask tool explorer reuses the canonical world registry.
+    await page.getByText("Tools and workspaces", { exact: true }).click()
+    const worldSearch = page.locator("#ask-world-filter")
+    await worldSearch.fill("music")
+    assert(await page.locator('a[href="/music"]').count() >= 1,
+      "Music tool entry did not link to the existing workspace")
+    await worldSearch.fill("")
     await page.getByRole("button", { name: "Which social accounts should I work on right now?", exact: true }).click()
     assert.equal(await command.inputValue(), "Which social accounts should I work on right now?")
     await page.getByRole("link", { name: "More Jhadina worlds" }).click()
