@@ -24,6 +24,7 @@ export type SniperRouteStudyResult=Readonly<{
   landingCount:number
   failedCount:number
   unknownCount:number
+  observedLandingSuccessBps:number
   medianObservedLandingMs?:number
   readyForPaperComparison:boolean
   reasonCodes:readonly string[]
@@ -50,10 +51,13 @@ export function compareSniperLandingRoutes(input:{
   minimumNetEdgeBps:number
   maxFixedCostBps:number
   minLandingSamples:number
+  minLandingSuccessBps?:number
 }):SniperLandingComparison{
  const cutoff=Date.parse(input.cutoff)
+ const minSuccess=input.minLandingSuccessBps??8000
  if(!Number.isFinite(cutoff)||!Number.isSafeInteger(input.maxQuoteAgeMs)||input.maxQuoteAgeMs<1||
-    !Number.isSafeInteger(input.minLandingSamples)||input.minLandingSamples<1)throw new Error('SNIPER_LANDING_POLICY_INVALID')
+    !Number.isSafeInteger(input.minLandingSamples)||input.minLandingSamples<1||
+    !Number.isSafeInteger(minSuccess)||minSuccess<0||minSuccess>10000)throw new Error('SNIPER_LANDING_POLICY_INVALID')
  const seen=new Set<string>()
  const rankings:SniperRouteStudyResult[]=[]
  for(const candidate of input.candidates){
@@ -86,15 +90,20 @@ export function compareSniperLandingRoutes(input:{
   const unknown=samples.filter(s=>s.outcome==='UNKNOWN')
   const timing=landed.map(x=>x.landingDelayMs).filter((n):n is number=>n!==undefined).sort((a,b)=>a-b)
   const median=timing.length?timing[Math.floor((timing.length-1)/2)]:undefined
-  if(landed.length+failed.length<input.minLandingSamples)codes.push('LANDING_SAMPLE_INSUFFICIENT')
+  const terminalCount=landed.length+failed.length
+  const successBps=terminalCount?Math.floor(landed.length*10000/terminalCount):0
+  if(terminalCount<input.minLandingSamples)codes.push('LANDING_SAMPLE_INSUFFICIENT')
+  if(successBps<minSuccess)codes.push('LANDING_SUCCESS_BELOW_MINIMUM')
   if(unknown.length)codes.push('LANDING_UNRESOLVED_OUTCOMES')
   rankings.push(Object.freeze({
     lane:candidate.lane,cost,landingCount:landed.length,failedCount:failed.length,unknownCount:unknown.length,
+    observedLandingSuccessBps:successBps,
     medianObservedLandingMs:median,readyForPaperComparison:codes.length===0,reasonCodes:Object.freeze(codes),
   }))
  }
  const valid=rankings.filter(r=>r.readyForPaperComparison)
- valid.sort((a,b)=>b.cost.worstCaseNetEdgeBps-a.cost.worstCaseNetEdgeBps||
+ valid.sort((a,b)=>
+  b.cost.worstCaseNetEdgeBps*b.observedLandingSuccessBps-a.cost.worstCaseNetEdgeBps*a.observedLandingSuccessBps||
   (a.medianObservedLandingMs??Infinity)-(b.medianObservedLandingMs??Infinity))
  return Object.freeze({
   selectedForPaper:valid[0]?.lane,rankings:Object.freeze(rankings),
