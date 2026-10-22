@@ -1,0 +1,75 @@
+name: Telegram Listener Recovery Offline Gate
+on:
+  pull_request:
+    paths:
+      - 'scripts/shark-telegram/**'
+      - 'packages/shark-intelligence-core/src/meme-trader/telegram-derived-research-bridge.ts'
+      - 'packages/shark-intelligence-core/src/meme-trader/__tests__/telegram-derived-research-bridge.test.ts'
+      - 'packages/shark-intelligence-core/src/meme-trader/index.ts'
+      - '.github/workflows/telegram-listener-recovery.yml'
+      - 'docs/architecture/TELEGRAM-LISTENER-RECOVER-01-08-2026-10-21.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-only-personal-listener:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax validation
+        run: python3 -m compileall -q scripts/shark-telegram
+      - name: Owner identity, privacy, failure and latency tests (synthetic only)
+        run: python3 -m unittest discover -s scripts/shark-telegram -p 'test_*.py' -v
+      - name: Confirm source-only release hold
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/shark-telegram/personal_release_gate.py --mode ci
+          set +e
+          python3 scripts/shark-telegram/personal_release_gate.py --mode release
+          code=$?
+          set -e
+          if [ "$code" -ne 1 ]; then
+            echo "::error::TELEGRAM_PERSONAL_PRODUCTION_GATE_BYPASSED"
+            exit 1
+          fi
+          echo 'TELEGRAM_PERSONAL_PRODUCTION_GATE_HELD'
+      - name: Preserve current manual Telegram owner
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path('scripts/shark-telegram/telegram_intake.py').read_text()
+          assert 'TELEGRAM_PERSISTENT_BOT_CONSUMER_HELD_SINGLE_OWNER_REQUIRED' in source
+          assert 'TELEGRAM_SELECTED_CHAT_PERSISTENCE_HELD_RIGHTS_REVIEW' in source
+          assert Path('ops/telegram/bot_research_once.py').is_file()
+          assert Path('.github/workflows/jhadina-telegram-shark-research.yml').is_file()
+          assert not Path('scripts/shark-telegram/Dockerfile').exists()
+          print('BOT_API_SINGLE_CONSUMER_HOLD_PRESERVED')
+          PY
+  telegram-shark-evidence-bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - name: Install SHARK workspace (no secrets)
+        run: pnpm install --frozen-lockfile --filter @jhadina/shark-intelligence-core...
+      - name: Type check and guard research bridge
+        run: |
+          pnpm --filter @jhadina/shark-intelligence-core type-check
+          pnpm --filter @jhadina/shark-intelligence-core exec vitest run src/meme-trader/__tests__/telegram-derived-research-bridge.test.ts --globals
