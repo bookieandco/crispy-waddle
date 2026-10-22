@@ -52,11 +52,12 @@ export interface RestoredWorkSessionContinuity {
   goal: string
   activeSubsystems: string[]
   admittedArtifactIds: string[]
+  researchSourceRefs: string[]
 }
 
 export function restoreWorkSessionContinuity(session: unknown): RestoredWorkSessionContinuity {
   if (!session || typeof session !== "object") {
-    return { goal: "", activeSubsystems: [], admittedArtifactIds: [] }
+    return { goal: "", activeSubsystems: [], admittedArtifactIds: [], researchSourceRefs: [] }
   }
   const raw=session as Record<string, unknown>
   const goal=typeof raw.goal==="string"?raw.goal:""
@@ -70,5 +71,10 @@ export function restoreWorkSessionContinuity(session: unknown): RestoredWorkSess
       .map((item)=>item.id)
       .slice(0,8)
     : []
-  return { goal, activeSubsystems, admittedArtifactIds }
+  const researchSourceRefs=Array.isArray(raw.outputRefs)
+    ? raw.outputRefs
+      .filter((v):v is string=>typeof v==="string"&&/^wikipedia:[1-9]\d{0,9}:(?:[1-9]\d{0,15}|unknown)$/.test(v))
+      .slice(-8)
+    : []
+  return { goal, activeSubsystems, admittedArtifactIds, researchSourceRefs }
 }
