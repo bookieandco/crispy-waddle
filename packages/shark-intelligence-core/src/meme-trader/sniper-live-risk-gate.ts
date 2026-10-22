@@ -1,4 +1,5 @@
 import {evaluateRugProtection,type RugProtectionInput,type RugAttackFingerprint} from './rug-protection'
+export type {RugProtectionInput} from './rug-protection'
 import {evaluateRugSelfProtection,type RugCriticalCoverage} from './rug-self-protection'
 
 /** LIVE-WIRING.02: read-only point-in-time safety gate. No model or wallet authority. */
