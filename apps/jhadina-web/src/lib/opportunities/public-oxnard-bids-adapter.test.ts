@@ -29,8 +29,8 @@ test('Oxnard extracts future announced bids with stable IDs and excludes expired
  const observed='2026-10-22T19:00:00Z'
  const p=parseOxnardPublicProjectBids(fixture(),descriptor,observed)
  expect(p.structureMatched).toBe(true)
- expect(p.signals.map(x=>x.externalId)).toEqual(['OXNARD:PW 25-96','OXNARD:PW 24-109','OXNARD:FD 26-116'])
- expect(p.signals.map(x=>x.deadline)).toEqual(['2026-11-16','2026-10-28','2026-11-03'])
+ expect(p.signals.map(x=>x.externalId)).toEqual(['OXNARD:PW 25-96','OXNARD:FD 26-116','OXNARD:PW 24-109'])
+ expect(p.signals.map(x=>x.deadline)).toEqual(['2026-11-16','2026-11-03','2026-10-28'])
  expect(p.skippedRows).toBe(5)
  expect(p.duplicateExternalIds).toBe(0)
  expect(p.stableExternalIdCount).toBe(3)
