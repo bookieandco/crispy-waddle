@@ -20,8 +20,11 @@ export async function GET(req: NextRequest) {
       { status: 401, headers: NO_CACHE })
   }
   const values = req.nextUrl.searchParams.getAll("source")
+  // Reject URL-shaped input at the HTTP boundary, independently of the
+  // canonical package validator. Handles/UC channel IDs never contain
+  // dots, slashes, credentials, queries, anchors or backslashes.
   if (values.length < 1 || values.length > MAX_PUBLIC_SOURCES ||
-      values.some(v => v.length > 100)) {
+      values.some(v => v.length > 100 || /[.\\/@?#]/.test(v))) {
     return NextResponse.json({ success: false, error: "Choose one to four public feed sources." },
       { status: 400, headers: NO_CACHE })
   }
