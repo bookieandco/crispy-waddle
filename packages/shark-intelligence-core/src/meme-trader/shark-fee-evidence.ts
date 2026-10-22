@@ -24,6 +24,8 @@ export type ChainFeeReceipt=Readonly<{
   rpcProvider:string
 }>
 export type TerminalFeeAdaptation=Readonly<{
+  mint:string
+  availableAt?:string
   status:'DECLARED_UNVERIFIED'|'UNAVAILABLE'
   fee?:SharkTerminalFee
   warnings:readonly string[]
@@ -52,7 +54,7 @@ export function adaptTerminalFeeSnapshot(input:{
   const cutoff=time(input.cutoff,'fee_cutoff_invalid')
   if(!input.mint.trim())throw new Error('fee_mint_required')
   const empty=(reason:string):TerminalFeeAdaptation=>Object.freeze({
-    status:'UNAVAILABLE',warnings:Object.freeze([reason]),authority:'FEE_RESEARCH_ONLY',canValidateRug:false,
+    mint:input.mint,status:'UNAVAILABLE',warnings:Object.freeze([reason]),authority:'FEE_RESEARCH_ONLY',canValidateRug:false,
   })
   const s=input.snapshot
   if(!s)return empty('terminal_fee_unavailable')
@@ -70,7 +72,7 @@ export function adaptTerminalFeeSnapshot(input:{
   if(s.currency!=='SOL'||!['GLOBAL_FEES_PAID','TOTAL_FEES_PAID'].includes(s.metricName))
     throw new Error('fee_unit_or_kind_invalid')
   return Object.freeze({
-    status:'DECLARED_UNVERIFIED',
+    mint:input.mint,availableAt:s.availableAt,status:'DECLARED_UNVERIFIED',
     fee:Object.freeze({
       kind:s.metricName,unit:s.currency,amount:s.amount,venue:s.terminal,
       observedAt:s.observedAt,evidenceId:s.evidenceId,
@@ -126,9 +128,9 @@ export function attachDeclaredTerminalFee(
   observation:SharkDiscoveryObservation,
   adapted:TerminalFeeAdaptation,
 ):SharkDiscoveryObservation{
-  if(adapted.fee&&observation.mint.trim()=== ''){
-    throw new Error('fee_screen_mint_invalid')
-  }
+  if(!observation.mint.trim()||adapted.mint!==observation.mint)throw new Error('fee_screen_mint_invalid')
+  if(adapted.availableAt&&Date.parse(adapted.availableAt)>Date.parse(observation.availableAt))
+    throw new Error('fee_screen_future_receipt')
   if(!adapted.fee)return Object.freeze({...observation,fee:undefined})
   const ids=new Set([...observation.evidenceIds,adapted.fee.evidenceId])
   return Object.freeze({...observation,fee:adapted.fee,evidenceIds:Object.freeze([...ids].sort())})
