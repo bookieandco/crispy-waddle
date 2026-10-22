@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { EditableTimeline } from '@jhadina/director-core/timeline-model';
 import { createClient } from '@/lib/supabase/server';
-import { createServiceRoleClient } from '@/lib/supabase/service-role';
+import { createRuntimeServiceRoleClient } from '@/lib/supabase/service-role';
 import { requireDirectorProjectAuthority } from '@/lib/director-project-authority';
 import { DirectorWorkstationTimelineRepository } from '@/lib/director-workstation-timeline-repository';
 
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
     const projectId = new URL(request.url).searchParams.get('projectId')?.trim() ?? '';
     if (!projectId) return NextResponse.json({ ok: false, error: 'projectId is required' }, { status: 400 });
 
-    const privileged = createServiceRoleClient();
+    const privileged=await createRuntimeServiceRoleClient();
     if (!privileged) return NextResponse.json({ ok: false, error: 'DIRECTOR_PROJECT_STORE_NOT_CONFIGURED' }, { status: 503 });
     await requireDirectorProjectAuthority(privileged, { projectId, userId: user.id, capability: 'read' });
 
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'DIRECTOR_TIMELINE_INITIALIZATION_REVISION_MUST_BE_ZERO' }, { status: 400 });
     }
 
-    const privileged = createServiceRoleClient();
+    const privileged=await createRuntimeServiceRoleClient();
     if (!privileged) return NextResponse.json({ ok: false, error: 'DIRECTOR_PROJECT_STORE_NOT_CONFIGURED' }, { status: 503 });
     await requireDirectorProjectAuthority(privileged, { projectId, userId: user.id, capability: 'edit' });
 
