@@ -1,8 +1,8 @@
 import {describe,it,expect,vi} from "vitest"
 import {createOllamaLocalInferenceTransport,resolveLocalModelConnection,validateLocalModelEndpoint} from "./ollama-local-transport"
 
-const local={baseUrl:"http://127.0.0.1:11434",model:"qwen3:4b",production:false}
-const gateway={baseUrl:"https://private-owner.example",model:"qwen3:4b",production:true,
+const local={baseUrl:"http://127.0.0.1:11434",model:"qwen3:4b",hostId:"synthetic-test-node",production:false}
+const gateway={baseUrl:"https://private-owner.example",model:"qwen3:4b",hostId:"synthetic-test-node",production:true,
  allowedHost:"private-owner.example",token:"example-private-token"}
 
 describe("local JLLM inference boundary",()=>{
@@ -58,6 +58,11 @@ describe("local JLLM inference boundary",()=>{
   expect(headers?.["CF-Access-Client-Id"]).toBe(clientId)
   expect(headers?.["CF-Access-Client-Secret"]).toBe(clientSecret)
   expect(headers?.authorization).toBe("Bearer example-private-token")
+ })
+ it("cannot call audited owner MacBook even when endpoint and token exist",()=>{
+  expect(()=>validateLocalModelEndpoint({...gateway,hostId:"owner-m1-macbook"})).toThrow(/AUDIT_HOLD/)
+  expect(()=>validateLocalModelEndpoint({...local,hostId:"owner-m1-macbook"})).toThrow(/AUDIT_HOLD/)
+  expect(()=>validateLocalModelEndpoint({...gateway,hostId:undefined})).toThrow(/HOST_ID_REQUIRED/)
  })
  it("marks unconfigured local endpoint unavailable",()=>{
   expect(resolveLocalModelConnection({JHADINA_LOCAL_MODEL_URL:undefined,JHADINA_LOCAL_MODEL_NAME:"x"})).toBeNull()

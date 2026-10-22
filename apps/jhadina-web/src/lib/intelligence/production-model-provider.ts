@@ -5,6 +5,7 @@ import {
 } from "@jhadina/intelligence-core"
 import {LegacyClassifierProvider} from "./legacy-classifier-provider"
 import {GovernedJllmModelRouter} from "./governed-model-routing"
+import {assessLocalModelHost,MACBOOK_AUDIT,type LocalHostReadiness} from "./model-host-audit"
 import {createOllamaLocalInferenceTransport,resolveLocalModelConnection,validateLocalModelEndpoint} from "./ollama-local-transport"
 
 export type JllmModelSelection="local"|"anthropic"|"gemini"
@@ -65,11 +66,13 @@ export type JllmReasoningReadiness=Readonly<{
  alternativeAvailable:"anthropic"|"gemini"|null
  fallback:"legacy-classifier"
  generalReasoningReady:false
+ localHostReadiness:LocalHostReadiness|"CLOUD_SELECTED"
+ macbookAudit:typeof MACBOOK_AUDIT
  note:string
 }>
 export function readJllmReasoningReadiness(env?:Partial<Record<
  "JHADINA_REASONING_PROVIDER"|"ANTHROPIC_API_KEY"|"GEMINI_API_KEY"|
- "JHADINA_LOCAL_MODEL_URL"|"JHADINA_LOCAL_MODEL_NAME"|"JHADINA_LOCAL_MODEL_ALLOWED_HOST"|
+ "JHADINA_LOCAL_MODEL_URL"|"JHADINA_LOCAL_MODEL_NAME"|"JHADINA_LOCAL_MODEL_HOST_ID"|"JHADINA_LOCAL_MODEL_ALLOWED_HOST"|
  "JHADINA_LOCAL_MODEL_GATEWAY_TOKEN"|"JHADINA_LOCAL_MODEL_ACCESS_CLIENT_ID"|"JHADINA_LOCAL_MODEL_ACCESS_CLIENT_SECRET"|"NODE_ENV",string|undefined
 >>):JllmReasoningReadiness{
  const config=env??{
@@ -77,6 +80,7 @@ export function readJllmReasoningReadiness(env?:Partial<Record<
   ANTHROPIC_API_KEY:process.env.ANTHROPIC_API_KEY,GEMINI_API_KEY:process.env.GEMINI_API_KEY,
   JHADINA_LOCAL_MODEL_URL:process.env.JHADINA_LOCAL_MODEL_URL,
   JHADINA_LOCAL_MODEL_NAME:process.env.JHADINA_LOCAL_MODEL_NAME,
+  JHADINA_LOCAL_MODEL_HOST_ID:process.env.JHADINA_LOCAL_MODEL_HOST_ID,
   JHADINA_LOCAL_MODEL_ALLOWED_HOST:process.env.JHADINA_LOCAL_MODEL_ALLOWED_HOST,
   JHADINA_LOCAL_MODEL_GATEWAY_TOKEN:process.env.JHADINA_LOCAL_MODEL_GATEWAY_TOKEN,
   JHADINA_LOCAL_MODEL_ACCESS_CLIENT_ID:process.env.JHADINA_LOCAL_MODEL_ACCESS_CLIENT_ID,
@@ -84,6 +88,7 @@ export function readJllmReasoningReadiness(env?:Partial<Record<
   NODE_ENV:process.env.NODE_ENV,
  }
  const selected=configuredJllmSelection(config)
+ const assessed=assessLocalModelHost(config.JHADINA_LOCAL_MODEL_HOST_ID)
  let configured=false
  if(selected==="local"){
   const connection=resolveLocalModelConnection(config)
@@ -95,9 +100,13 @@ export function readJllmReasoningReadiness(env?:Partial<Record<
    ?(config.GEMINI_API_KEY?.trim()?"gemini":config.ANTHROPIC_API_KEY?.trim()?"anthropic":null)
    :null,
   fallback:"legacy-classifier",generalReasoningReady:false,
+  localHostReadiness:selected==="local"?assessed.readiness:"CLOUD_SELECTED",
+  macbookAudit:MACBOOK_AUDIT,
   note:configured
    ?"The selected provider is configured but no successful live answer is certified by this read-only check."
-   :"The selected provider is not safely configured. JLLM can only return a classifier-only limitation until a trusted model endpoint is commissioned.",
+   :selected==="local"&&assessed.readiness==="AUDIT_REPAIR_PENDING"
+    ?"The owner MacBook is on audit/repair hold. It must not receive model requests until inspection and a reviewed release. Existing read-only workspaces remain available."
+    :"The selected provider is not safely configured. General LLM answers remain unavailable, but existing read-only workspaces and explicitly triggered source lookup remain available.",
  }
 }
 
