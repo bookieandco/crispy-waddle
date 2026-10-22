@@ -41,7 +41,7 @@ Previous research corpus already folds many of these hypotheses in `packages/sha
 - `apps/jhadina-web/src/lib/shark/sniper-intel-fusion.ts`: accepts existing SHARK risk decision, bounded observed evidence, canonical Shadow lessons, Money paper receipt, optional independently verified settlement. Produces immutable, never-executing diagnostic projection; tampered/future/duplicate observations quarantined.
 - `apps/jhadina-web/src/lib/shark/sniper-paper-cycle.ts`: creates the fusion projection for BOTH NO_TRADE and PAPER_RECORDED without weakening the canonical hard rug veto.
 - `packages/shark-intelligence-core/src/meme-trader/rug-protection.ts`: distinct defensive capability labels for Token-2022 permanent delegate, default frozen, unverified hook and excessive transfer fee; not claims of proven exploitation. Source must be independently witnessed before promoting flags.
-- New focused tests; SHARK workflow includes fusion test. CI at exact head and full build must be observed, not presumed.
+- New focused tests; SHARK workflow includes fusion test. A historical Shadow lesson is not usable without a separate independently verified decision-relative observation receipt and cutoff-aware evidence match. A settlement must also match the canonical trade ID; matching token alone is insufficient. CI at exact head and full build must be observed, not presumed.
 
 ## Exact operational reality at report creation
 
