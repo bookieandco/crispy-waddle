@@ -50,7 +50,8 @@ describe('non-production Recast review receipt persistence adapter',()=>{
       insertReviewReceipt:async()=>({id:'foreign'}),
       readReviewReceipt:async()=>receipt,
     })).rejects.toThrow('DIRECTOR_RECAST_STAGING_RECEIPT_INSERT_NOT_CONFIRMED')
-    it('fails closed when insert acknowledgement exists but readback is missing or changed',async()=>{
+  })
+  it('fails closed when insert acknowledgement exists but readback is missing or changed',async()=>{
     const insertReviewReceipt=vi.fn().mockResolvedValue({id})
     await expect(persistRecastReceiptInIsolatedStaging(receipt,authorization,{
       insertReviewReceipt,readReviewReceipt:async()=>null,
@@ -59,5 +60,4 @@ describe('non-production Recast review receipt persistence adapter',()=>{
       insertReviewReceipt,readReviewReceipt:async()=>({...receipt,evidence_sha256:'f'.repeat(64)}),
     })).rejects.toThrow('DIRECTOR_RECAST_STAGING_RECEIPT_READBACK_MISMATCH')
   })
-})
 })
