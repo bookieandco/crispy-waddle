@@ -39,7 +39,7 @@ export async function readRecastReviewLedgerStatus(
   let result
   try {
     result=await client.from('director_recast_review_receipts')
-      .select('id,project_id,owner_user_id,kind,source_video_asset_id,character_image_asset_id,source_audio_asset_id,source_video_sha256,character_image_sha256,source_audio_sha256,reviewed_by_user_id,reviewed_at,expires_at,status,method,evidence,evidence_sha256')
+      .select('id,project_id,owner_user_id,kind,source_video_asset_id,character_image_asset_id,source_audio_asset_id,source_video_sha256,character_image_sha256,source_audio_sha256,reviewed_by_user_id,reviewed_at,expires_at,created_at,status,method,evidence,evidence_sha256')
       .eq('project_id',selection.projectId)
       .eq('owner_user_id',selection.ownerUserId)
       .eq('source_video_asset_id',selection.sourceVideoAssetId)
@@ -57,6 +57,7 @@ export async function readRecastReviewLedgerStatus(
   if(rawRows.some(raw=>!kinds.has(raw.kind as RecastReviewKind)||
     (raw.method!=='trusted-media-probe'&&raw.method!=='human-review')||
     !raw.evidence||typeof raw.evidence!=='object'||
+    typeof raw.created_at!=='string'||!Number.isFinite(Date.parse(raw.created_at))||
     !verifyRecastEvidenceSeal(raw.evidence,raw.evidence_sha256)))
     return blocked('INCOMPLETE',['DIRECTOR_RECAST_REVIEW_EVIDENCE_TAMPERED_OR_UNKNOWN'])
   const receipts:RecastReviewReceipt[]=rawRows.map(raw=>({
@@ -69,6 +70,7 @@ export async function readRecastReviewLedgerStatus(
       characterImageSha256:String(raw.character_image_sha256??''),
       sourceAudioSha256:String(raw.source_audio_sha256??''),
       reviewerId:String(raw.reviewed_by_user_id??''),
+      createdAt:String(raw.created_at??''),
       reviewedAt:String(raw.reviewed_at??''),expiresAt:String(raw.expires_at??''),
       status:raw.status==='approved'?'approved':'rejected',
       method:raw.method==='trusted-media-probe'?'trusted-media-probe':'human-review',
