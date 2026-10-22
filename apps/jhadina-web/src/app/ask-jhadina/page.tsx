@@ -5,6 +5,7 @@ import { Suspense,useCallback,useEffect,useRef,useState } from "react"
 import {JHADINA_CANONICAL_VOICE_IDENTITY_ID, type ExpressionProsodyGenome} from "@jhadina/core-spine"
 import { useSearchParams } from "next/navigation"
 import { getCurrentUserId } from "@/lib/auth/current-user"
+import { JHADINA_WORLDS, worldAssistantHref, worldDirectHref } from "@/lib/jhadina/jhadina-world-registry"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
 import { chunkSpeechText, isAbortLike, planGovernedSpeech, projectNativeSpeechDelivery, type JhadinaConversationLine, type JhadinaInteractivePhase, type PlannedSpeechSegment } from "./interactive-runtime"
 import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-runtime"
@@ -46,6 +47,7 @@ function AskJhadina(){
  const [task,setTask]=useState(()=>params.get("prompt")??"")
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState("")
+ const [worldFilter,setWorldFilter]=useState("")
  const [modelReadiness,setModelReadiness]=useState<{selected:"anthropic"|"gemini";status:"CONFIGURED_UNVERIFIED"|"NOT_CONFIGURED";alternativeAvailable:"anthropic"|"gemini"|null;note:string}|null>(null)
  const [sessionWarning,setSessionWarning]=useState("")
  const [pendingSessionSave,setPendingSessionSave]=useState(false)
@@ -669,6 +671,22 @@ function AskJhadina(){
     ].map(example=><button key={example} type="button" className="jh-button" disabled={busy} onClick={()=>setTask(example)}>{example}</button>)}
    </div>
   </div>
+  <details className="jh-section" style={{marginTop:16}}>
+   <summary style={{cursor:"pointer",fontWeight:600}}>Tools and workspaces</summary>
+   <p className="jh-card-copy">Choose an existing Jhadina world, or open its workspace. A workspace link is not proof that its provider is connected or authorized to execute. No action runs when you browse this directory.</p>
+   <label className="jh-eyebrow" htmlFor="ask-world-filter">Find a capability</label>
+   <input id="ask-world-filter" className="jh-input" value={worldFilter} onChange={event=>setWorldFilter(event.target.value)} placeholder="Search worlds, tools and work" style={{width:"100%",marginTop:8}}/>
+   <div className="jh-grid" style={{marginTop:12}}>
+    {JHADINA_WORLDS.filter(world=>[world.label,world.description,...world.capabilities.map(capability=>capability.label)].join(" ").toLowerCase().includes(worldFilter.toLowerCase().trim())).slice(0,12).map(world=><div key={world.id} className="jh-item">
+     <strong>{world.label}</strong>
+     <p className="jh-meta">{world.description}</p>
+     <div className="jh-row" style={{marginTop:8}}>
+      <Link className="jh-button" href={worldAssistantHref(world)}>Ask about this</Link>
+      {world.href?<Link className="jh-button" href={worldDirectHref(world)}>Open workspace</Link>:null}
+     </div>
+    </div>)}
+   </div>
+  </details>
   {error&&<div className="jh-error" role="alert">{error}</div>}
   {result?<section className="jh-section">
    <article className="jh-card jh-card--wide">
