@@ -8,7 +8,8 @@ const tribal=assessExpansionIdentity({canonicalId:'tribe:sample',family:'tribal_
  name:'Sample Federally Recognized Tribe',officialRecordId:'demo-only',
  officialCatalogUrl:'https://www.bia.gov/service/tribal-leaders-directory',
  authorityConfirmed:true,bidPortalOfficiallyLinked:false})
-assert.equal(tribal.governmentIdentityVerified,false)
+assert.equal(tribal.governmentIdentityVerified,true)
+assert.equal(tribal.officialBuyerPortalObserved,false)
 assert.ok(tribal.blockers.some(x=>x.includes('authorized solicitation')))
 const terr=assessExpansionIdentity({canonicalId:'territory:PR',family:'territorial_government',
  name:'Puerto Rico',officialRecordId:'PR',territoryCode:'PR',
