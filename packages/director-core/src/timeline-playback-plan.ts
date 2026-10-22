@@ -1,4 +1,4 @@
-import type {EditableTimeline,TimelineClip} from './timeline-model.js'
+import type {EditableTimeline} from './timeline-model.js'
 
 export type DirectorPlaybackSegment=Readonly<{
   clipId:string
