@@ -15,7 +15,7 @@ export default function FeedConnectionsPage(){
  const [disconnecting,setDisconnecting]=useState(false)
  const [disconnectError,setDisconnectError]=useState("")
  const [socialHealth,setSocialHealth]=useState<Health>("checking")
- const [publicProvider,setPublicProvider]=useState<"bluesky"|"mastodon">("bluesky")
+ const [publicProvider,setPublicProvider]=useState<"bluesky"|"mastodon"|"github">("bluesky")
  const [publicActor,setPublicActor]=useState("")
  const [publicItems,setPublicItems]=useState<PublicCandidate[]>([])
  const [publicBusy,setPublicBusy]=useState(false)
@@ -83,14 +83,14 @@ export default function FeedConnectionsPage(){
   </div>
   <section className="jh-section">
    <h2 className="jh-section-title">Explore public sources</h2>
-   <p className="jh-card-copy">Read genuine public posts from a specified Bluesky or Mastodon account. This is a one-time preview, not a connected personal timeline or a saved subscription.</p>
+   <p className="jh-card-copy">Read genuine public posts from Bluesky/Mastodon, or public GitHub user activity, with no account authorization. This is a one-time preview, not a connected personal timeline or a saved subscription.</p>
    <div className="jh-row" style={{gap:8,flexWrap:"wrap",alignItems:"center",marginTop:12}}>
     <label className="jh-meta" htmlFor="public-source-provider">Network</label>
-    <select id="public-source-provider" value={publicProvider} onChange={event=>{setPublicProvider(event.target.value as "bluesky"|"mastodon");setPublicItems([]);setPublicMessage("")}} className="jh-input">
-     <option value="bluesky">Bluesky</option><option value="mastodon">Mastodon.social</option>
+    <select id="public-source-provider" value={publicProvider} onChange={event=>{setPublicProvider(event.target.value as "bluesky"|"mastodon"|"github");setPublicItems([]);setPublicMessage("")}} className="jh-input">
+     <option value="bluesky">Bluesky</option><option value="mastodon">Mastodon.social</option><option value="github">GitHub public</option>
     </select>
     <label className="jh-meta" htmlFor="public-source-handle">Public handle</label>
-    <input id="public-source-handle" className="jh-input" value={publicActor} placeholder={publicProvider==="bluesky"?"example.bsky.social":"example"} maxLength={250} onChange={event=>setPublicActor(event.target.value)}/>
+    <input id="public-source-handle" className="jh-input" value={publicActor} placeholder={publicProvider==="bluesky"?"example.bsky.social":publicProvider==="github"?"GitHub username":"example"} maxLength={250} onChange={event=>setPublicActor(event.target.value)}/>
     <button type="button" className="jh-button jh-button--primary" disabled={!publicActor.trim()||publicBusy} onClick={()=>void previewPublicSource()}>{publicBusy?"Checking…":"Preview public posts"}</button>
    </div>
    {publicMessage?<p className="jh-meta" role="status">{publicMessage}</p>:null}
