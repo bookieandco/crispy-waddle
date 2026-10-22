@@ -53,7 +53,7 @@ export function JhadinaShellNavigation(){
  },[open])
  if(pathname === "/login" || pathname.startsWith("/auth/")) return null
  return <>
-  <div className={styles.brand}><Link href="/" aria-label="Jhadina home"><span className={styles.brandMark}><Icon name="ask"/></span><span className={styles.brandText}>Jhadina</span></Link></div>
+  <div className={styles.brand}><a href="/" aria-label="Jhadina home"><span className={styles.brandMark}><Icon name="ask"/></span><span className={styles.brandText}>Jhadina</span></a></div>
   <div className={styles.vpnWrap}><VpnShellControl/></div>
   <div ref={wrap} className={styles.moreWrap}>
    <button type="button" className={styles.worldsButton} aria-label="Open Jhadina worlds" aria-expanded={open} aria-controls="jhadina-worlds-menu" onClick={()=>setOpen(v=>!v)}><Icon name="more"/><span>Worlds</span></button>
@@ -64,8 +64,8 @@ export function JhadinaShellNavigation(){
    </nav>}
   </div>
   <nav className={styles.primary} aria-label="Primary navigation">
-   {primary.map(([icon,name,href])=><Link key={href} href={href} aria-current={active(pathname,href)?"page":undefined} className={[styles.navLink,active(pathname,href)?styles.active:""].filter(Boolean).join(" ")}><Icon name={icon}/><span>{name}</span></Link>)}
-   <button type="button" className={[styles.navLink,open?styles.active:""].filter(Boolean).join(" ")} aria-label="More Jhadina worlds" aria-controls="jhadina-worlds-menu" aria-expanded={open} onClick={()=>setOpen(v=>!v)}><Icon name="more"/><span>More</span></button>
+   {primary.map(([icon,name,href])=><a key={href} href={href} aria-current={active(pathname,href)?"page":undefined} className={[styles.navLink,active(pathname,href)?styles.active:""].filter(Boolean).join(" ")}><Icon name={icon}/><span>{name}</span></a>)}
+   <a href="/worlds" className={[styles.navLink,open?styles.active:""].filter(Boolean).join(" ")} aria-label="More Jhadina worlds" aria-controls="jhadina-worlds-menu" aria-expanded={open} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();setOpen(v=>!v)}}><Icon name="more"/><span>More</span></a>
   </nav>
  </>
 }
