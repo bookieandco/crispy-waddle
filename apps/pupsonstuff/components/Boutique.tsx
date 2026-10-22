@@ -91,8 +91,10 @@ export default function Boutique() {
           ref={scrollerRef}
           className="pupson-boutique-viewport h-full w-full overflow-x-auto overflow-y-hidden overscroll-x-contain"
           data-overview={overview}
+          data-modal-open={Boolean(activeProduct || cartOpen)}
           style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
           aria-label="PupsonStuff interactive boutique"
+          inert={Boolean(activeProduct || cartOpen)}
         >
           <div ref={stageRef} className="pupson-boutique-stage relative shrink-0">
             <BoutiqueImage />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ActiveProduct, ArtStyle, artStyles } from '@/types/boutique';
@@ -56,6 +56,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
   const [prompt, setPrompt] = useState('');
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>('auto');
   const [processingConsent, setProcessingConsent] = useState(false);
+  const [creativeCapabilities, setCreativeCapabilities] = useState<{styles: string[]; backgroundRemoval: boolean} | null>(null);
   const [artworkTransform, setArtworkTransform] = useState<ArtworkTransform>({
     ...DEFAULT_ARTWORK_TRANSFORM,
   });
@@ -63,6 +64,9 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const open = !!activeProduct;
+  const dialogRef = useRef<HTMLElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const variants = activeProduct?.fulfillment?.variants ?? [];
   const activeVariant = variants.find((v) => v.variantId === selectedVariant) ?? variants[0];
 
@@ -84,6 +88,8 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
   const threeDMapping = activeProduct ? getHotspot3DMapping(activeProduct.id) ?? undefined : undefined;
   const threeDConfig = threeDMapping ? getProduct3DConfig(threeDMapping.modelId) : null;
   const supports3D = !!threeDConfig;
+  const canGenerate = !!creativeCapabilities?.styles.includes(selectedStyle) &&
+    ((backgroundMode !== 'auto' && backgroundMode !== 'transparent') || creativeCapabilities.backgroundRemoval);
 
   // Duck the music for as long as the panel is open (spec: "duck while
   // AI is generating artwork or when a modal is open"), reset local state
@@ -112,6 +118,66 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, activeProduct?.id, supports3D, activePet?.id, activePet?.name]);
 
+  // Modal is a real dialog: keyboard focus stays inside while it is open,
+  // Escape closes it, and focus returns to the photographed merchandise.
+  useEffect(() => {
+    if (!open) return;
+    const origin = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = window.requestAnimationFrame(() =>
+      dialogRef.current?.querySelector<HTMLButtonElement>('[aria-label="Close"]')?.focus(),
+    );
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCloseRef.current();
+      } else if (event.key === 'Tab' && dialogRef.current) {
+        const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex="0"]',
+        )].filter((element) => element.getClientRects().length > 0);
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || !dialogRef.current.contains(document.activeElement))) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', onKeyDown);
+      origin?.focus({ preventScroll: true });
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    setCreativeCapabilities(null);
+    void fetch('/api/creative/capabilities', {
+      cache:'no-store',signal:controller.signal,
+    }).then(async response => {
+      if (!response.ok) return;
+      const body = await response.json() as {
+        success?:boolean;styles?:unknown;backgroundRemoval?:unknown;
+      };
+      if (body.success && Array.isArray(body.styles) &&
+          body.styles.every(value => typeof value === 'string')) {
+        setCreativeCapabilities({
+          styles:body.styles as string[],
+          backgroundRemoval:body.backgroundRemoval === true,
+        });
+      }
+    }).catch(() => {
+      // Fail closed; preview-only hosts intentionally block creative APIs.
+    });
+    return () => controller.abort();
+  }, [open]);
+
   const waitForCreativeJob = async (jobId: string) => {
     for (let attempt = 0; attempt < 80; attempt += 1) {
       const response = await fetch(`/api/creative/jobs/${jobId}`, { cache: 'no-store' });
@@ -136,7 +202,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
 
   const handleGeneratePreview = async () => {
     const savedPetReady = Boolean(useSavedPet && activePet?.id);
-    if ((!savedPetReady && uploadedFiles.length === 0) || !activeProduct) return;
+    if (!processingConsent || !canGenerate || (!savedPetReady && uploadedFiles.length === 0) || !activeProduct) return;
     setGenerating(true);
     setGenerateError(null);
     setApproved(false);
@@ -245,7 +311,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
   // a fresh upload; fails until HUGGINGFACE_API_KEY is set, same honest
   // failure pattern as handleGeneratePreview above.
   const handleAnimatePreview = async () => {
-    if (!previewUrl) return;
+    if (!previewUrl || !creativeOutputId) return;
     setAnimating(true);
     setAnimateError(null);
     duck(true);
@@ -254,7 +320,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
       const res = await fetch('/api/animate-preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: previewUrl }),
+        body: JSON.stringify({ creativeOutputId }),
       });
       const data = await res.json();
 
@@ -289,14 +355,18 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
             onClick={onClose}
           />
           <motion.aside
-            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-cream/95 text-ink shadow-2xl backdrop-blur-md"
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pupson-product-dialog-title"
+            className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-md flex-col bg-cream/95 text-ink shadow-2xl backdrop-blur-md"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
           >
-            <header className="flex items-center justify-between border-b border-greige/40 px-6 py-5">
-              <h2 className="font-display text-lg text-bronze">{activeProduct.name}</h2>
+            <header className="flex items-center justify-between border-b border-greige/40 px-6 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))]">
+              <h2 id="pupson-product-dialog-title" className="font-display text-lg text-bronze">{activeProduct.name}</h2>
               <button
                 onClick={onClose}
                 aria-label="Close"
@@ -316,28 +386,30 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
               ) : (
                 <>
                   {/* Product preview: 3D is the default whenever a real model exists. */}
-                  {animatedVideoUrl && (
-                    <div className="mb-3 flex gap-2">
+                  {(supports3D || animatedVideoUrl) && (
+                    <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Product preview mode">
+                      {supports3D && (
+                        <button
+                          type="button"
+                          aria-pressed={viewMode === '3d'}
+                          onClick={() => setViewMode('3d')}
+                          className={`rounded-full px-3 py-2 text-xs font-medium transition ${viewMode === '3d' ? 'bg-bronze text-cream' : 'border border-greige/50 text-ink/60'}`}
+                        >3D product</button>
+                      )}
                       <button
-                        onClick={() => setViewMode(supports3D ? '3d' : 'flat')}
-                        className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                          viewMode !== 'animated'
-                            ? 'bg-bronze text-cream'
-                            : 'border border-greige/50 text-ink/60'
-                        }`}
-                      >
-                        Product
-                      </button>
-                      <button
-                        onClick={() => setViewMode('animated')}
-                        className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                          viewMode === 'animated'
-                            ? 'bg-bronze text-cream'
-                            : 'border border-greige/50 text-ink/60'
-                        }`}
-                      >
-                        Animated
-                      </button>
+                        type="button"
+                        aria-pressed={viewMode === 'flat'}
+                        onClick={() => setViewMode('flat')}
+                        className={`rounded-full px-3 py-2 text-xs font-medium transition ${viewMode === 'flat' ? 'bg-bronze text-cream' : 'border border-greige/50 text-ink/60'}`}
+                      >Artwork</button>
+                      {animatedVideoUrl && (
+                        <button
+                          type="button"
+                          aria-pressed={viewMode === 'animated'}
+                          onClick={() => setViewMode('animated')}
+                          className={`rounded-full px-3 py-2 text-xs font-medium transition ${viewMode === 'animated' ? 'bg-bronze text-cream' : 'border border-greige/50 text-ink/60'}`}
+                        >Animated</button>
+                      )}
                     </div>
                   )}
 
@@ -349,7 +421,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                         }
                       />
                     </div>
-                  ) : viewMode !== 'animated' && supports3D && threeDConfig && threeDMapping ? (
+                  ) : viewMode === '3d' && supports3D && threeDConfig && threeDMapping ? (
                     <div className="mb-6">
                       <Product3DEngine
                         config={threeDConfig}
@@ -358,6 +430,11 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                         decalTransforms={{ [threeDMapping.printArea]: artworkTransform }}
                         plugins={[screenshotPlugin]}
                       />
+                      <p className="mt-2 text-[11px] leading-relaxed text-ink/60">
+                        {threeDConfig.id === 'mug' || threeDConfig.id === 'bottle'
+                          ? 'Front placement preview only — full wrap and print registration are not certified in 3D.'
+                          : '3D is an approximate placement preview. Final print dimensions and quality are checked at artwork approval.'}
+                      </p>
                     </div>
                   ) : viewMode === 'animated' && animatedVideoUrl ? (
                     <div className="mb-6 aspect-square overflow-hidden rounded-lg border border-greige/40 bg-white/40">
@@ -517,8 +594,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                     </p>
                   </div>
 
-                  {!useSavedPet && (
-                    <label className="mb-6 flex items-start gap-2 rounded-md border border-greige/40 bg-white/40 p-3 text-xs text-ink/60">
+                  <label className="mb-6 flex items-start gap-2 rounded-md border border-greige/40 bg-white/40 p-3 text-xs text-ink/60">
                       <input
                         type="checkbox"
                         checked={processingConsent}
@@ -526,10 +602,9 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                         className="mt-0.5"
                       />
                       <span>
-                        I have permission to use these photos and agree to have them processed to create this custom product.
+                        I confirm I have permission to process {useSavedPet && activePet ? `${activePet.name}'s saved photos` : 'these pet photos'} for this new portrait. External generation or removal is only available when enabled by the site owner.
                       </span>
                     </label>
-                  )}
 
                   {/* Art style */}
                   <div className="mb-6">
@@ -555,6 +630,16 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                       ))}
                     </div>
                   </div>
+
+                  {!canGenerate && (
+                    <p className="mb-4 rounded-md border border-greige/40 bg-white/40 p-3 text-xs text-ink/70" role="status">
+                      {!creativeCapabilities?.styles.length
+                        ? 'This private preview has not activated pet portrait generation. No photos will be submitted until owner approval.'
+                        : !creativeCapabilities.styles.includes(selectedStyle)
+                          ? 'The selected art style is not activated. Choose an available style.'
+                          : 'Background removal is unavailable. Select Keep or Generate for the background.'}
+                    </p>
+                  )}
 
                   {/* Variant selection; provider mapping is resolved server-side from the certified catalog. */}
                   {variants.length > 0 && (
@@ -634,12 +719,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                   {!previewUrl ? (
                     <button
                       onClick={handleGeneratePreview}
-                      disabled={
-                        generating ||
-                        (useSavedPet && activePet
-                          ? false
-                          : uploadedFiles.length === 0 || !processingConsent)
-                      }
+                      disabled={generating || !canGenerate || !processingConsent || (!useSavedPet && uploadedFiles.length === 0)}
                       className="mb-3 w-full rounded-md bg-bronze py-3 text-sm font-medium text-cream transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {generating ? 'Generating…' : 'Generate Preview'}
@@ -648,7 +728,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                     <div className="mb-3 grid grid-cols-2 gap-2">
                       <button
                         onClick={handleGeneratePreview}
-                        disabled={generating}
+                        disabled={generating || !canGenerate || !processingConsent}
                         className="rounded-md border border-honey-oak py-3 text-sm font-medium text-bronze transition hover:bg-honey-oak hover:text-cream disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         {generating ? 'Generating…' : 'Generate Again'}
@@ -707,7 +787,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
             </div>
 
             {isCustomizable && (
-              <footer className="border-t border-greige/40 px-6 py-5">
+              <footer className="border-t border-greige/40 px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5">
                 <button
                   disabled={!approved}
                   onClick={handleAddToCart}

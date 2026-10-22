@@ -5,7 +5,7 @@
 import { hotspots, type Hotspot } from '@/data/hotspots';
 
 export const LIFE_SEQUENCE: Hotspot[] = hotspots
-  .filter((hotspot) => hotspot.product !== 'checkout')
+  .filter((hotspot) => hotspot.product !== 'checkout' && hotspot.product !== 'upload')
   .sort((a, b) => a.x - b.x || a.y - b.y || a.id.localeCompare(b.id));
 
 /** One item at a time, enough separation for calm browsing. */
