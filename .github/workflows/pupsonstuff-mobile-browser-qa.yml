@@ -16,6 +16,9 @@ on:
       - 'apps/pupsonstuff/scripts/procedural_tote_geometry.py'
       - 'apps/pupsonstuff/scripts/model_supplier_tote_blender.py'
       - 'apps/pupsonstuff/scripts/test_procedural_tote.py'
+      - 'apps/pupsonstuff/scripts/pilot_tote_glb.py'
+      - 'apps/pupsonstuff/scripts/test_pilot_tote_glb.py'
+      - 'apps/pupsonstuff/scripts/qa-pilot-tote-iphone.mjs'
       - 'apps/pupsonstuff/scripts/printify-3d-sku-evidence.ts'
       - 'apps/pupsonstuff/lib/printify.ts'
       - 'apps/pupsonstuff/__tests__/printify-3d-sku-evidence.test.ts'
@@ -71,6 +74,7 @@ jobs:
         run: |
           python3 -m unittest discover -s apps/pupsonstuff/scripts -p test_factory_generate.py -v
           python3 -m unittest discover -s apps/pupsonstuff/scripts -p test_procedural_tote.py -v
+          python3 -m unittest discover -s apps/pupsonstuff/scripts -p test_pilot_tote_glb.py -v
           if command -v blender >/dev/null; then echo 'Blender is on CI image; no real SKU is available for export.'; else echo 'Blender unavailable on CI; no GPU or paid runtime needed for CPU geometry contracts.'; fi
           python3 apps/pupsonstuff/scripts/factory_baseline_review.py --product tote
           python3 apps/pupsonstuff/scripts/factory_baseline_review.py --product hoodie
@@ -93,6 +97,7 @@ jobs:
       - name: Prove portrait/landscape geometry and capture screenshots
         env:
           PUPSON_CLOUDFLARE_PREVIEW_ONLY: 'true'
+          PUPSON_3D_QA_FIXTURE: 'yes'
           PUPSON_FULFILLMENT_MODE: dry_run
           PUPSON_LIVE_COMMERCE_APPROVED: 'false'
           PUPSON_PAYMENT_OPERATIONS_READY: 'false'
@@ -112,6 +117,7 @@ jobs:
           node scripts/qa-boutique-responsive.mjs
           node scripts/qa-product3d-matrix.mjs
           node scripts/qa-boutique-webkit-iphone.mjs
+          node scripts/qa-pilot-tote-iphone.mjs
       - name: Preserve portrait/landscape screenshots as review evidence
         if: always()
         uses: actions/upload-artifact@v4
