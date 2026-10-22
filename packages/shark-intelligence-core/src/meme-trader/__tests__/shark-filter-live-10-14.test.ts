@@ -1,5 +1,5 @@
 import {describe,expect,it,vi} from 'vitest'
-import {normalizePublicDexPairs,readPublicDexPair,runPublicFilterCanary,
+import {normalizePublicDexPairs,readPublicDexPair,runPublicFilterCanary,stageReceiptFromPumpRadar,
   type PublicDexPair,type PublicFilterCanary,type VerifiedStageReceipt}
   from '../shark-filter-live-public'
 import {sealLiveFilterProspectiveCase,observeLiveFilterPriceMark} from '../shark-filter-live-paper'
@@ -7,6 +7,7 @@ import {reviewLiveFilterPaperRoute} from '../shark-filter-live-route-review'
 import {assessLiveFilterAcceptance} from '../shark-filter-live-acceptance'
 import {composeScreenedSharkCandidate} from '../screened-shark-candidate'
 import type {MemeTradeAssessment} from '../assessment'
+import type {PumpMigrationRadarCandidate} from '../migration-radar'
 import type {SharkFilterAcceptanceEvidence} from '../shark-filter-release-gate'
 
 const mint='A'.repeat(44),pairId='B'.repeat(44),quoteMint='C'.repeat(44)
@@ -124,6 +125,27 @@ describe('SHARK-FILTER.LIVE.11 actual read-only GET boundary',()=>{
     expect(init.method).toBe('GET')
     expect(init.redirect).toBe('error')
     expect(init.headers).toEqual({Accept:'application/json'})
+  })
+  it('uses canonical Pump radar stages and carries high-risk vetoes',()=>{
+    const radar={
+      mint,stage:'PUMPSWAP_MIGRATED',pumpSwapPoolAddress:pairId,
+      observedAt:'2026-10-21T19:00:00Z',availableAt:'2026-10-21T19:00:30Z',
+      evidenceIds:['pump-swap-verified'],missingChecks:[],
+      blockers:['cluster-risk-high'],authority:'RESEARCH_ONLY',canAuthorizeTrade:false,
+    } as unknown as PumpMigrationRadarCandidate
+    const mapped=stageReceiptFromPumpRadar({candidate:radar,pairAddress:pairId})
+    expect(mapped?.stage).toBe('MIGRATED')
+    expect(mapped?.defensiveBlockReasons).toContain('cluster-risk-high')
+    const blocked=runPublicFilterCanary({read:read(),stage:mapped,
+      feeSnapshot:{...snapshot,amount:5},
+      presetId:'VIDEO1_MIGRATED_SOL_V1',informationCutoff:cutoff})
+    expect(blocked.screen?.disposition).toBe('BLOCKED')
+    expect(stageReceiptFromPumpRadar({candidate:{...radar,stage:'CURVE_COMPLETE'},
+      pairAddress:pairId})).toBeUndefined()
+    expect(stageReceiptFromPumpRadar({candidate:radar,
+      pairAddress:'D'.repeat(44)})).toBeUndefined()
+    expect(stageReceiptFromPumpRadar({candidate:{...radar,missingChecks:['creator-risk']},
+      pairAddress:pairId})).toBeUndefined()
   })
   it('returns unavailable on transport failure and refuses unverified stages',async()=>{
     const fetcher=vi.fn(async()=>{throw Error('provider-offline')})
