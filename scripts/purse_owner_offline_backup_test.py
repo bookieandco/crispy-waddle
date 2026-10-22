@@ -80,6 +80,33 @@ class GuardTests(unittest.TestCase):
             receipt["status"], "LOCAL_ENCRYPTED_COPY_ONLY_UNVERIFIED_RESTORE"
         )
 
+    def test_child_processes_do_not_inherit_secrets(self):
+        source = mod.parse_source(GOOD_DSN)
+        inherited = {
+            "PATH": "/usr/bin:/bin", "HOME": "/tmp/backup-operator",
+            "JH_PURSE_SOURCE_DSN": GOOD_DSN,
+            "JH_PURSE_SOURCE_BACKUP_ACK": mod.ACK,
+            "STRIPE_SECRET_KEY": "sk_test_should_never_be_exported",
+            "SUPABASE_SERVICE_ROLE_KEY": "sensitive-provider-secret",
+            "PGPASSWORD": "unrelated-stale-password",
+            "PGSSLROOTCERT": "/owner/trusted/roots.pem",
+        }
+        pg, age = mod.build_export_child_environments(source, inherited)
+        self.assertEqual(pg["PGPASSWORD"], "example-secret")
+        self.assertEqual(pg["PGSSLMODE"], "verify-full")
+        self.assertEqual(pg["PGSSLROOTCERT"], "/owner/trusted/roots.pem")
+        self.assertEqual(pg["PGOPTIONS"], "-c default_transaction_read_only=on")
+        self.assertEqual(age["PATH"], "/usr/bin:/bin")
+        self.assertNotIn("PGPASSWORD", age)
+        self.assertNotIn("PGHOST", age)
+        self.assertNotIn("JH_PURSE_SOURCE_DSN", pg)
+        self.assertNotIn("JH_PURSE_SOURCE_DSN", age)
+        self.assertNotIn("STRIPE_SECRET_KEY", pg)
+        self.assertNotIn("STRIPE_SECRET_KEY", age)
+        self.assertNotIn("SUPABASE_SERVICE_ROLE_KEY", pg)
+        self.assertNotIn("SUPABASE_SERVICE_ROLE_KEY", age)
+        self.assertNotIn("JH_PURSE_SOURCE_BACKUP_ACK", pg)
+
     def test_bad_receipt_cannot_be_minted(self):
         with self.assertRaises(mod.ExportBlocked):
             mod.receipt_for_encrypted_copy(
