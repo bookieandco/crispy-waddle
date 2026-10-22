@@ -34,6 +34,7 @@ import { createProductionSocialContextProvider } from "../context/production-soc
 import { createProductionGrowthContextProvider } from "../context/production-growth-context-provider"
 import { createProductionMoneyContextProvider } from "../context/production-money-context-provider"
 import { createProductionKnowledgeContextProvider } from "../context/production-knowledge-context-provider"
+import { createWikipediaAugmentedKnowledgeContextProvider } from "../research/wikipedia-knowledge-context-provider"
 import { createProductionOwnerContextProvider } from "../context/production-owner-context-provider"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
 import { createProductionQuipGenerator } from "../personality/live-quip-provider"
@@ -136,7 +137,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     createProductionPersonalityContextProvider(storage, verifiedIdentity.userId)
   const knowledgeContextProvider =
     overrides.knowledgeContextProvider ??
-    createProductionKnowledgeContextProvider()
+    createWikipediaAugmentedKnowledgeContextProvider(createProductionKnowledgeContextProvider())
   const ownerContextProvider =
     overrides.ownerContextProvider ??
     createProductionOwnerContextProvider()
