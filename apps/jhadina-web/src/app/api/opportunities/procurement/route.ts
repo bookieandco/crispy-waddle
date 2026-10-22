@@ -80,7 +80,7 @@ export async function POST(request:NextRequest){
     d.fetch_status==='text_captured'&&typeof d.source_url==='string'&&d.source_url.startsWith('https://sam.gov/')&&
     typeof d.extracted_text==='string'&&d.extracted_text.trim()&&d.checksum
    ).map(d=>({
-    id:String(d.id),kind:catalog.notice_type==='Solicitation'?'solicitation':'buyer_contact',
+    id:String(d.id),kind:(catalog.notice_type==='Solicitation'?'solicitation':'buyer_contact') as ProcurementDocument['kind'],
     version:String(d.checksum).slice(0,20),publishedAt:typeof d.fetched_at==='string'?d.fetched_at:new Date().toISOString(),
     sourceUrl:d.source_url,official:true,evidenceRef:'sam-doc:'+String(d.id)+':'+String(d.checksum),
     bodyText:String(d.extracted_text).slice(0,200000),
