@@ -36,7 +36,7 @@ class ToteCpuTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"TOTE_HANDLE_ANCHOR_SPACING_INVALID"):
             validate_tote_dimensions({**SPEC,"handleAnchorSpacingMm":377},DIMS)
         with self.assertRaisesRegex(ValueError,"TOTE_STRAP_WIDTH_THICKNESS_INVALID"):
-            validate_tote_dimensions({**SPEC,"strapWidthMm":100},DIMS)
+            validate_tote_dimensions({**SPEC,"strapWidthMm":100,"handleAnchorSpacingMm":300},DIMS)
     def test_candidate_mesh_has_vertices_faces_uvs_and_bounds(self):
         m=build_geometry(DIMS,SPEC)
         self.assertGreater(len(m["faces"]),1500)
