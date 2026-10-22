@@ -143,9 +143,15 @@ def build_geometry(physical_mm, spec):
             t=n/sections
             x=spacing*(t-.5)
             insert=min(.034,body_h*.095)
-            z=top_z-insert+(drop+insert)*math.sin(math.pi*t)
+            # The ribbon's outermost edge, not just its centerline, must
+            # stay within the measured overall tote height. At the arch
+            # apex, the ribbon's normal points upward by strap/2.
+            # Subtract that half-width from the centerline apex instead of
+            # expanding a 'verified' dimension by up to 11 mm.
+            arc_height=drop+insert-strap/2
+            z=top_z-insert+arc_height*math.sin(math.pi*t)
             dx=spacing
-            dz=(drop+insert)*math.pi*math.cos(math.pi*t)
+            dz=arc_height*math.pi*math.cos(math.pi*t)
             norm=math.hypot(dx,dz)
             nx,nz=-dz/norm,dx/norm
             # Keep the physical thickness/handle ribbon inside the verified
