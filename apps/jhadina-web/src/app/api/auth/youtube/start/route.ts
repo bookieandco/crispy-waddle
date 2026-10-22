@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createRequestIdentityVerifier } from "@/lib/auth/request-identity";
 import { hashState, newOAuthState, youtubeAuthorizationUrl } from "@/lib/youtube-oauth";
 
 export const runtime = "nodejs";
@@ -9,9 +10,24 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  let userId: string;
+  try {
+    userId = (await (await createRequestIdentityVerifier()).verify({})).userId;
+    if (!userId) throw new Error("UNAUTHORIZED");
+  } catch {
+    return NextResponse.json({ error: "Sign in before connecting YouTube." }, { status: 401 });
+  }
   const state = newOAuthState();
   const response = NextResponse.redirect(youtubeAuthorizationUrl(state));
   response.cookies.set("jhadina_youtube_oauth_state", hashState(state), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 600,
+    path: "/",
+  });
+  // Bind the existing state cookie to the owner who began OAuth.
+  response.cookies.set("jhadina_youtube_oauth_owner", hashState(userId + ":" + state), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
