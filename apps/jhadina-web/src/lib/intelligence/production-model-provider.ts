@@ -28,3 +28,36 @@ export function createProductionIntelligenceRouter(
     onEvent,
   })
 }
+
+/**
+ * Configuration-only health projection for Ask. This intentionally performs
+ * no model API request, bills no provider and never exports credential values.
+ * Operational success remains UNVERIFIED until an owner-authenticated canary.
+ */
+export type JllmReasoningReadiness = Readonly<{
+  selected: "anthropic" | "gemini"
+  status: "CONFIGURED_UNVERIFIED" | "NOT_CONFIGURED"
+  alternativeAvailable: "anthropic" | "gemini" | null
+  fallback: "legacy-classifier"
+  generalReasoningReady: false
+  note: string
+}>
+
+export function readJllmReasoningReadiness(env: Pick<NodeJS.ProcessEnv,
+  "JHADINA_REASONING_PROVIDER" | "ANTHROPIC_API_KEY" | "GEMINI_API_KEY"
+> = process.env): JllmReasoningReadiness {
+  const selected = env.JHADINA_REASONING_PROVIDER === "gemini" ? "gemini" : "anthropic"
+  const configured = Boolean((selected === "gemini" ? env.GEMINI_API_KEY : env.ANTHROPIC_API_KEY)?.trim())
+  const alternative = selected === "gemini" ? "anthropic" : "gemini"
+  const alternateConfigured = Boolean((alternative === "gemini" ? env.GEMINI_API_KEY : env.ANTHROPIC_API_KEY)?.trim())
+  return {
+    selected,
+    status: configured ? "CONFIGURED_UNVERIFIED" : "NOT_CONFIGURED",
+    alternativeAvailable: alternateConfigured ? alternative : null,
+    fallback: "legacy-classifier",
+    generalReasoningReady: false,
+    note: configured
+      ? "A primary reasoning credential is configured. A successful authenticated model answer has not been verified by this status check."
+      : "The selected reasoning model is not configured. The legacy classifier can classify requests but cannot produce a general reasoning answer.",
+  }
+}
