@@ -59,7 +59,7 @@ try {
 
     await page.screenshot({ path: new URL(size.name + "-work.png", out).pathname })
 
-    const more = primary.getByRole("button", { name: "More Jhadina worlds" })
+    const more = primary.getByRole("link", { name: "More Jhadina worlds" })
     await more.click()
     const menu = page.getByRole("navigation", { name: "Jhadina worlds" })
     await menu.waitFor({ state: "visible" })
@@ -90,7 +90,7 @@ try {
     // Running this at one mobile size bounds CI time while both sizes retain geometry checks.
     if (size.width === 390) {
       await visit(page, "/work")
-      await page.getByRole("button", { name: "More Jhadina worlds" }).click()
+      await page.getByRole("link", { name: "More Jhadina worlds" }).click()
       const directory = page.getByRole("navigation", { name: "Jhadina worlds" })
       const destinations = await directory.locator('a[href]').evaluateAll(links =>
         [...new Set(links.map(link => {
@@ -101,7 +101,7 @@ try {
       assert(destinations.length > 20, "Worlds destination coverage unexpectedly small")
       for (const destination of destinations) {
         await visit(page, "/work")
-        await page.getByRole("button", { name: "More Jhadina worlds" }).click()
+        await page.getByRole("link", { name: "More Jhadina worlds" }).click()
         // The href is CSS escaped using JSON quoting, and only local hrefs are accepted.
         const selected = page.getByRole("navigation", { name: "Jhadina worlds" })
           .locator('a[href=' + JSON.stringify(destination) + ']').first()
@@ -146,7 +146,7 @@ try {
     assert.equal(await command.inputValue(), "Navigation responsiveness check")
     await page.getByRole("button", { name: "Which social accounts should I work on right now?", exact: true }).click()
     assert.equal(await command.inputValue(), "Which social accounts should I work on right now?")
-    await page.getByRole("button", { name: "More Jhadina worlds" }).click()
+    await page.getByRole("link", { name: "More Jhadina worlds" }).click()
     await page.getByRole("navigation", { name: "Jhadina worlds" }).waitFor({ state: "visible" })
     await page.keyboard.press("Escape")
     await page.getByRole("navigation", { name: "Primary navigation" })
@@ -179,6 +179,25 @@ try {
     await page.screenshot({ path: new URL(size.name + "-login.png", out).pathname })
     console.log("PASS", size.name, "App/Pages nav, menu bounds/scroll, keyboard, demo, login")
     await page.close()
+
+    // JS-disabled shell: real anchors must still navigate after a failed
+    // hydration (the observed iPhone email-link failure). This deliberately
+    // tests SSR fallback; it is not a real Safari/passkey acceptance.
+    const noJs=await browser.newPage({viewport:size,deviceScaleFactor:2,javaScriptEnabled:false})
+    noJs.setDefaultTimeout(12000)
+    await noJs.setExtraHTTPHeaders({"x-jhadina-e2e-smoke":"local-production-bundle"})
+    await visit(noJs,"/work")
+    await noJs.getByRole("navigation",{name:"Primary navigation"})
+      .getByRole("link",{name:"Ask",exact:true}).click()
+    await noJs.waitForURL(url=>url.pathname==="/ask-jhadina")
+    await noJs.getByRole("navigation",{name:"Primary navigation"})
+      .getByRole("link",{name:"More Jhadina worlds"}).click()
+    await noJs.waitForURL(url=>url.pathname==="/worlds")
+    await noJs.getByRole("navigation",{name:"Primary navigation"})
+      .getByRole("link",{name:"Home",exact:true}).click()
+    await noJs.waitForURL(url=>url.pathname==="/")
+    console.log("PASS",size.name,"JS-disabled Work -> Ask -> Worlds -> Home native navigation")
+    await noJs.close()
   }
 } finally {
   await browser.close()

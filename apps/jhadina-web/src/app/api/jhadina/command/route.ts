@@ -866,6 +866,7 @@ export async function POST(req: NextRequest) {
         verified: result.verified,
         verificationReason: result.verificationReason,
         spatialContext: result.spatialContext,
+        wikipediaResearch: result.wikipediaResearch,
       },
     })
   } catch (error) {

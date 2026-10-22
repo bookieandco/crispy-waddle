@@ -1,0 +1,23 @@
+name: Jhadina Wikipedia live read-only API contract
+on:
+  pull_request:
+    paths:
+      - 'apps/jhadina-web/src/lib/research/wikipedia-*'
+      - 'apps/jhadina-web/scripts/wikipedia-live-smoke.mjs'
+      - '.github/workflows/jhadina-wikipedia-live.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  wikipedia-live-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify Wikimedia public read-only contracts
+        run: node apps/jhadina-web/scripts/wikipedia-live-smoke.mjs

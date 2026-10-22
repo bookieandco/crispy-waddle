@@ -12,6 +12,7 @@ import { rememberWorkSession, resumeOwnerWorkSession, type SessionPointerStorage
 import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
 import { SportsHistoryCard, type SportsHistoryViewForUi } from "./sports-history-card"
 import { SportsWatchSubscriptionCard } from "./sports-watch-subscription-card"
+import { WikipediaResearchCard, type WikipediaResearchView } from "./wikipedia-research-card"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
@@ -26,7 +27,7 @@ type GrowthWorkPlan={kind:"growth_intelligence";operation:string;authority:"READ
 type VideoJobSummary={id:string;projectId:string;status:string;mode?:string;aspectRatio?:string;providerId?:string;error?:string;previewAssetId?:string}
 type SpatialContextUsageReceipt={used:boolean;authority:"INTELLIGENCE_ONLY";observationCount:number;evidenceCount:number;claimCount:number;realityCount:number;provenanceCount:number;sources:string[];conflictCount:number;uncertaintyCount:number;limitationCount:number}
 type SpatialGeographicScope={lat:number;lon:number;radiusKm?:number}
-type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;sportsHistoryView?:SportsHistoryViewForUi;feedbackEligible?:boolean}
+type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;sportsHistoryView?:SportsHistoryViewForUi;wikipediaResearch?:WikipediaResearchView;feedbackEligible?:boolean}
 
 function sessionPointerStorage():SessionPointerStorage|undefined{
  try{return typeof window!=="undefined"?window.localStorage:undefined}catch{return undefined}
@@ -46,6 +47,8 @@ function AskJhadina(){
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState("")
  const [sessionWarning,setSessionWarning]=useState("")
+ const [pendingSessionSave,setPendingSessionSave]=useState(false)
+ const [retryingSessionSave,setRetryingSessionSave]=useState(false)
  const [result,setResult]=useState<CommandResult|null>(null)
  const [feedbackBusy,setFeedbackBusy]=useState(false)
  const [feedbackRecorded,setFeedbackRecorded]=useState<"reinforced"|"rejected"|null>(null)
@@ -66,6 +69,7 @@ function AskJhadina(){
  const [sessionReady,setSessionReady]=useState(false)
  const [sessionRestoreFailed,setSessionRestoreFailed]=useState(false)
  const [workSessionGoal,setWorkSessionGoal]=useState("")
+ const [workSessionResearchRefs,setWorkSessionResearchRefs]=useState<string[]>([])
  const [workSessionActiveSubsystems,setWorkSessionActiveSubsystems]=useState<string[]>([])
  const [interactivePhase,setInteractivePhase]=useState<JhadinaInteractivePhase>("idle")
  const [conversationActive,setConversationActive]=useState(false)
@@ -73,6 +77,7 @@ function AskJhadina(){
  const nativeAudioRef=useRef<HTMLAudioElement|null>(null)
  const busyRef=useRef(false)
  const activeTurnRef=useRef("")
+ const pendingSessionSaveRef=useRef<{userId:string;command:string;data:CommandResult}|null>(null)
  const commandAbortRef=useRef<AbortController|null>(null)
  const speechAbortRef=useRef<AbortController|null>(null)
 
@@ -112,6 +117,7 @@ function AskJhadina(){
    setWorkSessionId(resumed.id)
    const restored=restoreWorkSessionContinuity(resumed.session)
    setWorkSessionGoal(restored.goal)
+   setWorkSessionResearchRefs(restored.researchSourceRefs)
    setArtifactRefs(current=>[...new Set([...restored.admittedArtifactIds,...current])].slice(0,8))
    setWorkSessionActiveSubsystems(restored.activeSubsystems)
    if(restored.goal)setTask(current=>current.trim()?current:restored.goal)
@@ -138,9 +144,11 @@ function AskJhadina(){
    ...(data.videoJob?["director"]:[]),
    ...(data.spatialContext?.used?["spatial"]:[]),
    ...(data.sportsHistoryView?["sports"]:[]),
+   ...(data.wikipediaResearch?.articles.length?["research"]:[]),
   ])]
   const decisionRefs=[data.proposal?.id,data.reasoningEventId].filter((value):value is string=>typeof value==="string"&&Boolean(value))
-  const outputRefs=data.videoJob?.id?[data.videoJob.id]:[]
+  const sourceRefs=[...new Set([...workSessionResearchRefs,...(data.wikipediaResearch?.articles??[]).map(article=>`wikipedia:${article.id}:${article.revisionId??"unknown"}`)])].slice(-8)
+  const outputRefs=[...(data.videoJob?.id?[data.videoJob.id]:[]),...sourceRefs].slice(0,12)
   const durableRefs=[...new Set(artifactRefs)].slice(0,8).map(id=>({id,kind:"data" as const,provenanceRef:`artifact:${id}`,admitted:true}))
   const response=await fetch(`/api/jhadina/work-sessions/${encodeURIComponent(id)}`,{
    method:"PUT",
@@ -151,12 +159,27 @@ function AskJhadina(){
   const json=await response.json()
   if(!json?.success||json?.session?.id!==id)throw new Error("WORK_SESSION_SAVE_UNVERIFIED")
   rememberWorkSession(sessionPointerStorage(),userId,id)
+  setWorkSessionResearchRefs(sourceRefs)
   if(typeof json?.session?.goal==="string")setWorkSessionGoal(json.session.goal)
   if(Array.isArray(json?.session?.activeSubsystems)){
    setWorkSessionActiveSubsystems(json.session.activeSubsystems.filter((item:unknown):item is string=>typeof item==="string"&&Boolean(item.trim())).slice(0,16))
   }
  }
 
+ async function retrySaveOnly(){
+  // Never re-dispatch a command that may have already created durable work.
+  const pending=pendingSessionSaveRef.current
+  if(busyRef.current||retryingSessionSave||!pending)return
+  setRetryingSessionSave(true)
+  try{
+   await persistWorkSession(pending.userId,pending.command,pending.data)
+   pendingSessionSaveRef.current=null
+   setPendingSessionSave(false)
+   setSessionWarning("")
+  }catch{
+   setSessionWarning("The response is still here, but saving failed again. Retry saving only; do not resend the command.")
+  }finally{setRetryingSessionSave(false)}
+ }
  async function identity(){const userId=await getCurrentUserId();if(!userId)throw new Error("Not signed in");return userId}
  function validSpatialScope(raw:unknown):SpatialGeographicScope|undefined{
   if(!raw||typeof raw!=="object")return undefined
@@ -431,6 +454,7 @@ function AskJhadina(){
  }
  async function ask(commandOverride?:string, conversationSignals?:JhadinaConversationSignals, source:"typed"|"voice"=commandOverride?"voice":"typed"){
   if(!sessionReady){setInputStatus("Waiting for your session to finish restoring.");return}
+  if(pendingSessionSaveRef.current){setInputStatus("Save the previous response before starting another turn, so its context is not lost.");return}
   const command=(commandOverride??task).trim()
   if(!command)return
 
@@ -488,11 +512,19 @@ function AskJhadina(){
    if(controller.signal.aborted||activeTurnRef.current!==turnId)return
    try{
     await persistWorkSession(userId,command,data)
-    if(activeTurnRef.current===turnId)setSessionWarning("")
+    if(activeTurnRef.current===turnId){
+     pendingSessionSaveRef.current=null
+     setPendingSessionSave(false)
+     setSessionWarning("")
+    }
    }catch{
-    // A completed command must stay visible even if continuity storage fails.
-    // Do not retry the command: it may already have produced a durable action.
-    if(activeTurnRef.current===turnId)setSessionWarning("Your response is available, but this session could not be saved. Keep this page open; resending the request may repeat work.")
+    // A completed command must stay visible, and retries must write only the
+    // WorkSession snapshot; never duplicate an action with another command.
+    if(activeTurnRef.current===turnId){
+     pendingSessionSaveRef.current={userId,command,data}
+     setPendingSessionSave(true)
+     setSessionWarning("Your response is available, but this session could not be saved. Keep this page open and retry saving only; resending the request may repeat work.")
+    }
    }
    if(controller.signal.aborted||activeTurnRef.current!==turnId)return
 
@@ -577,11 +609,12 @@ function AskJhadina(){
     </div>)}
    </div>:null}
    {sessionWarning?<p className="jh-error" role="status">{sessionWarning}</p>:null}
+   {pendingSessionSave?<button type="button" className="jh-button" disabled={busy||retryingSessionSave} onClick={()=>void retrySaveOnly()}>{retryingSessionSave?"Saving session…":"Retry saving session only"}</button>:null}
    {sessionRestoreFailed?<button type="button" className="jh-button" onClick={()=>window.location.reload()}>Retry session restore</button>:null}
    <label htmlFor="jhadina-command" className="jh-eyebrow" style={{marginTop:16,display:"block"}}>What are we doing?</label>
    <div className="jh-row" style={{alignItems:"stretch"}}>
     <textarea id="jhadina-command" className="jh-textarea" rows={3} value={task} onChange={event=>setTask(event.target.value)} onKeyDown={event=>{if((event.metaKey||event.ctrlKey)&&event.key==="Enter")void ask()}} placeholder="Ask a question, connect subsystems, inspect a decision, or tell Jhadina what you want to accomplish…" style={{flex:"1 1 560px",resize:"vertical"}}/>
-    <button className="jh-button jh-button--primary" disabled={busy||!sessionReady||!task.trim()} onClick={()=>void ask()}>{!sessionReady?"Restoring session…":busy?"Reasoning…":"Ask"}</button>
+    <button className="jh-button jh-button--primary" disabled={busy||!sessionReady||pendingSessionSave||!task.trim()} onClick={()=>void ask()}>{!sessionReady?"Restoring session…":busy?"Reasoning…":"Ask"}</button>
    </div>
    <JhadinaLiveInput
     busy={busy}
@@ -609,6 +642,17 @@ function AskJhadina(){
     {referenceFile?<label className="jh-row" style={{marginTop:10,alignItems:"center"}}><input type="checkbox" checked={referenceRightsConfirmed} onChange={event=>setReferenceRightsConfirmed(event.target.checked)} disabled={busy}/><span className="jh-card-copy">{referenceKind==="character"?"I own or have permission to use this image and the depicted likeness/character for this production.":"I own or have permission to use this product image, packaging, and brand assets for this production."}</span></label>:null}
     {referenceStage?<p className="jh-meta" style={{marginTop:8}}>{referenceStage}</p>:null}
    </div>
+   {workSessionResearchRefs.length?<div className="jh-row" style={{marginTop:8}}>
+    <span className="jh-meta">Previous research sources:</span>
+    {workSessionResearchRefs.map(ref=>{
+     const match=ref.match(/^wikipedia:([1-9]\d{0,9}):([1-9]\d{0,15}|unknown)$/)
+     if(!match)return null
+     const href=match[2]==="unknown"
+      ? `https://en.wikipedia.org/w/index.php?curid=${match[1]}`
+      : `https://en.wikipedia.org/w/index.php?oldid=${match[2]}`
+     return <a key={ref} href={href} target="_blank" rel="noopener noreferrer" className="jh-meta">Wikipedia page {match[1]} ↗</a>
+    })}
+   </div>:null}
    <p className="jh-meta">Context surface: {surface} · route: {route} · work session: {workSessionId?workSessionId.slice(0,12):"initializing"}{workSessionGoal?` · resumed goal: ${workSessionGoal.slice(0,80)}`:""} · ⌘/Ctrl + Enter to send · screen frames stay ephemeral · attached files use private quarantine and only clean files enter reasoning; identity-reference uploads persist only through the explicit governed Director flow above</p>
    <div className="jh-row" style={{marginTop:10}}>
     {[
@@ -625,11 +669,12 @@ function AskJhadina(){
   {error&&<div className="jh-error" role="alert">{error}</div>}
   {result?<section className="jh-section">
    <article className="jh-card jh-card--wide">
-    <div className="jh-between"><div><span className={result.verified?"jh-status jh-status--success":"jh-status jh-status--danger"}><span className="jh-dot"/>{result.verified?"Verified response":"Verification failed"}</span><p className="jh-eyebrow" style={{marginTop:14}}>{result.proposal.disposition} · {result.expression.presentation.mode}</p></div><span className="jh-meta">Reasoning {result.reasoningEventId.slice(0,10)}…</span></div>
+    <div className="jh-between"><div><span className={result.verified?"jh-status jh-status--success":"jh-status jh-status--danger"}><span className="jh-dot"/>{result.verified?(result.wikipediaResearch?"Request completed — sources unverified":"Verified response"):"Verification failed"}</span><p className="jh-eyebrow" style={{marginTop:14}}>{result.proposal.disposition} · {result.expression.presentation.mode}</p></div><span className="jh-meta">Reasoning {result.reasoningEventId.slice(0,10)}…</span></div>
     <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{void speakExpression(result.expression.segments,undefined,result.expression.presentation).finally(()=>setInteractivePhase(conversationActive?"listening":"idle"))}}>Speak response</button><button type="button" className="jh-button" onClick={()=>{stopSpeech();setInteractivePhase(conversationActive?"listening":"idle")}}>Stop speech</button></div>
     <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
     <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
     {result.spatialContext?.used?<SpatialContextCard receipt={result.spatialContext}/>:null}
+    {result.wikipediaResearch?<WikipediaResearchCard research={result.wikipediaResearch}/>:null}
     {result.sportsHistoryView?<><SportsHistoryCard view={result.sportsHistoryView}/><SportsWatchSubscriptionCard defaultQuery={result.sportsHistoryView.records[0]?.entityLabel??""}/></>:null}
     {result.socialWorkPlan?<SocialWorkPlanCard plan={result.socialWorkPlan}/>:null}
     {result.growthWorkPlan?<GrowthWorkPlanCard plan={result.growthWorkPlan}/>:null}
