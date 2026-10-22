@@ -154,11 +154,19 @@ def main():
         print("DRY RUN — no GLB or vendor-facing changes made")
         return
 
-    # Bake world coordinates and center the bounds; no independent axis scaling.
-    center = [(xyz_min[i] + xyz_max[i]) / 2 for i in range(3)]
-    for vertex, transformed in zip(obj.data.vertices, world):
-        vertex.co = Vector(tuple((transformed[i] - center[i]) * scale for i in range(3)))
+    # Transform the *mesh* using Blender matrices, not position-only loops.
+    # This preserves normals and tangent-space orientation when the source
+    # GLB is rotated, scaled or translated. Physical proportions remain fixed.
+    from mathutils import Matrix, Vector
+    center = Vector(tuple((xyz_min[i] + xyz_max[i]) / 2 for i in range(3)))
+    correction = (
+        Matrix.Scale(scale, 4) @
+        Matrix.Translation(-center) @
+        obj.matrix_world.copy()
+    )
+    obj.data.transform(correction, shape_keys=True)
     obj.matrix_world.identity()
+    obj.data.update()
     obj.name = args.asset_id
     mat = obj.data.materials[0]
     mat.name = f"{args.asset_id}_{args.material}"
