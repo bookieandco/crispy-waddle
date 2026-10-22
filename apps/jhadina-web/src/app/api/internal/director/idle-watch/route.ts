@@ -1,6 +1,6 @@
 import {NextRequest,NextResponse} from 'next/server'
 import {authorizedDirectorBackgroundRequest,authorizedSchedulerRequest} from '@/lib/internal-scheduler-auth'
-import {createSchedulerServiceRoleClient} from '@/lib/supabase/service-role'
+import {createRuntimeServiceRoleClient} from '@/lib/supabase/service-role'
 import {runDirectorIdleWatchWorker} from '@/lib/director-idle-watch-worker'
 
 export const runtime='nodejs'
@@ -10,7 +10,9 @@ async function run(request:NextRequest){
   if(!(await authorizedSchedulerRequest(request))&&!(await authorizedDirectorBackgroundRequest(request))){
     return NextResponse.json({ok:false,error:'unauthorized'},{status:401})
   }
-  const client=createSchedulerServiceRoleClient(request)
+  // Director-specific GitHub identity is authorized above, never promoted
+  // into a generic Supabase service-role identity on the edge proxy.
+  const client=await createRuntimeServiceRoleClient()
   if(!client){
     return NextResponse.json({ok:false,error:'DIRECTOR_IDLE_WATCH_SCHEDULER_STORAGE_UNAVAILABLE'},{status:503})
   }
