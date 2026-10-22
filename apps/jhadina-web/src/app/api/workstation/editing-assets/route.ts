@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { createSupabaseGeneratedAssetRepository } from '@/lib/supabase-generated-asset-repository';
 import { approvedEditingAssets } from '@jhadina/director-core/editing-asset-manifest';
+import { directorProductionAssetBlockers } from '@jhadina/director-core/production-asset-admission';
 import { validateStudioApprovalEvidence } from '@jhadina/director-core/studio-asset-approval';
 import { requireDirectorProjectAuthority } from '@/lib/director-project-authority';
 
@@ -69,12 +70,14 @@ export async function POST(request: Request) {
 
   const { data: asset, error: assetError } = await privileged
     .from('director_generated_editing_assets')
-    .select('id, project_id, approval_policy')
+    .select('id, project_id, provider_id, metadata, approval_policy')
     .eq('id', assetId)
     .eq('project_id', projectId)
     .maybeSingle();
   if (assetError) return NextResponse.json({ ok: false, error: assetError.message }, { status: 500 });
   if (!asset) return NextResponse.json({ ok: false, error: 'Generated asset not found for project' }, { status: 404 });
+  const sourceBlockers = directorProductionAssetBlockers(asset);
+  if (sourceBlockers.length) return NextResponse.json({ ok: false, error: 'DIRECTOR_PRODUCTION_ASSET_NOT_ADMISSIBLE', reasons: sourceBlockers }, { status: 409 });
 
   let studioQC: { qcReportId: string; minimumObservedScore: number; evidenceIds: string[] } | undefined;
   if (asset.approval_policy === 'studio_qc') {
