@@ -7,12 +7,12 @@
   "dimensionsMm": null,
   "skuMeasurementEvidence": null,
   "sourceKind": "operator-owned-reference",
-  "generator": "tencent-hunyuan3d-2",
-  "generatorRevision": null,
+  "generator": "pupson-procedural-tote-cpu",
+  "generatorRevision": "pupson-internal-cpu-v1",
   "photoRightsEvidence": null,
   "outputCommercialRightsEvidence": null,
-  "checkpointLicenseEvidence": null,
-  "dependencyLicenseEvidence": null,
+  "checkpointLicenseEvidence": "no third-party checkpoint used: original procedural model",
+  "dependencyLicenseEvidence": "Blender local license/dependency review required on execution host",
   "hunyuanTerritoryClearance": null,
   "references": {
     "front": {
@@ -28,7 +28,7 @@
       "sha256": null
     }
   },
-  "_instructions": "All values intentionally null and non-operational. Resolve exact Printify blueprint/provider/variant and manufacturer physical width, height including handles, depth; three permitted reference images + SHA; measured body, handle and strap geometry. Print-zone pixels/size guides are not physical dimensions. No asset activation.",
+  "_instructions": "CPU tote fallback is independent of Hunyuan checkpoints; original operator-owned procedural modeling still requires exact verified Printify variant receipt and physical body/handle dimensions, three approved photos, owner approval and local Blender. No inference, external upload, purchases, or storefront activation.",
   "blueprintId": null,
   "printProviderId": null,
   "variantId": null,
