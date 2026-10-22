@@ -33,7 +33,10 @@ class PilotGlbTests(unittest.TestCase):
         self.assertGreater(metrics["triangleCount"],1500)
         self.assertGreater(metrics["nondegenerateTriangles"],metrics["triangleCount"]*.99)
         self.assertAlmostEqual(metrics["boundsYUpMeters"][0],.38,delta=.015)
-        self.assertAlmostEqual(metrics["boundsYUpMeters"][1],.53,delta=.015)
+        # Serialized glTF Y-up bounds must reflect the physical tote's
+        # *whole* height including the ribbon top; use 0.5 mm tolerance.
+        self.assertAlmostEqual(metrics["boundsYUpMeters"][1],.53,delta=.0005)
+        self.assertLessEqual(metrics["boundsYUpMeters"][1],.5305)
         self.assertAlmostEqual(metrics["boundsYUpMeters"][2],.095,delta=.015)
         self.assertFalse(data["extras"]["storefrontApproved"])
 
