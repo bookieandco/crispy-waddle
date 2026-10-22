@@ -74,7 +74,8 @@ export type QuoteCostEvidence=Readonly<{
   observedAt:string
   availableAt:string
   evidenceIds:readonly string[]
-  /** Amounts in USD, independently quoted; not a live fill. */
+  /** Gross, pre-fee/pre-slippage amount; must not use already netted route output. */
+  notionalBasis:'GROSS_BEFORE_MODELED_COSTS'
   notionalUsd:number
   liquidityAvailable:boolean
   sellable:boolean
@@ -101,6 +102,8 @@ export type SharkShadowRoundTrip=Readonly<{
 function quote(q:QuoteCostEvidence,cutoff:number,earliest:number):number{
   if(!q.quoteId.trim()||!q.tokenMint.trim()||!q.evidenceIds.length||q.evidenceIds.some(x=>!x.trim()))
     throw new Error('shark_shadow_quote_identity_missing')
+  if(q.source!=='READ_ONLY_DEX_ROUTE_QUOTE'||q.notionalBasis!=='GROSS_BEFORE_MODELED_COSTS')
+    throw new Error('shark_shadow_quote_basis_or_source_invalid')
   const observed=timestamp(q.observedAt,'shark_shadow_quote_time_invalid')
   const available=timestamp(q.availableAt,'shark_shadow_quote_available_invalid')
   if(available<observed||available>cutoff||observed<earliest)
