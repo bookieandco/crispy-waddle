@@ -104,7 +104,7 @@ try {
         await page.getByRole("button", { name: "More Jhadina worlds" }).click()
         // The href is CSS escaped using JSON quoting, and only local hrefs are accepted.
         const selected = page.getByRole("navigation", { name: "Jhadina worlds" })
-          .locator('a[href=' + JSON.stringify(destination) + ']')
+          .locator('a[href=' + JSON.stringify(destination) + ']').first()
         await selected.click()
         // Security settings require a verified Supabase owner even though the
         // local production-bundle browser harness bypasses only middleware.
