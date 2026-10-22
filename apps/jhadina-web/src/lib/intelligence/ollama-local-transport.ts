@@ -15,7 +15,18 @@ export type LocalModelConnection = Readonly<{
 }>
 type FetchLike = typeof fetch
 
-export function resolveLocalModelConnection(env: Record<string,string|undefined> = process.env):LocalModelConnection|null{
+export function resolveLocalModelConnection(env?:{
+ JHADINA_LOCAL_MODEL_URL?:string;JHADINA_LOCAL_MODEL_NAME?:string;
+ JHADINA_LOCAL_MODEL_ALLOWED_HOST?:string;JHADINA_LOCAL_MODEL_GATEWAY_TOKEN?:string;
+ NODE_ENV?:string;
+}):LocalModelConnection|null{
+ env=env??{
+  JHADINA_LOCAL_MODEL_URL:process.env.JHADINA_LOCAL_MODEL_URL,
+  JHADINA_LOCAL_MODEL_NAME:process.env.JHADINA_LOCAL_MODEL_NAME,
+  JHADINA_LOCAL_MODEL_ALLOWED_HOST:process.env.JHADINA_LOCAL_MODEL_ALLOWED_HOST,
+  JHADINA_LOCAL_MODEL_GATEWAY_TOKEN:process.env.JHADINA_LOCAL_MODEL_GATEWAY_TOKEN,
+  NODE_ENV:process.env.NODE_ENV,
+ }
  const baseUrl=env.JHADINA_LOCAL_MODEL_URL?.trim()
  const model=env.JHADINA_LOCAL_MODEL_NAME?.trim()
  if(!baseUrl || !model)return null
