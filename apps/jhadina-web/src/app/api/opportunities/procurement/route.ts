@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRequestIdentityVerifier } from '@/lib/auth/request-identity'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { planProcurementSourceRecovery, reconcileProcurementNotice, prepareProcurementBidPacket, reviewProcurementCommercial, type ProcurementSource } from '@jhadina/opportunity-core'
+import { planProcurementSourceRecovery, reconcileProcurementNotice, prepareProcurementBidPacket, reviewProcurementCommercial, type ProcurementSource, type ProcurementDocument } from '@jhadina/opportunity-core'
 import type { FulfillmentPlan } from '@jhadina/opportunity-core'
 
 export const dynamic='force-dynamic'
@@ -57,8 +57,49 @@ export async function GET(request:NextRequest){
 export async function POST(request:NextRequest){
  try{
   await authorize()
-  const body=await request.json().catch(()=>null) as {inboxId?:unknown}|null
+  const body=await request.json().catch(()=>null) as {inboxId?:unknown;samNoticeId?:unknown}|null
+  const samNoticeId=typeof body?.samNoticeId==='string'?body.samNoticeId.trim():''
   const id=typeof body?.inboxId==='string'?body.inboxId.trim():''
+  if(samNoticeId){
+   if(id||!/^[a-f0-9]{32}$/i.test(samNoticeId))return reply({ok:false,error:'Provide exactly one valid samNoticeId or inboxId'},400)
+   const service=createServiceRoleClient()
+   if(!service)return reply({ok:false,error:'SAM catalog unavailable'},503)
+   const {data:catalog,error:catalogError}=await service.from('jhadina_sam_catalog')
+    .select('notice_id,title,notice_type,source_url,response_deadline,posted_date,last_seen_at')
+    .eq('notice_id',samNoticeId).maybeSingle<{
+     notice_id:string;title:string;notice_type:string;source_url:string;
+     response_deadline:string|null;posted_date:string|null;last_seen_at:string|null
+    }>()
+   if(catalogError)throw new Error('sam_catalog_read_failed')
+   if(!catalog)return reply({ok:false,error:'SAM notice not found'},404)
+   const {data:rows,error:documentError}=await service.from('jhadina_sam_documents')
+    .select('id,notice_id,source_url,source_kind,checksum,extracted_text,fetch_status,fetched_at')
+    .eq('notice_id',samNoticeId).order('fetched_at',{ascending:false}).limit(25)
+   if(documentError)throw new Error('sam_documents_read_failed')
+   const docs:ProcurementDocument[]=(rows??[]).filter(d=>
+    d.fetch_status==='text_captured'&&typeof d.source_url==='string'&&d.source_url.startsWith('https://sam.gov/')&&
+    typeof d.extracted_text==='string'&&d.extracted_text.trim()&&d.checksum
+   ).map(d=>({
+    id:String(d.id),kind:catalog.notice_type==='Solicitation'?'solicitation':'buyer_contact',
+    version:String(d.checksum).slice(0,20),publishedAt:typeof d.fetched_at==='string'?d.fetched_at:new Date().toISOString(),
+    sourceUrl:d.source_url,official:true,evidenceRef:'sam-doc:'+String(d.id)+':'+String(d.checksum),
+    bodyText:String(d.extracted_text).slice(0,200000),
+    deadlineAt:catalog.response_deadline??undefined,requiredForms:[],scopeRefs:[]
+   }))
+   const notice=reconcileProcurementNotice(samNoticeId,docs)
+   const plan:FulfillmentPlan={opportunityId:samNoticeId,structure:'unresolved',assignments:[],
+    coveredRequirementIds:[],uncoveredRequirementIds:[],blockers:['No approved requirements, verified provider assignment, or pricing loaded.'],
+    rationale:['SAM catalog/document observation only; do not equate sources sought with open bids.'],
+    requiresHumanApproval:true,engagementAuthorized:false}
+   const commercial=reviewProcurementCommercial({plan,providers:[],quotes:[],costEvidence:[]})
+   const packet=prepareProcurementBidPacket({notice,plan,providers:[],commercial,formAttachments:{}})
+   return reply({ok:true,mode:'sam_no_send_contact_and_bid_review',
+    observed:{noticeId:samNoticeId,title:catalog.title,noticeType:catalog.notice_type,
+     sourceUrl:catalog.source_url,sourceLastSeenAt:catalog.last_seen_at},
+    sourceDocumentsRead:docs.length,buyerContacts:notice.buyerContacts,packet,
+    blockers:packet.blockers,
+    externalActionAuthorized:false})
+  }
   if(!id||id.length>256)return reply({ok:false,error:'Valid inboxId required'},400)
   const service=createServiceRoleClient()
   if(!service)return reply({ok:false,error:'Procurement inbox unavailable'},503)
