@@ -13,10 +13,10 @@ type WalletReply={
  error?:string
 }
 async function walletRequest(path:string,init?:RequestInit):Promise<NonNullable<WalletReply['data']>>{
+ const headers=new Headers(init?.headers)
+ headers.set('content-type','application/json')
  const response=await fetch(path,{
-  ...init,credentials:'same-origin',cache:'no-store',headers:{
-   'content-type':'application/json',...init?.headers,
-  },
+  ...init,credentials:'same-origin',cache:'no-store',headers,
  })
  const result=await response.json() as WalletReply
  if(!response.ok||!result.success)throw new Error(result.error??'Wallet request failed')
