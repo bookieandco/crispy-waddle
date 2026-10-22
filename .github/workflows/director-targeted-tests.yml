@@ -135,6 +135,7 @@ jobs:
           src/recast-admission.test.ts
           src/recast-worker-port.test.ts
           src/recast-runtime-readiness.test.ts
+          src/recast-effective-reviews.test.ts
           src/creative-workspace-media.test.ts
           src/playhead-generation-continuation.test.ts
           src/creative-audio-generation.test.ts
@@ -238,6 +239,7 @@ jobs:
           src/lib/recast-review-ledger-repository.test.ts
           src/lib/recast-review-submission.test.ts
           src/lib/recast-review-insert-manifest.test.ts
+          src/lib/recast-staging-receipt-sink.test.ts
           src/lib/recast-review-digest.test.ts
           src/lib/recast-schema-diagnostics.test.ts
           src/app/api/director/commercial/multiplier/route.test.ts
@@ -301,6 +303,8 @@ jobs:
           services/director-edge-vision-worker/server.py
       - name: Director edge Watch and CVAT safety contract
         run: python scripts/director-edge-watch-contract.py
+      - name: Recast read-only migration replay forensic contract
+        run: python scripts/test_director_recast_replay_forensics.py -v
       - name: Recast static staging SQL guard
         run: python scripts/director-recast-staging-schema-contract.py
       - name: Recast offline ffprobe source integrity tests
@@ -308,6 +312,7 @@ jobs:
           python services/replacement-service/test_recast_probe.py -v
           python services/replacement-service/test_recast_preview_acceptance.py -v
           python services/replacement-service/test_recast_audio_integrity.py -v
+          python services/replacement-service/test_recast_real_media_smoke.py -v
       - name: Director Colab notebook safety contract
         run: python -m unittest infrastructure/homebase/google-drive/test_director_colab_ai_plus.py -v
       - name: Director background OIDC/storage readiness regressions
