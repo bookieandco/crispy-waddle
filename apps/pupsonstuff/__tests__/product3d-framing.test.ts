@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitProductCamera, modelBoundingRadius } from '../lib/product3d/framing';
+import { fitProductCamera, modelBoundingRadius, inspectionCameraDirection } from '../lib/product3d/framing';
 
 describe('PupsonStuff product 3D framing', () => {
   it('rejects malformed geometry instead of moving the camera to NaN', () => {
@@ -52,5 +52,24 @@ describe('PupsonStuff product 3D framing', () => {
     expect(Object.values(frame).every(Number.isFinite)).toBe(true);
     expect(frame.minDistance).toBeLessThan(frame.distance);
     expect(frame.maxDistance).toBeGreaterThan(frame.distance);
+  });
+});
+
+describe('product inspection angles', () => {
+  it('retains the original front view and rotates to a true 90/180 side/back', () => {
+    const front=inspectionCameraDirection([0,0,2.4], 'front');
+    const side=inspectionCameraDirection([0,0,2.4], 'side');
+    const back=inspectionCameraDirection([0,0,2.4], 'back');
+    expect(front).toEqual([0,0,1]);
+    expect(side[0]).toBeCloseTo(1);
+    expect(side[2]).toBeCloseTo(0);
+    expect(back[0]).toBeCloseTo(0);
+    expect(back[2]).toBeCloseTo(-1);
+  });
+  it('uses normalized direction and safe fallback for invalid camera origins', () => {
+    const tilted=inspectionCameraDirection([1,1,2], 'side');
+    expect(Math.hypot(...tilted)).toBeCloseTo(1);
+    expect(inspectionCameraDirection([0,0,0], 'front')).toEqual([0,0,1]);
+    expect(inspectionCameraDirection([Number.NaN,0,1], 'front')).toEqual([0,0,1]);
   });
 });
