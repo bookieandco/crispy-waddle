@@ -1,6 +1,6 @@
 import {NextRequest,NextResponse} from 'next/server'
 import {authorizedDirectorBackgroundRequest,authorizedSchedulerRequest} from '@/lib/internal-scheduler-auth'
-import {createSchedulerServiceRoleClient} from '@/lib/supabase/service-role'
+import {createRuntimeServiceRoleClient} from '@/lib/supabase/service-role'
 import {runSideHustleDirectorAutopilotWorker} from '@/lib/opportunities/side-hustle-director-autopilot-worker'
 import {resolveDirectorPostComputeDispatcher} from '@/lib/opportunities/side-hustle-director-post-runtime'
 
@@ -11,7 +11,9 @@ async function run(request:NextRequest){
   if(!(await authorizedSchedulerRequest(request))&&!(await authorizedDirectorBackgroundRequest(request))){
     return NextResponse.json({ok:false,error:'unauthorized'},{status:401})
   }
-  const client=createSchedulerServiceRoleClient(request)
+  // Preserve exact signed workflow admission while delegating DB access
+  // through the canonical, Vercel-verified production transport.
+  const client=await createRuntimeServiceRoleClient()
   if(!client){
     return NextResponse.json({ok:false,error:'DIRECTOR_AUTOPILOT_SCHEDULER_STORAGE_UNAVAILABLE'},{status:503})
   }
