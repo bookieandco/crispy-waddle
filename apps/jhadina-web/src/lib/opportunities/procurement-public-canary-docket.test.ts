@@ -16,6 +16,10 @@ test('Oxnard public NIB evidence is usable without implying complete bid package
  expect(well.fullBidDocumentSetCertified).toBe(false)
  expect(well.complianceEvidenceMissing).toContain('10% bid security must be delivered physically by deadline at City Clerk office')
  expect(well.priceVerified).toBe(false)
+ expect(well.historicalBidTab?.biddingCompanies.map(p=>p.name)).toEqual(['Best Drilling and Pump, Inc.','Weber Water Resources CA, LLC'])
+ expect(well.historicalBidTab?.biddingCompanies.every(p=>!p.currentTeamingConsent&&!p.qualifiedForCurrentScope)).toBe(true)
+ expect(well.historicalBidTab?.priorBidIsNotAward).toBe(true)
+ expect(well.historicalBidTab?.priorBidIsNotCurrentQuote).toBe(true)
 })
 test('transit center has Class B bid-eligibility gate and due date in local clock',()=>{
  const transit=readPublicProcurementCanary('OXNARD-PW-24-109','2026-10-28T21:01:00Z')!
