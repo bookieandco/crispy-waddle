@@ -5,6 +5,7 @@ import {
 } from './sniper-intel-journal'
 import type {SniperPaperCycleResult} from './sniper-paper-cycle'
 const now='2026-10-22T22:30:00Z'
+const owner='11111111-1111-4111-8111-111111111111'
 const risk={
   tokenAddress:'MINT',disposition:'BLOCK',authority:'RISK_RESEARCH_ONLY',
   reasonCodes:['RUG'],mechanisms:[{mechanism:'CONCENTRATED_DUMP',
@@ -31,7 +32,7 @@ const paper={
   acceptance:{status:'PAPER_CLOSED_ACCEPTED',canExecute:false,
     handoff:{handoffId:'handoff:1',deferredReasons:['PAPER_NOT_PURSE_ACCOUNTING']}},
 } as unknown as SniperPaperCycleResult
-const archive=(r:SniperPaperCycleResult=noTrade)=>buildSniperArchiveRow({tradeId:'trade:1',informationCutoff:now,result:r})
+const archive=(r:SniperPaperCycleResult=noTrade)=>buildSniperArchiveRow({ownerId:owner,tradeId:'trade:1',informationCutoff:now,result:r})
 function store(){
  const rows=new Map<string,SniperIntelArchiveRow>()
  let failAfterCommit=false
@@ -50,6 +51,7 @@ function store(){
 describe('SHARK archived research: one-record atomic replay and failure quarantine',()=>{
  it('records a veto with no trade or alleged profit',async()=>{
   const row=archive()
+  expect(row.owner_id).toBe(owner)
   expect(row.payload_json.disposition).toBe('NO_TRADE')
   expect(row.payload_json.paper).toBeUndefined()
   expect(row.payload_json.canExecute).toBe(false)
@@ -89,7 +91,8 @@ describe('SHARK archived research: one-record atomic replay and failure quaranti
   await expect(archiveSniperIntel(s.adapter,changed)).rejects.toThrow('SHARK_INTEL_ARCHIVE_CONFLICT')
  })
  it('denies wrong identity and accidental financial authority',()=>{
-  expect(()=>buildSniperArchiveRow({tradeId:'different',informationCutoff:now,result:noTrade})).toThrow()
+  expect(()=>buildSniperArchiveRow({ownerId:owner,tradeId:'different',informationCutoff:now,result:noTrade})).toThrow()
+  expect(()=>buildSniperArchiveRow({ownerId:'wrong',tradeId:'trade:1',informationCutoff:now,result:noTrade})).toThrow()
   expect(()=>archive({...noTrade,canExecute:true} as unknown as SniperPaperCycleResult)).toThrow()
   expect(()=>archive({...noTrade,paper:paper.paper} as SniperPaperCycleResult)).toThrow()
  })
