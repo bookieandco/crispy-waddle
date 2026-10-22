@@ -40,5 +40,6 @@
     "strapThicknessMm": null,
     "handleAnchorSpacingMm": null,
     "measurementEvidence": null
-  }
+  },
+  "printifyCatalogEvidenceSha256": null
 }
