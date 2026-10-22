@@ -113,6 +113,8 @@ export function createProductionSportsHistoryProvider(options:{
         ?sourceRecords.filter(record=>record.phase==="REGULAR")
         :sourceRecords)
       const excludedUnclassified=nbaRegularSeason&&sourceRecords.some(record=>record.phase==="UNKNOWN")
+      // Do not publish an apparently successful history view with zero admitted stats.
+      if(records.length===0)return null
       const query:SportsHistoryQuery=Object.freeze({
         queryId:"ask-history:"+crypto.randomUUID(),
         entityKind,
