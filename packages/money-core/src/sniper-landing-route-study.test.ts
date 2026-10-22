@@ -36,3 +36,14 @@ test('price-stale venue is excluded even if nominally cheapest',()=>{
  assert.equal(stale.selectedForPaper,'STANDARD_RPC')
  assert.equal(stale.rankings[1]!.readyForPaperComparison,false)
 })
+
+test('a cheap but frequently failing relay loses admissibility to a reliable RPC',()=>{
+ const observations=[
+  sample('STANDARD_RPC',1),sample('STANDARD_RPC',2),sample('STANDARD_RPC',3),
+  sample('JITO_BUNDLE',1),sample('JITO_BUNDLE',2,'FAILED'),sample('JITO_BUNDLE',3,'FAILED'),
+ ]
+ const result=compare(observations,[candidate('STANDARD_RPC',0n),candidate('JITO_BUNDLE',0n)])
+ assert.equal(result.selectedForPaper,'STANDARD_RPC')
+ assert.equal(result.rankings[1]?.observedLandingSuccessBps,3333)
+ assert.ok(result.rankings[1]?.reasonCodes.includes('LANDING_SUCCESS_BELOW_MINIMUM'))
+})
