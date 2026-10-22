@@ -150,7 +150,7 @@ export function fuseSniperIntelligence(input:{
     lesson.canAuthorizeLive!==false||!id(lesson.lessonId)||!id(lesson.decisionId)||
     !lesson.evidenceIds.length){continue}
   const time=iso(lesson.evaluatedAt)
-  if(time>cutoff||time>Date.parse(proof.availableAt)||seen.has(lesson.lessonId))continue
+  if(time>cutoff||time<Date.parse(proof.availableAt)||seen.has(lesson.lessonId))continue
   // Max one independent learning unit per decision, even for six horizons.
   const prev=historical.get(lesson.decisionId)
   if(!prev||Date.parse(prev.evaluatedAt)<time)historical.set(lesson.decisionId,lesson)
