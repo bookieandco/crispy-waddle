@@ -14,7 +14,7 @@ export default function RoundOneInterviewPage() {
   const [error, setError] = useState("")
 
   async function loadFile(event: ChangeEvent<HTMLInputElement>) {
-    setLedger(null); setSelected([]); setMessage(""); setError("")
+    setSelected([]); setMessage(""); setError("")
     const files = Array.from(event.target.files ?? [])
     if (!files.length) return
     try {
@@ -22,7 +22,9 @@ export default function RoundOneInterviewPage() {
         throw new Error("Choose up to five private JSON archives, each under 256 KB")
       }
       const archives = await Promise.all(files.map(async file => JSON.parse(await file.text()) as unknown))
-      setLedger(mergeRoundOneLedgers(archives))
+      // Retain previously loaded entries so an iPhone can add archives one at a time.
+      // A rejected conflicting file leaves the earlier review intact.
+      setLedger(mergeRoundOneLedgers(ledger ? [ledger, ...archives] : archives))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not read the archives")
     } finally {
