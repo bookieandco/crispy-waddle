@@ -43,7 +43,7 @@ export class SniperFastpathDiscoveryIntake {
     const max=config.maxKeys??4096,ttl=config.dedupeTtlMs??60000
     if(!Number.isSafeInteger(max)||max<1||!Number.isSafeInteger(ttl)||ttl<1)throw new Error('SHARK_DISCOVERY_CONFIG_INVALID')
   }
-  ingest(event:HeliusLaunchWebhookEvent,meta:{receivedAt:string;startedMonotonicMs:number;finishedMonotonicMs:number}):FastpathDiscoveryResult{
+  ingest(event:HeliusLaunchWebhookEvent,meta:{receivedAt:string;startedMonotonicMs:number;finishedMonotonicMs:number;nowMonotonicMs?:()=>number}):FastpathDiscoveryResult{
     const finish=(disposition:FastpathDiscoveryDisposition,reasonCodes:string[],receipt?:FastpathDiscoveryReceipt):FastpathDiscoveryResult=>
       Object.freeze({disposition,reasonCodes:Object.freeze(reasonCodes),receipt,authority:'DISCOVERY_EVIDENCE_ONLY',canTrade:false})
     const receivedMs=Date.parse(meta.receivedAt)
@@ -67,12 +67,16 @@ export class SniperFastpathDiscoveryIntake {
     if(this.seen.has(key))return finish('DUPLICATE',['IDENTICAL_CHAIN_EVENT'])
     if(this.seen.size>=(this.config.maxKeys??4096))return finish('DROPPED_CAPACITY',['DISCOVERY_DEDUPE_CAPACITY'])
     this.seen.set(key,receivedMs+ttl)
+    const endMonotonic=meta.nowMonotonicMs?.()??meta.finishedMonotonicMs
+    if(!Number.isFinite(endMonotonic)||endMonotonic<meta.startedMonotonicMs){
+      return finish('INVALID',['CLOCK_INVALID'])
+    }
     const receipt:FastpathDiscoveryReceipt=Object.freeze({
       version:SNIPER_DISCOVERY_VERSION,observationId:launch.observation.observationId,
       mint:launch.observation.tokenAddress,signature:event.signature,slot:event.slot,
       providerObservedAt:launch.observation.observedAt,receivedAt:meta.receivedAt,
       discoveryDelayMs:receivedMs-sourceMs,
-      elapsedProcessingMs:meta.finishedMonotonicMs-meta.startedMonotonicMs,
+      elapsedProcessingMs:endMonotonic-meta.startedMonotonicMs,
       evidenceIds:Object.freeze([...launch.observation.evidenceIds]),
       verification:'PROVISIONAL_UNVERIFIED',authority:'DISCOVERY_EVIDENCE_ONLY',canTrade:false,
     })
