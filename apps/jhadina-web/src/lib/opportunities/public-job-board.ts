@@ -3,7 +3,7 @@ import { adaptEmploymentOpportunity, type Opportunity } from '@jhadina/opportuni
 /** Public GET listings only; no applications, crawling arbitrary URLs, account access or outreach. */
 export type PublicBoardSource = 'greenhouse' | 'lever'
 export type BoardInput = { source: PublicBoardSource; board: string; limit?: number }
-type ResponseLike = { ok: boolean; status: number; headers: { get(name: string): string | null }; json(): Promise<unknown> }
+type ResponseLike = { body?: ReadableStream<Uint8Array> | null; ok: boolean; status: number; headers: { get(name: string): string | null }; json(): Promise<unknown> }
 type Fetcher = (url: string, options: { headers: Record<string,string>; redirect: 'error'; cache: 'no-store'; signal: AbortSignal }) => Promise<ResponseLike>
 type JobRow = { id?: number | string; title?: string; text?: string; absolute_url?: string; hostedUrl?: string; applyUrl?: string; location?: { name?: string }; categories?: { location?: string; commitment?: string }; updated_at?: string }
 const BOARD_PATTERN = /^[a-z0-9][a-z0-9_-]{1,49}$/i
@@ -87,7 +87,29 @@ export async function discoverPublicBoard(input: BoardInput, fetcher: Fetcher = 
   if (!res.ok) throw new Error(`Public board returned HTTP ${res.status}`)
   const length = Number(res.headers.get('content-length'))
   if (Number.isFinite(length) && length > MAX_BODY_BYTES) throw new Error('Public board payload exceeds limit')
-  const payload = await res.json()
+  const payload = await boundedPublicBoardJson(res)
   const capturedAt = new Date().toISOString()
   return { sourceUrl: url, capturedAt, opportunities: normalizePublicBoardRows(input, payload, capturedAt) }
+}
+
+/** Limit actual network bytes even if Content-Length is absent or dishonest. */
+async function boundedPublicBoardJson(response: ResponseLike): Promise<unknown> {
+  if (!response.body) return response.json()
+  const reader=response.body.getReader()
+  const chunks: Uint8Array[]=[]
+  let size=0
+  while(true){
+    const next=await reader.read()
+    if(next.done)break
+    size+=next.value.byteLength
+    if(size>MAX_BODY_BYTES){
+      await reader.cancel().catch(()=>undefined)
+      throw new Error('Public board response exceeds limit')
+    }
+    chunks.push(next.value)
+  }
+  const result=new Uint8Array(size)
+  let offset=0
+  for(const chunk of chunks){result.set(chunk,offset);offset+=chunk.byteLength}
+  return JSON.parse(new TextDecoder().decode(result)) as unknown
 }
