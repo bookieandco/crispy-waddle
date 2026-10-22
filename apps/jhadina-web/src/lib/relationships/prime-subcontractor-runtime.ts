@@ -1,6 +1,7 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {
   matchPrimeToSubcontractors,
+  hasAmbiguousAwardRecipient,
   type BrokerProviderCandidate,
   type PrimeSubcontractorCandidate,
   type PublicAwardPrimeFingerprint,
@@ -30,7 +31,7 @@ export function resolvePublicWorkPackagePrimeRef(input:{
   const explicit=text(input.awardedPrimeRef)
   if(explicit)return explicit
   const name=text(input.awardedPrimeName)
-  if(!name)return undefined
+  if(!name || hasAmbiguousAwardRecipient(name))return undefined
   const slug=publicPrimeSlug(name)
   return slug?'local-prime:'+slug:undefined
 }
@@ -198,7 +199,7 @@ export async function reconcilePrimeSubcontractorMatches(
         family:'procurement_subcontracting',
         entityId:primeEntityId,
         pipelineId:'sam_teaming',
-        stageId:'qualified',
+        stageId:match.disposition==='matched_candidate'?'qualified':'researched',
         values:{
           relationshipLane:'primes',
           matchedSubcontractorEntityId:subEntityId,
