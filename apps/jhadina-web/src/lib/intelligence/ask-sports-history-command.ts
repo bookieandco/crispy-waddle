@@ -95,7 +95,8 @@ function render(view:SportsHistoryView):string{
   ]
   for(const s of view.summaries.slice(0,16)){
     lines.push(
-      s.statLabel+" ("+s.statKey+"): n="+s.sampleSize+
+      s.statLabel+" ("+s.statKey+"): total "+s.sum.toLocaleString()+
+      " | n="+s.sampleSize+
       " | mean "+s.mean.toFixed(2)+
       " | median "+s.p50.toFixed(2)+
       " | P10–P90 "+s.p10.toFixed(2)+"–"+s.p90.toFixed(2)
