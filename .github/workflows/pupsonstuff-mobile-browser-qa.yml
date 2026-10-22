@@ -10,6 +10,8 @@ on:
       - 'apps/pupsonstuff/scripts/qa-product3d-matrix.mjs'
       - 'apps/pupsonstuff/scripts/prepare-3d-qa.mjs'
       - 'apps/pupsonstuff/lib/product3d/**'
+      - 'apps/pupsonstuff/scripts/normalize_generated_glb.py'
+      - 'apps/pupsonstuff/scripts/test_normalize_generated_glb.py'
       - 'apps/pupsonstuff/__tests__/product3d-*.test.ts'
       - 'apps/pupsonstuff/lib/commerce-safety.ts'
       - 'apps/pupsonstuff/lib/fulfillment-bridge.ts'
@@ -52,7 +54,9 @@ jobs:
       - name: Check types and run scoped product 3D rendering contracts
         run: |
           pnpm --filter @jhadina/pupsonstuff type-check
-          pnpm --filter @jhadina/pupsonstuff exec vitest run __tests__/product3d-placement.test.ts __tests__/product3d-framing.test.ts __tests__/product3d-candidate-intake.test.ts
+          pnpm --filter @jhadina/pupsonstuff exec vitest run __tests__/product3d-placement.test.ts __tests__/product3d-framing.test.ts __tests__/product3d-candidate-intake.test.ts __tests__/product3d-asset-standard.test.ts
+      - name: Verify offline Blender candidate normalization mathematics (no GPU or Blender)
+        run: python3 -m unittest discover -s apps/pupsonstuff/scripts -p test_normalize_generated_glb.py -v
       - name: Add synthetic model QA route only inside CI build
         env:
           PUPSON_CLOUDFLARE_PREVIEW_ONLY: 'true'
