@@ -37,7 +37,7 @@ function queryFor(table:string):any{
 const privileged={from:(table:string)=>queryFor(table)};
 
 vi.mock('@/lib/supabase/service-role',()=>({
-  createServiceRoleClient:()=>privileged,
+  createRuntimeServiceRoleClient:async()=>privileged,
 }));
 
 vi.mock('@/lib/director-workstation-timeline-repository',()=>({
