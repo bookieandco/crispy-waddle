@@ -16,7 +16,7 @@ VALID_NAME = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
 GENERATOR_IDS = frozenset({
     "tencent-hunyuan3d-2", "aiuniai-unique3d",
     "ashawkey-stable-dreamfusion", "microsoft-trellis",
-    "microsoft-trellis2",
+    "microsoft-trellis2", "pupson-procedural-tote-cpu",
 })
 VIEWS = ("front", "side", "back")
 
@@ -109,11 +109,16 @@ def verify_pack(root, manifest, for_execution=False):
         type(x) not in (float, int) or not 0 < x <= 3000 for x in dimensions
     ):
         blockers.append("REAL_SKU_WIDTH_HEIGHT_DEPTH_REQUIRED")
-    for field in ("skuMeasurementEvidence", "photoRightsEvidence", "outputCommercialRightsEvidence",
-                  "checkpointLicenseEvidence", "dependencyLicenseEvidence", "generatorRevision"):
+    common_rights = ("skuMeasurementEvidence", "photoRightsEvidence", "outputCommercialRightsEvidence")
+    model_rights = () if manifest.get("generator") == "pupson-procedural-tote-cpu" else (
+        "checkpointLicenseEvidence", "dependencyLicenseEvidence", "generatorRevision"
+    )
+    for field in common_rights + model_rights:
         val = manifest.get(field)
         if not isinstance(val, str) or len(val.strip()) < 12 or "placeholder" in val.lower() or "todo" in val.lower():
             blockers.append(field.upper() + "_MISSING")
+    if manifest.get("generator") == "pupson-procedural-tote-cpu" and product != "tote":
+        blockers.append("CPU_PROCEDURAL_SOURCE_TOTE_ONLY")
     if manifest.get("generator") == "tencent-hunyuan3d-2" and not (
         isinstance(manifest.get("hunyuanTerritoryClearance"), str) and
         len(manifest["hunyuanTerritoryClearance"].strip()) >= 20
