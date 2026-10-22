@@ -16,7 +16,14 @@ export default function JhadinaTVHome() {
     let active = true;
     const endpoint = query.trim() ? `/api/jhadinatv/ask?q=${encodeURIComponent(query)}` : '/api/jhadinatv/search?q=';
     fetch(endpoint, { credentials: 'same-origin' })
-      .then(async (response) => { if (!response.ok) throw new Error('Sign in as the JhadinaTV owner to browse your library.'); return response.json(); })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(response.status === 401 || response.status === 403
+          ? 'Sign in as the JhadinaTV owner to browse your library.'
+          : response.status === 503
+            ? 'Private library media is not commissioned yet. Your approved Live TV playlists can still be used.'
+            : 'Your private media catalog is temporarily unavailable.');
+        return response.json();
+      })
       .then(({ titles }: { titles?: MediaTitle[] }) => { if (active) { setCatalog(Array.isArray(titles) ? titles : []); setNotice(''); } })
       .catch((cause) => { if (active) { setCatalog([]); setNotice(cause instanceof Error ? cause.message : 'Library unavailable.'); } });
     return () => { active = false; };
