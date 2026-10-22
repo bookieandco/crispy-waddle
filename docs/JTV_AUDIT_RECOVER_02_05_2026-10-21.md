@@ -17,6 +17,7 @@ Baseline GitHub main reviewed: `04e96506f78ad16d7cd2d4a5fdb98c5c437c0a61`. Merge
 - Applied original, pre-reviewed JTV owner-state SQL using Supabase migration API. Live migration history version: `20261022050023_jhadinatv_owner_consumer_state`.
 - Verified `public.jtv_watchlist` and `public.jtv_playback_checkpoints` exist with RLS enabled and no current fixture rows.
 - Verified authenticated SELECT+INSERT grants and anonymous SELECT denial for both tables. `public.jtv_record_checkpoint` is part of applied SQL and is `SECURITY INVOKER`.
+- A follow-up live ACL check found a Supabase direct default `anon` EXECUTE grant on the RPC despite PUBLIC revocation. Applied the narrow follow-up migration `20261022050646_jhadinatv_checkpoint_anon_rpc_grant_repair` to revoke direct anonymous EXECUTE; verified `anon=false`, `authenticated=true` for RPC execution. Both live migrations now have matching repository files.
 - Renamed repository migration file to exactly match the now-applied **live version**. Removing its obsolete `20261016213000` filename avoids a future migration runner replaying a second `CREATE POLICY` against already-provisioned schema.
 - **Not certified:** real two-authenticated-*test-account* RLS canary with owned JWTs, cross-account REST actions and physical cross-device Continue Watching. Existing `scripts/jtv-postmerge-rls-canary.mjs` remains the gated real integration test and requires user-provided existing test-user sessions and explicit test writes. Do not use the owner's personal account as a canary fixture.
 
