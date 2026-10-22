@@ -41,3 +41,20 @@ Observed via read-only SQL. Not automatically evidence that the current web depl
 3. Prove project-isolation negative case, denied session 401, optional-denied proof stays unknown, zero external side effects.
 4. Separate staging database migrations and role/RLS checks for later Social operator stack. No unrelated SQL production apply.
 5. Owner reviews one real song/rights/media canary; explicitly approves any publishing or spending in canonical Action Core before executing.
+
+
+## MUSIC-CROSS-CORE — reusable campaign pipeline (Moments first)
+
+This PR also adds the **reusable per-song** bridge rather than another independent service. `Moments` is the selected canary, but any owner-scoped `catalog:* ` song can be chosen from the same existing 83-song projection.
+
+1. `music-cross-core-bridge.ts` uses **canonical Music creative briefs** and applies three different SEARCH treatments: cinematic mini-story, raw performance and relatable meme. Each carries a deterministic song/variant experiment key.
+2. It creates canonical **Social Core `ContentProject`** objects, preserving the artist brand, source song, evidence and draft-only authority. No connected platform account, no audience, no fake engagement.
+3. `buildDirectorBriefFromSocial` produces **Director Core social production briefs** only if a real owner-owned Director project ID has been verified through the existing owner-scoped projects table. Producing a brief does not start a video render, provision a GPU or approve an asset.
+4. `buildMusicCrossCoreMetaDraft` selectively uses **approved Director media receipts and the existing Meta draft builder** after documented rights, at least two validated same-song replications, verified provider-account/audience inputs and a positive bounded budget. It cannot publish an advertisement: the existing `requestPaidCampaign` / Action Core receipt remains the separately approved spending and dispatch authority.
+5. **Owner-only `/api/music/juggernaut/creative-workspace`**: GET previews a selected catalog song and available owner Director projects; POST (only by an explicit button) saves the *missing* Social drafts while preserving previously edited drafts. No schema migration, direct Social publishing, paid campaign request or Director media-generation call.
+6. The existing Music `content-stage` endpoint has a **cross-song attribution fix**: an unknown brief ID no longer silently falls back to a different brief, and the song is selected by that brief's `songId`, not by whichever track ranks first.
+7. The iPhone Juggernaut page includes song selection, per-variant preview, owner Director-project binding and a deliberate **Save 3 private Social drafts** action, with clear links to the three canonical cores.
+
+**Still blocked:** `Moments` is currently `rights_state=review_required` with zero recorded real sections, Social accounts = 0 and approved Music-linked media not verified. Source compilation, candidate concepts, Creator drafts and synthetic CI do not cure this. A saved draft is not a usable licensed video or published post.
+
+**Test boundary:** The dedicated cross-core tests reject missing rights, under-replicated song learning, unrelated approval receipts, and missing verified Director binding. The CI certification runs the new tests alongside the Music/Jhadina type-check. Live phone / approval / published-provider readback remains separate operator evidence.
