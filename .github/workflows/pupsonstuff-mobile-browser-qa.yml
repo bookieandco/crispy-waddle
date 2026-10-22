@@ -18,6 +18,8 @@ on:
       - 'apps/pupsonstuff/scripts/test_procedural_tote.py'
       - 'apps/pupsonstuff/scripts/pilot_tote_glb.py'
       - 'apps/pupsonstuff/scripts/test_pilot_tote_glb.py'
+      - 'apps/pupsonstuff/scripts/pilot_tote_acceptance.py'
+      - 'apps/pupsonstuff/scripts/test_pilot_tote_acceptance.py'
       - 'apps/pupsonstuff/scripts/qa-pilot-tote-iphone.mjs'
       - 'apps/pupsonstuff/scripts/printify-3d-sku-evidence.ts'
       - 'apps/pupsonstuff/lib/printify.ts'
@@ -75,6 +77,7 @@ jobs:
           python3 -m unittest discover -s apps/pupsonstuff/scripts -p test_factory_generate.py -v
           python3 -m unittest discover -s apps/pupsonstuff/scripts -p test_procedural_tote.py -v
           python3 -m unittest discover -s apps/pupsonstuff/scripts -p test_pilot_tote_glb.py -v
+          python3 -m unittest discover -s apps/pupsonstuff/scripts -p test_pilot_tote_acceptance.py -v
           if command -v blender >/dev/null; then echo 'Blender is on CI image; no real SKU is available for export.'; else echo 'Blender unavailable on CI; no GPU or paid runtime needed for CPU geometry contracts.'; fi
           python3 apps/pupsonstuff/scripts/factory_baseline_review.py --product tote
           python3 apps/pupsonstuff/scripts/factory_baseline_review.py --product hoodie
