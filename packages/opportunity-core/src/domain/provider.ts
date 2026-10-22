@@ -186,6 +186,26 @@ export const CANONICAL_OPPORTUNITY_PROVIDERS: readonly OpportunityProviderDescri
     executionOwner: 'Canonical Opportunity / Side Hustle pursuit approvals',
     notes: 'Read-only agent-eligible listing normalization contract only; no live credentialed feed, registration, submission, claim, wallet use or spending is commissioned.',
   },
+  {
+    id: 'provider:algora-bounty-snapshots',
+    vertical: 'services',
+    sourceId: 'global.algora',
+    adapterKey: 'revenue.marketplaces.algora.snapshot',
+    readiness: 'adapter_ready',
+    capabilities: ['normalize', 'research'],
+    executionOwner: 'Canonical Opportunity Core',
+    notes: 'Read-only evidence snapshots only; no sanctioned live feed, verified payer, escrow, claiming or submissions.',
+  },
+  {
+    id: 'provider:opire-bounty-snapshots',
+    vertical: 'services',
+    sourceId: 'global.opire',
+    adapterKey: 'revenue.marketplaces.opire.snapshot',
+    readiness: 'adapter_ready',
+    capabilities: ['normalize', 'research'],
+    executionOwner: 'Canonical Opportunity Core',
+    notes: 'Read-only evidence snapshots only; payer arranges payment directly; no escrow, claim, approval or automated action.',
+  },
 ] as const
 
 export function opportunityProvider(id: string): OpportunityProviderDescriptor | undefined {

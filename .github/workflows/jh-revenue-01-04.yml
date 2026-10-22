@@ -1,0 +1,31 @@
+name: JH Revenue 01-04
+on:
+  pull_request:
+    paths:
+      - 'packages/opportunity-core/**'
+      - 'docs/JH_REVENUE_01_04_HANDOFF_2026-10-22.md'
+      - '.github/workflows/jh-revenue-01-04.yml'
+  workflow_dispatch:
+jobs:
+  revenue-gates:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Type-check canonical Opportunity Core
+        run: pnpm --filter @jhadina/opportunity-core type-check
+      - name: Run specific source and revenue acceptance tests
+        run: |
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/zero-rig.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/zero-rig-live.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/revenue-gates.test.ts
