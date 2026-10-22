@@ -8,6 +8,7 @@ type YouTubeState={connected:boolean;configured?:boolean;reason?:string}
 type SocialAccount={id:string;platform:string;displayName:string;status:string}
 type Health="checking"|"unavailable"|"ready"
 type PublicCandidate={externalId:string;title:string;summary:string;url:string;sourceAccount:string}
+type SavedPublicSource={provider:"bluesky"|"mastodon"|"github";handle:string;state:string;lastVerifiedAt?:string}
 export default function FeedConnectionsPage(){
  const [youtube,setYouTube]=useState<YouTubeState|null>(null)
  const [social,setSocial]=useState<SocialAccount[]>([])
@@ -20,6 +21,10 @@ export default function FeedConnectionsPage(){
  const [publicItems,setPublicItems]=useState<PublicCandidate[]>([])
  const [publicBusy,setPublicBusy]=useState(false)
  const [publicMessage,setPublicMessage]=useState("")
+ const [savedSources,setSavedSources]=useState<SavedPublicSource[]>([])
+ const [savedStatus,setSavedStatus]=useState<"checking"|"ready"|"disabled"|"unavailable">("checking")
+ const [saveBusy,setSaveBusy]=useState(false)
+ const [savedNotice,setSavedNotice]=useState("")
  useEffect(()=>{
   let mounted=true
   void fetch("/api/music/youtube/status",{credentials:"same-origin",cache:"no-store"}).then(async r=>{
@@ -31,6 +36,13 @@ export default function FeedConnectionsPage(){
    if(!r.ok||!x.success)throw new Error("Unavailable")
    return x.data??[]
   }).then(x=>{if(mounted){setSocial(x);setSocialHealth("ready")}}).catch(()=>{if(mounted)setSocialHealth("unavailable")})
+  void fetch("/api/social/feed-connections",{credentials:"same-origin",cache:"no-store"}).then(async r=>{
+   if(r.status===503){if(mounted)setSavedStatus("disabled");return}
+   if(!r.ok)throw Error("Saved accounts unavailable")
+   const response=await r.json() as {ok:boolean;sources?:SavedPublicSource[]}
+   if(!response.ok)throw Error("Unable to verify saved public sources")
+   if(mounted){setSavedSources(response.sources??[]);setSavedStatus("ready")}
+  }).catch(()=>{if(mounted)setSavedStatus("unavailable")})
   return()=>{mounted=false}
  },[])
  async function disconnectYoutube(){
@@ -54,6 +66,27 @@ export default function FeedConnectionsPage(){
      if(!data.items?.length)setPublicMessage("No public posts returned. This does not mean a private feed is connected.")
    }catch(error){setPublicMessage(error instanceof Error?error.message:"Source unavailable")}
    finally{setPublicBusy(false)}
+ }
+ async function changePublicSource(method:"POST"|"DELETE",account:SavedPublicSource|{provider:"bluesky"|"mastodon"|"github";handle:string}){
+  setSaveBusy(true);setSavedNotice("")
+  try{
+   const response=await fetch("/api/social/feed-connections",{
+    method,credentials:"same-origin",headers:{"content-type":"application/json"},
+    body:JSON.stringify({provider:account.provider,handle:account.handle}),
+   })
+   const data=await response.json() as {ok?:boolean;error?:string}
+   if(!response.ok||data.ok!==true)throw Error(data.error==="FEED_STORAGE_NOT_ENABLED"
+    ?"Saved-source storage is not activated on this private deployment."
+    :method==="POST"?"Public source could not be verified or saved.":"Public source could not be removed.")
+   if(method==="POST"){
+    setSavedSources(old=>old.some(s=>s.provider===account.provider&&s.handle===account.handle)
+      ?old:[...old,{...account,state:"healthy"}])
+   }else{
+    setSavedSources(old=>old.filter(s=>s.provider!==account.provider||s.handle!==account.handle))
+   }
+   setSavedNotice(method==="POST"?"Public source saved. No private account was connected.":"Public source removed.")
+  }catch(error){setSavedNotice(error instanceof Error?error.message:"Source update failed")}
+  finally{setSaveBusy(false)}
  }
  const registered=social.filter(x=>x.status==="connected")
  return <main className="jh-page"><div className="jh-wrap">
@@ -92,8 +125,18 @@ export default function FeedConnectionsPage(){
     <label className="jh-meta" htmlFor="public-source-handle">Public handle</label>
     <input id="public-source-handle" className="jh-input" value={publicActor} placeholder={publicProvider==="bluesky"?"example.bsky.social":publicProvider==="github"?"GitHub username":"example"} maxLength={250} onChange={event=>setPublicActor(event.target.value)}/>
     <button type="button" className="jh-button jh-button--primary" disabled={!publicActor.trim()||publicBusy} onClick={()=>void previewPublicSource()}>{publicBusy?"Checking…":"Preview public posts"}</button>
+    {publicItems.length>0?<button type="button" className="jh-button" disabled={saveBusy||savedStatus!=="ready"} onClick={()=>void changePublicSource("POST",{provider:publicProvider,handle:publicActor.trim().replace(/^@/,"")})}>{saveBusy?"Saving…":"Save public source to Home"}</button>:null}
    </div>
    {publicMessage?<p className="jh-meta" role="status">{publicMessage}</p>:null}
+   <p className="jh-meta" role="status">{savedStatus==="checking"?"Checking saved-source access…":savedStatus==="disabled"?"Saving is not commissioned on this deployment; public preview still works.":savedStatus==="unavailable"?"Saved source list unavailable.":savedSources.length+" public sources saved for on-demand Home reading."}</p>
+   {savedNotice?<p className="jh-meta" role="status">{savedNotice}</p>:null}
+   {savedSources.length>0?<div className="jh-grid" style={{marginTop:10}}>
+    {savedSources.map(saved=><article key={saved.provider+":"+saved.handle} className="jh-card jh-card--third">
+     <p className="jh-card-title">{saved.provider}: @{saved.handle}</p>
+     <p className="jh-meta">Saved public source · no private-account grant</p>
+     <button type="button" className="jh-button" disabled={saveBusy} onClick={()=>void changePublicSource("DELETE",saved)}>Remove source</button>
+    </article>)}
+   </div>:null}
    <div className="jh-grid" style={{marginTop:15}}>
     {publicItems.map(post=><article key={post.externalId} className="jh-card jh-card--third">
      <h3 className="jh-card-title">{post.title}</h3>
