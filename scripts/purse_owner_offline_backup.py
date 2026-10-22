@@ -109,6 +109,33 @@ def receipt_for_encrypted_copy(
     }
 
 
+
+# Strict allowlist: never pass JH_PURSE_SOURCE_DSN, other integration secrets,
+# or the database password through to the age encryption process.
+_SAFE_CHILD_ENV = frozenset((
+    "PATH", "HOME", "LANG", "LC_ALL", "LC_CTYPE", "TZ", "TMPDIR",
+    "SSL_CERT_FILE", "SSL_CERT_DIR"
+))
+
+
+def build_export_child_environments(source: dict, inherited: dict) -> tuple[dict, dict]:
+    if any(key not in source for key in ("host", "port", "user", "password", "database")):
+        raise ExportBlocked("Incomplete canonical source configuration")
+    common = {key: value for key, value in inherited.items()
+              if key in _SAFE_CHILD_ENV and isinstance(value, str)}
+    encryption_env = dict(common)
+    database_env = dict(common)
+    database_env.update({
+        "PGHOST": source["host"], "PGPORT": str(source["port"]),
+        "PGUSER": source["user"], "PGPASSWORD": source["password"],
+        "PGDATABASE": source["database"], "PGSSLMODE": "verify-full",
+        "PGOPTIONS": "-c default_transaction_read_only=on",
+        "PGAPPNAME": "jhadina_purse_owner_readonly_export"
+    })
+    if inherited.get("PGSSLROOTCERT"):
+        database_env["PGSSLROOTCERT"] = inherited["PGSSLROOTCERT"]
+    return database_env, encryption_env
+
 def run_backup(source: dict, recipient: str, output_dir: Path) -> tuple[Path, Path]:
     if not shutil.which("pg_dump") or not shutil.which("age"):
         raise ExportBlocked("Local pg_dump and age tools are both required")
@@ -118,28 +145,19 @@ def run_backup(source: dict, recipient: str, output_dir: Path) -> tuple[Path, Pa
     archive = output_dir / name
     partial = output_dir / (name + ".partial")
     manifest = output_dir / (name + ".json")
-    env = {k: v for k, v in os.environ.items() if not k.startswith("PG")}
-    env.update({
-        "PGHOST": source["host"], "PGPORT": str(source["port"]),
-        "PGUSER": source["user"], "PGPASSWORD": source["password"],
-        "PGDATABASE": source["database"], "PGSSLMODE": "verify-full",
-        "PGOPTIONS": "-c default_transaction_read_only=on",
-        "PGAPPNAME": "jhadina_purse_owner_readonly_export"
-    })
-    if os.environ.get("PGSSLROOTCERT"):
-        env["PGSSLROOTCERT"] = os.environ["PGSSLROOTCERT"]
+    database_env, encryption_env = build_export_child_environments(source, os.environ)
     try:
         # Encrypted stream from the start. No readable dump file ever exists.
         fd = os.open(partial, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, "wb") as out:
             pg = subprocess.Popen(
                 ["pg_dump", "--format=custom", "--no-owner", "--serializable-deferrable"],
-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=env
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=database_env
             )
             try:
                 age = subprocess.Popen(
                     ["age", "-r", recipient], stdin=pg.stdout,
-                    stdout=out, stderr=subprocess.DEVNULL, env=env
+                    stdout=out, stderr=subprocess.DEVNULL, env=encryption_env
                 )
                 assert pg.stdout is not None
                 pg.stdout.close()
