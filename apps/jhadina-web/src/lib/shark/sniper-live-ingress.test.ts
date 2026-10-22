@@ -30,11 +30,22 @@ describe('authorized Helius sniper ingress composition',()=>{
   expect(receipt.canExecute).toBe(false)
   expect(persisted).toHaveLength(1)
  })
- it('awaits durable launch writes and fails rather than acknowledging lost events',async()=>{
+ it('awaits durable writes and permits a provider retry after a failed persist',async()=>{
+  const intake=new SniperFastpathDiscoveryIntake()
+  let attempts=0
+  const args={events:[ev('sig:unique')],receivedAt,intake,clock:()=>2}
   await expect(persistSniperHeliusBatch({
-   events:[ev('sig:unique')],receivedAt,intake:new SniperFastpathDiscoveryIntake(),clock:()=>2,
-   persist:async()=>{throw new Error('database unavailable')},
+   ...args,persist:async()=>{attempts++;throw new Error('database unavailable')},
   })).rejects.toThrow('database unavailable')
+  const retried=await persistSniperHeliusBatch({
+   ...args,persist:async collection=>{
+    attempts++
+    return {launchId:collection.ingested.launch.launchId,persistedEdges:0}
+   },
+  })
+  expect(retried.persisted).toBe(1)
+  expect(retried.duplicates).toBe(0)
+  expect(attempts).toBe(2)
  })
  it('rejects missing chain event identity and oversized batches',async()=>{
   const receipt=await persistSniperHeliusBatch({
