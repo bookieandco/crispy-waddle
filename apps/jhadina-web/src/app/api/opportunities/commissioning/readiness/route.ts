@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { createRuntimeServiceRoleClient } from '@/lib/supabase/service-role'
 import { createSupabaseOpportunityRepository } from '@/lib/opportunities/supabase-opportunity-repository'
 import { calculateOpportunityActivationReadiness } from '@/lib/opportunities/activation-readiness'
 
@@ -18,7 +18,7 @@ export async function GET(){
       ownerId:user.id,
       stored:owned,
       allowedSourceHosts:(process.env.OCE_RESEARCH_ALLOWED_HOSTS??'').split(','),
-      agentPersistenceConfigured:Boolean(createServiceRoleClient()),
+      agentPersistenceConfigured:Boolean(await createRuntimeServiceRoleClient()),
     })
     return NextResponse.json({
       ok:true,readiness:result,verifiedAt:new Date().toISOString(),
