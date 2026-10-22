@@ -4,6 +4,7 @@ import { useState } from "react"
 
 type PilotKind = "research_report" | "qualified_leads" | "seo_audit"
 type Source = "greenhouse" | "lever"
+type JobPreview = {id:string;title:string;sourceUrl:string;sourceName:string;locationLabel:string;remoteMentioned:boolean;eligibilityVerified:false;aiPerformanceAuthorized:false;applicationAuthorized:false}
 type Preview = { pilot?: { state: string; document: string; checks: { name:string; passed:boolean }[] }; error?: string }
 const field: React.CSSProperties = { width:"100%",border:"1px solid #60736a",borderRadius:9,padding:11,background:"#fff",color:"#17251d",fontSize:16 }
 const btn: React.CSSProperties = { padding:"11px 15px",border:0,borderRadius:9,background:"#294c38",color:"#fff",fontWeight:700,cursor:"pointer" }
@@ -17,6 +18,9 @@ export default function AutonomyTools({ onImported }: { onImported: () => void }
   const [evidence,setEvidence]=useState("")
   const [preview,setPreview]=useState<Preview|null>(null)
   const [busy,setBusy]=useState(false)
+  const [jobPreviews,setJobPreviews]=useState<JobPreview[]>([])
+  const [readinessStatus,setReadinessStatus]=useState("")
+  const [pilotRunId,setPilotRunId]=useState("")
   const [pilotOpportunityId,setPilotOpportunityId]=useState("")
   const [pilotSourceReviewed,setPilotSourceReviewed]=useState(false)
   const [pilotStatus,setPilotStatus]=useState("")
@@ -24,13 +28,14 @@ export default function AutonomyTools({ onImported }: { onImported: () => void }
   const [commercialOrderId,setCommercialOrderId]=useState("")
   const [commercialStatus,setCommercialStatus]=useState("")
   async function importJobs(mode:"preview"|"owner_import") {
-    setBusy(true);setImportResult("")
+    setBusy(true);setImportResult("");setJobPreviews([])
     try {
       const sources=board.split(",").map(v=>v.trim()).filter(Boolean).map(board=>({source,board}))
       const res=await fetch("/api/opportunities/discovery/jobs/batch",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sources,mode})})
       const json=await res.json()
       if(res.status!==207&&!res.ok)throw new Error(json.error??"Unable to scan")
-      setImportResult(`Scanned ${json.scanned} board(s), found ${json.fetched} listing(s), imported ${json.persisted??0}. ${json.failed?.length?json.failed.join("; "):"No applications sent."}`)
+      setJobPreviews(Array.isArray(json.previews)?json.previews.slice(0,25):[])
+      setImportResult(`Scanned ${json.scanned} board(s), found ${json.fetched} listing(s), wrote ${json.persisted??0}; verified database read-back: ${json.verifiedImports??0}. ${json.failed?.length?json.failed.join("; "):"No applications sent. Job eligibility remains unverified."}`)
       if(mode==="owner_import")onImported()
     }catch(error){setImportResult(error instanceof Error?error.message:"Scan failed")}
     finally{setBusy(false)}
@@ -41,6 +46,7 @@ export default function AutonomyTools({ onImported }: { onImported: () => void }
       const response=await fetch("/api/opportunities/pilots/internal-run/from-opportunity",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({opportunityId:pilotOpportunityId,kind,confirmedSourceReview:pilotSourceReviewed})})
       const data=await response.json()
       if(!response.ok){setPilotStatus(data.blockers?.join("; ")??data.error??"Pilot blocked");return}
+      setPilotRunId(data.runId)
       setPilotStatus(`Internal report run ${data.runId} checkpointed. Not delivered or paid.`)
       setPilotDocument(data.document??"")
     }catch(error){setPilotStatus(error instanceof Error?error.message:"Pilot unavailable")}
@@ -54,6 +60,28 @@ export default function AutonomyTools({ onImported }: { onImported: () => void }
       if(!response.ok)throw new Error(data.error??"Commercial verification unavailable")
       setCommercialStatus(`Payment not certified. ${data.review?.blockers?.join("; ")??"Independent Money Core reconciliation pending."}`)
     }catch(error){setCommercialStatus(error instanceof Error?error.message:"Check unavailable")}
+    finally{setBusy(false)}
+  }
+  async function checkReadiness(){
+    setBusy(true);setReadinessStatus("")
+    try{
+      const response=await fetch("/api/opportunities/commissioning/readiness",{cache:"no-store"})
+      const data=await response.json()
+      if(!response.ok)throw new Error(data.error??"Readiness unavailable")
+      const r=data.readiness
+      setReadinessStatus(`Account records: ${r.storedOpportunityCount}; public jobs: ${r.publicJobCount}; source-qualified research cases: ${r.potentiallyResearchableCount}. ${r.blockers?.length?r.blockers.join("; "):"Ready for authorized private iPhone canary; not yet certified."}`)
+    }catch(error){setReadinessStatus(error instanceof Error?error.message:"Readiness unavailable")}
+    finally{setBusy(false)}
+  }
+  async function recoverPilot(){
+    setBusy(true)
+    try{
+      const response=await fetch("/api/opportunities/pilots/internal-run/"+encodeURIComponent(pilotRunId),{cache:"no-store"})
+      const data=await response.json()
+      if(!response.ok)throw new Error(data.error??"Run recovery unavailable")
+      setPilotDocument(data.run.result?.document??"")
+      setPilotStatus(`Persisted run: ${data.run.status}; checkpoint: ${data.run.checkpoint?.reason??"none"}; report hash: ${data.run.result?.reportSha256??"unavailable"}. Read-only, not paid.`)
+    }catch(error){setPilotStatus(error instanceof Error?error.message:"Recovery unavailable")}
     finally{setBusy(false)}
   }
   async function makePilot() {
@@ -88,6 +116,15 @@ export default function AutonomyTools({ onImported }: { onImported: () => void }
         <button style={btn} disabled={busy||!board.trim()} onClick={()=>void importJobs("owner_import")}>Import published jobs</button>
       </div>
       {importResult&&<p role="status" style={{fontSize:14,margin:0}}>{importResult}</p>}
+      {jobPreviews.length>0&&<div aria-label="Public listing preview" style={{display:"grid",gap:7,maxHeight:320,overflow:"auto"}}>
+        {jobPreviews.map(job=><div key={job.id} style={{background:"#fff",padding:10,border:"1px solid #c8d1ca",borderRadius:8}}>
+          <a href={job.sourceUrl} target="_blank" rel="noopener noreferrer" style={{fontWeight:700,color:"#294c38"}}>{job.title}</a>
+          <div style={{fontSize:12}}>{job.sourceName} · {job.locationLabel}</div>
+          <div style={{fontSize:12}}>Remote mentioned: {job.remoteMentioned?"yes":"no"} · Eligibility and AI-work permission: not verified</div>
+        </div>)}
+      </div>}
+      <button style={{...btn,background:"#3b5748"}} disabled={busy} onClick={()=>void checkReadiness()}>Check owner commissioning readiness</button>
+      {readinessStatus&&<p role="status" style={{fontSize:13,margin:0}}>{readinessStatus}</p>}
     </div>
     <hr style={{margin:"18px 0",border:"0",borderTop:"1px solid #b9c6be"}}/>
     <div style={{display:"grid",gap:10}}>
@@ -121,6 +158,7 @@ export default function AutonomyTools({ onImported }: { onImported: () => void }
           I reviewed the canonical source excerpts for this draft.
         </label>
         <button style={btn} disabled={busy||!pilotOpportunityId.trim()||!pilotSourceReviewed} onClick={()=>void runCanonicalPilot()}>Create governed internal report</button>
+        {pilotRunId&&<button style={{...btn,background:"#3b5748"}} disabled={busy} onClick={()=>void recoverPilot()}>Reload saved run and report</button>}
         {pilotStatus&&<p role="status" style={{fontSize:13}}>{pilotStatus}</p>}
         {pilotDocument&&<details><summary>Read internal report</summary><pre style={{whiteSpace:"pre-wrap",wordBreak:"break-word",fontSize:12}}>{pilotDocument}</pre></details>}
       </div>
