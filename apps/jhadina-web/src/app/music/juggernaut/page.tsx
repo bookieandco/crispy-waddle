@@ -3,6 +3,7 @@
 import {useCallback,useEffect,useMemo,useState} from "react";
 import {CommissioningEvidenceConsole} from "./commissioning-evidence-console";
 import {MusicRecoveryPanel} from "./music-recovery-panel";
+import {MusicMomentsPanel} from "./music-moments-panel";
 import {MusicCrossCorePanel} from "./music-cross-core-panel";
 
 type Row=Record<string,unknown>;
@@ -137,6 +138,7 @@ export default function MusicJuggernautPage(){
         <MusicCrossCorePanel songs={data.songs} />
 
         <MusicRecoveryPanel />
+        <MusicMomentsPanel />
 
         <CommissioningEvidenceConsole
           project={data.project}
