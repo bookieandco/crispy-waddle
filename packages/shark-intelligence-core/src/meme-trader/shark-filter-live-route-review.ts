@@ -60,9 +60,20 @@ export function reviewLiveFilterPaperRoute(input:{
     reasons.push('exit-route-evidence-unbound')
   if(shadow.state==='NO_FILL')reasons.push(...shadow.blockers)
   const status=reasons.length?'NO_FILL_OR_UNVERIFIED':'READ_ONLY_SHADOW_ESTIMATE'
+  // Do not expose even an indicative net return while fundamental coverage is
+  // missing. The original quotes can still be audited via evidence IDs.
+  const guardedShadow:SharkShadowRoundTrip=status==='NO_FILL_OR_UNVERIFIED'?
+    Object.freeze({
+      state:'NO_FILL' as const,
+      entryQuoteId:shadow.entryQuoteId,exitQuoteId:shadow.exitQuoteId,
+      blockers:Object.freeze([...new Set(reasons)].sort()),
+      evidenceIds:shadow.evidenceIds,
+      authority:'SHADOW_ESTIMATE_NOT_REALIZED_PNL' as const,
+      canAuthorizeTrade:false as const,
+    }):shadow
   return Object.freeze({
     caseId:study.caseId,status,reasons:Object.freeze([...new Set(reasons)].sort()),
-    shadow,evidenceIds:Object.freeze([...new Set([
+    shadow:guardedShadow,evidenceIds:Object.freeze([...new Set([
       study.originalMarketReceiptId,...shadow.evidenceIds,
       ...(candidate?.evidenceIds??[]),
     ])].sort()),
