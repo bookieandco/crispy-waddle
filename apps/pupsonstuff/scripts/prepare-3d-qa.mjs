@@ -25,6 +25,7 @@ const Engine = dynamic(() => import('@/components/Product3DEngine'), {ssr:false}
 export default function QA3DPage() {
   const [model, setModel] = useState('shirt');
   const [color, setColor] = useState('#f4f4f4');
+  const [rotation, setRotation] = useState(0);
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const candidate = query.get('model') || 'shirt';
@@ -35,8 +36,12 @@ export default function QA3DPage() {
   return <main style={{maxWidth:680,margin:'0 auto',padding:20,background:'#eee7df',minHeight:'100vh',fontFamily:'sans-serif'}}>
     <h1>QA 3D model: {model}</h1>
     <p>LOCAL SYNTHETIC FIXTURE · NOT A CUSTOMER PRINT</p>
+    <button type="button" onClick={() => setRotation((value) => (value + 30) % 360)}>
+      QA rotate artwork
+    </button>
     <Engine key={model+color} config={config} color={color}
-      decals={{front:'/qa-3d-marker.png'}} />
+      decals={{front:'/qa-3d-marker.png'}}
+      decalTransforms={{front:{x:0.5,y:0.5,scale:1,rotation}}} />
   </main>;
 }
 `;
