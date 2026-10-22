@@ -159,3 +159,7 @@ export * from './domain/autonomy-pilot.js'
 export * from './domain/autonomy-live.js'
 
 export * from './domain/autonomy-discovery-schedule.js'
+
+export * from './domain/revenue-superteam-details.js'
+export * from './domain/revenue-marketplaces.js'
+export * from './domain/revenue-economics.js'
