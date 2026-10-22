@@ -315,6 +315,8 @@ jobs:
         run: |
           python3 scripts/director-converge-schema-preflight.py > /tmp/director-commission-13-inventory.json
           python3 -c "import json; p=json.load(open('/tmp/director-commission-13-inventory.json')); print('DIRECTOR_MIGRATION_TIMESTAMP_COLLISIONS:',json.dumps(p['collidingVersions'],sort_keys=True)); assert p['safeForAutomaticReplay'] is False"
+      - name: Director pilot technical QC adversarial smoke (synthetic only)
+        run: python3 scripts/director-commission-18-media-qc-test.py
       - name: Director migration collision, RLS, grants and timeline RPC source preflight
         run: |
           python3 scripts/director-converge-background-contract.py
