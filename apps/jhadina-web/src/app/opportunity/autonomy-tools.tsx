@@ -17,15 +17,43 @@ export default function AutonomyTools({ onImported }: { onImported: () => void }
   const [evidence,setEvidence]=useState("")
   const [preview,setPreview]=useState<Preview|null>(null)
   const [busy,setBusy]=useState(false)
-  async function importJobs() {
+  const [pilotOpportunityId,setPilotOpportunityId]=useState("")
+  const [pilotSourceReviewed,setPilotSourceReviewed]=useState(false)
+  const [pilotStatus,setPilotStatus]=useState("")
+  const [pilotDocument,setPilotDocument]=useState("")
+  const [commercialOrderId,setCommercialOrderId]=useState("")
+  const [commercialStatus,setCommercialStatus]=useState("")
+  async function importJobs(mode:"preview"|"owner_import") {
     setBusy(true);setImportResult("")
     try {
-      const res=await fetch("/api/opportunities/discovery/jobs",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({source,board})})
-      const body=await res.json()
-      if(!res.ok)throw new Error(body.error??"Unable to import")
-      setImportResult(`Imported ${body.imported} public job records into the Opportunity queue. No applications sent.`)
-      onImported()
-    }catch(error){setImportResult(error instanceof Error?error.message:"Import failed")}
+      const sources=board.split(",").map(v=>v.trim()).filter(Boolean).map(board=>({source,board}))
+      const res=await fetch("/api/opportunities/discovery/jobs/batch",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sources,mode})})
+      const json=await res.json()
+      if(res.status!==207&&!res.ok)throw new Error(json.error??"Unable to scan")
+      setImportResult(`Scanned ${json.scanned} board(s), found ${json.fetched} listing(s), imported ${json.persisted??0}. ${json.failed?.length?json.failed.join("; "):"No applications sent."}`)
+      if(mode==="owner_import")onImported()
+    }catch(error){setImportResult(error instanceof Error?error.message:"Scan failed")}
+    finally{setBusy(false)}
+  }
+  async function runCanonicalPilot(){
+    setBusy(true);setPilotStatus("");setPilotDocument("")
+    try{
+      const response=await fetch("/api/opportunities/pilots/internal-run/from-opportunity",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({opportunityId:pilotOpportunityId,kind,confirmedSourceReview:pilotSourceReviewed})})
+      const data=await response.json()
+      if(!response.ok){setPilotStatus(data.blockers?.join("; ")??data.error??"Pilot blocked");return}
+      setPilotStatus(`Internal report run ${data.runId} checkpointed. Not delivered or paid.`)
+      setPilotDocument(data.document??"")
+    }catch(error){setPilotStatus(error instanceof Error?error.message:"Pilot unavailable")}
+    finally{setBusy(false)}
+  }
+  async function checkCommercial(){
+    setBusy(true);setCommercialStatus("")
+    try{
+      const response=await fetch("/api/opportunities/pilots/commercial-readiness?workOrderId="+encodeURIComponent(commercialOrderId),{cache:"no-store"})
+      const data=await response.json()
+      if(!response.ok)throw new Error(data.error??"Commercial verification unavailable")
+      setCommercialStatus(`Payment not certified. ${data.review?.blockers?.join("; ")??"Independent Money Core reconciliation pending."}`)
+    }catch(error){setCommercialStatus(error instanceof Error?error.message:"Check unavailable")}
     finally{setBusy(false)}
   }
   async function makePilot() {
@@ -52,10 +80,13 @@ export default function AutonomyTools({ onImported }: { onImported: () => void }
           <option value="greenhouse">Greenhouse</option><option value="lever">Lever</option>
         </select>
       </label>
-      <label>Company board token
+      <label>Company board tokens (up to five, comma-separated)
         <input style={field} autoCapitalize="none" spellCheck={false} value={board} onChange={event=>setBoard(event.target.value)} placeholder="Company careers board slug"/>
       </label>
-      <button style={btn} disabled={busy||!board.trim()} onClick={()=>void importJobs()}>Import up to 25 published jobs</button>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        <button style={btn} disabled={busy||!board.trim()} onClick={()=>void importJobs("preview")}>Preview public listings</button>
+        <button style={btn} disabled={busy||!board.trim()} onClick={()=>void importJobs("owner_import")}>Import published jobs</button>
+      </div>
       {importResult&&<p role="status" style={{fontSize:14,margin:0}}>{importResult}</p>}
     </div>
     <hr style={{margin:"18px 0",border:"0",borderTop:"1px solid #b9c6be"}}/>
@@ -79,5 +110,30 @@ export default function AutonomyTools({ onImported }: { onImported: () => void }
         <details><summary>Inspect report (internal draft)</summary><pre style={{whiteSpace:"pre-wrap",wordBreak:"break-word",fontSize:12,maxHeight:420,overflow:"auto"}}>{preview.pilot.document}</pre></details>
       </div>}
     </div>
+    <details style={{marginTop:16}}>
+      <summary style={{cursor:"pointer",fontWeight:700}}>Run a source-bound internal pilot (no client delivery)</summary>
+      <div style={{display:"grid",gap:9,marginTop:10}}>
+        <label>Saved canonical Opportunity ID
+          <input style={field} value={pilotOpportunityId} onChange={e=>setPilotOpportunityId(e.target.value)} placeholder="opportunity:..."/>
+        </label>
+        <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13}}>
+          <input type="checkbox" checked={pilotSourceReviewed} onChange={e=>setPilotSourceReviewed(e.target.checked)}/>
+          I reviewed the canonical source excerpts for this draft.
+        </label>
+        <button style={btn} disabled={busy||!pilotOpportunityId.trim()||!pilotSourceReviewed} onClick={()=>void runCanonicalPilot()}>Create governed internal report</button>
+        {pilotStatus&&<p role="status" style={{fontSize:13}}>{pilotStatus}</p>}
+        {pilotDocument&&<details><summary>Read internal report</summary><pre style={{whiteSpace:"pre-wrap",wordBreak:"break-word",fontSize:12}}>{pilotDocument}</pre></details>}
+      </div>
+    </details>
+    <details style={{marginTop:14}}>
+      <summary style={{cursor:"pointer",fontWeight:700}}>Commercial acceptance status (read only)</summary>
+      <div style={{display:"grid",gap:9,marginTop:10}}>
+        <label>Existing governed commercial work-order ID
+          <input style={field} value={commercialOrderId} onChange={e=>setCommercialOrderId(e.target.value)} placeholder="work-order:..."/>
+        </label>
+        <button style={btn} disabled={busy||!commercialOrderId.trim()} onClick={()=>void checkCommercial()}>Check delivery and financial blockers</button>
+        {commercialStatus&&<p role="status" style={{fontSize:13}}>{commercialStatus}</p>}
+      </div>
+    </details>
   </section>
 }

@@ -40,6 +40,17 @@ describe('OCE owner-triggered public job discovery',()=>{
     expect(spy.mock.calls[0][0]).toBe('https://boards-api.greenhouse.io/v1/boards/acme/jobs')
     expect(spy.mock.calls[0][1].redirect).toBe('error')
   })
+  it('rejects an oversized streamed body even without Content-Length',async()=>{
+    const bytes=new TextEncoder().encode('x'.repeat(5_000_001))
+    const body=new ReadableStream<Uint8Array>({
+      start(controller){controller.enqueue(bytes);controller.close()},
+    })
+    const source=vi.fn().mockResolvedValue({
+      ok:true,status:200,headers:{get:()=>null},body,
+      json:async()=>{throw new Error('JSON fallback must not be used')},
+    })
+    await expect(discoverPublicBoard({source:'greenhouse',board:'acme'},source)).rejects.toThrow(/exceeds limit/)
+  })
   it('fails closed on oversize or failed upstream',async()=>{
     const big=vi.fn().mockResolvedValue({ok:true,status:200,headers:{get:()=>String(5_000_001)},json:async()=>[]})
     await expect(discoverPublicBoard({source:'lever',board:'acme'},big)).rejects.toThrow(/exceeds limit/)
