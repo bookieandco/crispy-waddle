@@ -10,6 +10,7 @@ import {
   type UsStateOrDcCode,
 } from '@jhadina/opportunity-core'
 import {isRiversideOfficialBidListSource,parseRiversideUnifiedPublicBidList} from './public-rusd-bids-adapter'
+import {isOxnardPublicProjectBidSource,parseOxnardPublicProjectBids} from './public-oxnard-bids-adapter'
 import {
   parseGenericHtmlOpportunityTable,
   parseGenericJsonOpportunityCollection,
@@ -126,6 +127,7 @@ function adapterPlanFor(source:SourceRow){
 
 function adapterKeyFor(source:SourceRow):string|undefined{
   if(isRiversideOfficialBidListSource(source))return 'rusd-official-html-bids-v1'
+  if(isOxnardPublicProjectBidSource(source))return 'oxnard-public-project-bids-v1'
   const plan=adapterPlanFor(source)
   if(plan.status!=='SHADOW_READY')return undefined
   if(plan.templateKind==='generic_html_table')return'generic-html-table-v1'
@@ -168,6 +170,9 @@ async function fetchAndParse(input:{
   try{
     if(input.adapterKey==='rusd-official-html-bids-v1'){
       return {httpStatus:response.status,body,contentType,parsed:parseRiversideUnifiedPublicBidList(body,descriptor,input.now)}
+    }
+    if(input.adapterKey==='oxnard-public-project-bids-v1'){
+      return {httpStatus:response.status,body,contentType,parsed:parseOxnardPublicProjectBids(body,descriptor,input.now)}
     }
     if(input.adapterKey==='generic-html-table-v1'){
       return {httpStatus:response.status,body,contentType,parsed:parseGenericHtmlOpportunityTable(body,descriptor,input.now)}
@@ -478,7 +483,9 @@ export async function runPublicAdapterShadowBatch(
   const results:Array<Record<string,unknown>>=[]
   const generic:SourceRow[]=[]
   for(const source of sources){
-    const plan=isRiversideOfficialBidListSource(source)?{...adapterPlanFor(source),status:'SHADOW_READY' as const,reasons:['Exact official RUSD buyer bid-list parser; robots and 3 live trials still required.']}:adapterPlanFor(source)
+    const plan=isRiversideOfficialBidListSource(source)?{...adapterPlanFor(source),status:'SHADOW_READY' as const,reasons:['Exact official RUSD buyer bid-list parser; robots and 3 live trials still required.']}:
+      isOxnardPublicProjectBidSource(source)?{...adapterPlanFor(source),status:'SHADOW_READY' as const,reasons:['Exact official Oxnard public-project parser; robots and independent read-only trials still required.']}:
+      adapterPlanFor(source)
     const adapterKey=adapterKeyFor(source)
     if(adapterKey){
       generic.push(source)
