@@ -39,6 +39,14 @@ describe("phone login and signup during Supabase outages", () => {
       .toBe("http://localhost:3000");
     expect(authConfirmationOrigin({ vercelEnv: "preview", vercelUrl: "jhadina-private-bookieandcos-projects.vercel.app" }))
       .toBe("https://jhadina-private-bookieandcos-projects.vercel.app");
+    // A static canonical domain must not steal the callback from a protected preview.
+    expect(authConfirmationOrigin({
+      vercelEnv: "preview",
+      vercelUrl: "owner-preview-bookieandcos-projects.vercel.app",
+      siteUrl: "https://crispy-waddle-jhadina-web.vercel.app",
+      appUrl: "https://other-domain.example",
+    })).toBe("https://owner-preview-bookieandcos-projects.vercel.app");
+
     expect(authConfirmationOrigin({ vercelEnv: "preview", vercelUrl: "evil.example.com" }))
       .toBe("https://crispy-waddle-jhadina-web.vercel.app");
     expect(authConfirmationOrigin({ vercelEnv: "preview", vercelUrl: "localhost:3000" }))

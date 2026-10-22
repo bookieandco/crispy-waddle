@@ -262,7 +262,7 @@ function useMoneyStories(): Story[] {
 }
 
 function StoryCard({ story, onOpen }: { story: Story; onOpen: (story: Story) => void }) {
-  return <article className={styles.card} role="button" tabIndex={0} onClick={() => onOpen(story)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(story); } }}>
+  return <article className={styles.card} role="button" tabIndex={0} onClick={() => onOpen(story)} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onOpen(story); } }}>
     <div className={styles.cardHeader}>
       <div className={styles.glyph} aria-hidden="true">{glyph[story.kind]}</div>
       <div className={styles.source}>{story.source}</div>
@@ -273,7 +273,7 @@ function StoryCard({ story, onOpen }: { story: Story; onOpen: (story: Story) => 
     {story.action && <div className={styles.actions} onClick={(event) => event.stopPropagation()}>
       {story.action.href
         ? <Link href={story.action.href} className={styles.action}>{story.action.label}</Link>
-        : <button type="button" className={styles.action}>{story.action.label}</button>}
+        : <button type="button" className={styles.action} onClick={() => onOpen(story)}>{story.action.label}</button>}
     </div>}
   </article>;
 }

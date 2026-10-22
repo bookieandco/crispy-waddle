@@ -31,3 +31,17 @@ describe("Jhadina world registry",()=>{
   expect(getWorld("social")?.href).toBe("/social")
  })
 })
+
+// Routing regression: a registered workspace must resolve in either Next router.
+import { existsSync } from "node:fs"
+import path from "node:path"
+it("resolves every directory destination to an existing page",()=>{
+ const app=path.resolve(__dirname,"../../app")
+ const pages=path.resolve(__dirname,"../../../pages")
+ for(const world of JHADINA_WORLDS){
+  const href=worldDirectHref(world)
+  const route=href==="/"?"index":href.slice(1)
+  expect(existsSync(path.join(app,route,"page.tsx")) || existsSync(path.join(pages,route+".tsx")) || existsSync(path.join(pages,route,"index.tsx")) || (!world.href && existsSync(path.join(app,"worlds/[id]/page.tsx"))),href).toBe(true)
+ }
+ expect(getWorld("sports")?.href).toBe("/sports-lab")
+})

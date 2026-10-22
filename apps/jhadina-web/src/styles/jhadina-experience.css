@@ -47,3 +47,11 @@ button,input,textarea,select{font:inherit}
 @media(min-width:900px){body{padding-left:var(--jh-shell-rail)}.jh-page{padding-bottom:54px}}
 @media(max-width:760px){.jh-page{padding:72px 15px calc(105px + env(safe-area-inset-bottom))}.jh-card,.jh-card--third{grid-column:span 12}.jh-between{display:block}.jh-command-main{gap:6px}.jh-command-send{padding:0 10px}.jh-command-main input{font-size:14px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}.jh-skeleton{animation:none}}
+
+.jh-auth-card{max-width:460px;margin:4vh auto;padding:28px;border:1px solid var(--jh-border);border-radius:28px;background:var(--jh-surface);box-shadow:var(--jh-shadow)}
+.jh-auth-card h1{font-family:Georgia,serif;font-size:36px;letter-spacing:-.04em;line-height:1.1}
+.jh-auth-card p{color:var(--jh-muted);line-height:1.6}.jh-auth-card summary{cursor:pointer;min-height:44px;padding:12px 0;font-weight:650}
+.jh-auth-card input{border:1px solid var(--jh-border);border-radius:12px;background:var(--jh-bg);color:var(--jh-text)}
+.jh-button{min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.jh-card,.jh-item{overflow-wrap:anywhere;min-width:0}
+@media(max-width:520px){.jh-auth-card{padding:22px;margin:0 auto}.jh-command-main input{font-size:16px}}

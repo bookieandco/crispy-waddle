@@ -109,7 +109,7 @@ export async function sendOwnerSignInLink(formData: FormData) {
     const { error } = await supabase.auth.signInWithOtp({
       email: JHADINA_PERSONAL_OWNER_EMAIL,
       options: {
-        shouldCreateUser: true,
+        shouldCreateUser: false,
         emailRedirectTo: origin + "/auth/confirm?next=%2Fsettings%2Fsecurity",
       },
     });
