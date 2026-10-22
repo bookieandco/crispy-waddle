@@ -9,7 +9,7 @@ export function NoHostModeCard({hostOnAuditHold}:{hostOnAuditHold:boolean}){
   style={{marginTop:12}}>
   <p className="jh-eyebrow">NO VERIFIED MODEL HOST · READ-ONLY CONTINUITY</p>
   <h2 className="jh-card-title">{hostOnAuditHold?"MacBook audit and repair pending":"Independent host not yet commissioned"}</h2>
-  <p className="jh-card-copy">Jhadina's general local AI reasoning is not available right now. She will not secretly switch to a paid model or pretend the legacy classifier generated an answer. Existing workspaces, saved-session tools, and owner-initiated public source lookup remain accessible.</p>
+  <p className="jh-card-copy">Jhadina&apos;s general local AI reasoning is not available right now. She will not secretly switch to a paid model or pretend the legacy classifier generated an answer. Existing workspaces, saved-session tools, and owner-initiated public source lookup remain accessible.</p>
   <div className="jh-row" style={{marginTop:12}}>
    {plan.workspaces.map(world=><Link key={world.id} className="jh-button" href={world.href}>{world.label}</Link>)}
    <Link className="jh-button" href="/worlds">All workspaces</Link>
