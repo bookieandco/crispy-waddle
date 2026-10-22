@@ -1,7 +1,7 @@
 import {NextRequest,NextResponse} from 'next/server'
 import {createRequestIdentityVerifier} from '@/lib/auth/request-identity'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
-import {US_STATE_AND_DC_CODES} from '@jhadina/opportunity-core'
+import {US_STATE_AND_DC_CODES,classifyProcurementPortal} from '@jhadina/opportunity-core'
 
 export const dynamic='force-dynamic'
 export const runtime='nodejs'
@@ -35,7 +35,7 @@ export async function GET(request:NextRequest){
    results:[],sourceSamplePartial:false,externalContactAuthorized:false})
   const [sourcesResult,jobsResult]=await Promise.all([
    client.from('jhadina_public_procurement_sources')
-    .select('id,jurisdiction_id,source_name,source_url,adapter_status,verification_status,access_review_status,certified_at')
+    .select('id,jurisdiction_id,source_name,source_url,official_owner_url,adapter_status,verification_status,access_review_status,certified_at')
     .in('jurisdiction_id',ids).limit(500),
    client.from('jhadina_public_source_discovery_jobs')
     .select('jurisdiction_id,status,last_error')
@@ -71,8 +71,15 @@ export async function GET(request:NextRequest){
    const certified=rows.filter(s=>s.adapter_status==='active'&&s.certified_at&&
     ['approved_public_official','approved_platform'].includes(s.access_review_status))
    const inboxObservations=rows.flatMap(source=>observed.get(source.id)??[]).slice(0,3)
-   const examples=verified.slice(0,3).map(s=>({name:s.source_name,url:s.source_url,
-    status:s.adapter_status,certified:Boolean(certified.includes(s))}))
+   const examples=verified.slice(0,3).map(s=>{
+    const portal=classifyProcurementPortal({sourceUrl:s.source_url,
+     officialBuyerLink:s.official_owner_url??null,
+     officialBuyerVerified:s.verification_status==='official_owner_verified'||s.verification_status==='official_portal_verified',
+     loginRequired:false,robotsAccessApproved:false,reliableBidIds:false,closedBidDetection:false})
+    return {name:s.source_name,url:s.source_url,status:s.adapter_status,
+     certified:Boolean(certified.includes(s)),portalFamily:portal.family,
+     portalReadiness:portal.status,portalBlockers:portal.blockers.slice(0,3)}
+   })}
    const discovery=jobMap.get(item.id)
    return {id:item.id,name:item.name,state:item.state_code,level:item.level,
     inventorySourceUrl:item.source_url,observedAt:item.observed_at,sourceCount:rows.length,
