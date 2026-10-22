@@ -3,6 +3,7 @@
 import {useCallback,useEffect,useMemo,useState} from "react";
 import {CommissioningEvidenceConsole} from "./commissioning-evidence-console";
 import {MusicRecoveryPanel} from "./music-recovery-panel";
+import {MusicCrossCorePanel} from "./music-cross-core-panel";
 
 type Row=Record<string,unknown>;
 type Outlier={experimentId:string;relativeLift:number;confidence:number;status:"insufficient_sample"|"interesting"|"validated";reasons:string[]};
@@ -132,6 +133,8 @@ export default function MusicJuggernautPage(){
             <RowLine title="Human relationship stays human" meta="Jhadina surfaces supporters; she does not impersonate personal care." />
           </Panel>
         </section>
+
+        <MusicCrossCorePanel songs={data.songs} />
 
         <MusicRecoveryPanel />
 
