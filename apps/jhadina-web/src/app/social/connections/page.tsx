@@ -3,6 +3,7 @@
 import Link from "next/link"
 import {useEffect,useState} from "react"
 import {SOCIAL_FEED_TARGETS,feedReadiness} from "@/lib/social/feed-provider-setup"
+import type {SelectedSocialProfile} from "@/lib/social/requested-account-contract"
 
 type YouTubeState={connected:boolean;configured?:boolean;reason?:string}
 type SocialAccount={id:string;platform:string;displayName:string;status:string}
@@ -11,6 +12,8 @@ type PublicCandidate={externalId:string;title:string;summary:string;url:string;s
 type SavedPublicSource={provider:"bluesky"|"mastodon"|"github";handle:string;state:string;lastVerifiedAt?:string}
 export default function FeedConnectionsPage(){
  const [youtube,setYouTube]=useState<YouTubeState|null>(null)
+ const [selectedProfiles,setSelectedProfiles]=useState<SelectedSocialProfile[]>([])
+ const [selectedStatus,setSelectedStatus]=useState<"checking"|"ready"|"signin"|"unavailable">("checking")
  const [social,setSocial]=useState<SocialAccount[]>([])
  const [youtubeHealth,setYoutubeHealth]=useState<Health>("checking")
  const [disconnecting,setDisconnecting]=useState(false)
@@ -27,6 +30,13 @@ export default function FeedConnectionsPage(){
  const [savedNotice,setSavedNotice]=useState("")
  useEffect(()=>{
   let mounted=true
+  void fetch("/api/social/requested-accounts",{credentials:"same-origin",cache:"no-store"}).then(async response=>{
+   if(response.status===401){if(mounted)setSelectedStatus("signin");return}
+   if(!response.ok)throw Error("Unable to load selected social profiles")
+   const data=await response.json() as {ok:boolean;profiles?:SelectedSocialProfile[]}
+   if(!data.ok)throw Error("Selected profiles unavailable")
+   if(mounted){setSelectedProfiles(data.profiles??[]);setSelectedStatus("ready")}
+  }).catch(()=>{if(mounted)setSelectedStatus("unavailable")})
   void fetch("/api/music/youtube/status",{credentials:"same-origin",cache:"no-store"}).then(async r=>{
    if(!r.ok)throw new Error("Unavailable")
    return r.json() as Promise<YouTubeState>
@@ -93,6 +103,29 @@ export default function FeedConnectionsPage(){
   <p className="jh-eyebrow">Jhadina · Feed connections</p>
   <h1 className="jh-title">Your sources, your call.</h1>
   <p className="jh-copy">Choose which services Jhadina can read. A publishing account is not automatically a personal social feed. Each provider needs its own permission and a verifiable source. Read access never approves posting, spending or memory updates.</p>
+  <section className="jh-section" aria-labelledby="jh-selected-social-heading">
+   <h2 id="jh-selected-social-heading" className="jh-section-title">Your selected accounts</h2>
+   <p className="jh-card-copy">These are the profile links you provided for Jhadina. They're saved to your private account as pending connection requests. Profile links do not grant access to private feeds, conversations or account publishing.</p>
+   {selectedStatus==="checking"?<p className="jh-meta" role="status">Checking your saved profiles…</p>:null}
+   {selectedStatus==="signin"?<p className="jh-meta" role="status">Sign in to Jhadina to see your selected accounts.</p>:null}
+   {selectedStatus==="unavailable"?<p className="jh-meta" role="status">Selected profiles couldn't be verified right now; no accounts are shown as connected.</p>:null}
+   {selectedStatus==="ready"&&selectedProfiles.length===0?<p className="jh-meta" role="status">No selected accounts are saved for this signed-in user.</p>:null}
+   {selectedStatus==="ready"&&selectedProfiles.length>0?<div className="jh-grid" style={{marginTop:14}}>
+    {selectedProfiles.map(profile=>{
+     const definition=SOCIAL_FEED_TARGETS.find(item=>item.id===profile.provider)
+     return <article key={profile.provider+":"+profile.handle} className="jh-card jh-card--third">
+      <h3 className="jh-card-title">{definition?.label??profile.provider} · @{profile.handle}</h3>
+      <p className="jh-meta" role="status">Authorization required · not connected</p>
+      <p className="jh-card-copy">{definition?.canRead??"Provider permission required"}</p>
+      <p className="jh-meta">{definition?.limitation??"Provider may restrict private feeds."}</p>
+      <div className="jh-row" style={{marginTop:12}}>
+       <a href={profile.profileUrl} target="_blank" rel="noopener noreferrer" className="jh-button">Open your profile</a>
+       <a href="#jh-provider-readiness" className="jh-button">Connection requirements</a>
+      </div>
+     </article>
+    })}
+   </div>:null}
+  </section>
   <div className="jh-grid">
    <section className="jh-card jh-card--third">
     <h2 className="jh-card-title">YouTube</h2>
@@ -146,7 +179,7 @@ export default function FeedConnectionsPage(){
     </article>)}
    </div>
   </section>
-  <section className="jh-section">
+  <section className="jh-section" id="jh-provider-readiness">
    <h2 className="jh-section-title">Account-by-account connection readiness</h2>
    <p className="jh-card-copy">Showing supported and planned platforms, not claiming your personal accounts are connected. Each account requires separate consent and proof of a successful read. Read-only source access cannot publish or authorize Jhadina memory changes.</p>
    <div className="jh-grid">
