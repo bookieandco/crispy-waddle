@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { MediaTitle } from '@jhadina/tv-core';
 import { JHADINA_TV_ROUTES } from '@jhadina/tv-core';
 
