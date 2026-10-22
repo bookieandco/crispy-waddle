@@ -34,6 +34,14 @@ describe('append-only Recast effective review selection',()=>{
     expect(resolveEffectiveRecastReviews(rows(),date,true).blockers)
       .toContain('DIRECTOR_RECAST_REVIEW_HISTORY_INCOMPLETE')
   })
+  it('uses server append order over an older reviewedAt field for vetoes',()=>{
+    const existing=rows().map(r=>({...r,createdAt:'2026-10-21T18:05:00Z'}))
+    const veto={...make('rights','rights:later-veto','2026-10-21T17:50:00Z','rejected'),
+      createdAt:'2026-10-21T18:20:00Z'}
+    const decision=resolveEffectiveRecastReviews([...existing,veto],date)
+    expect(decision.complete).toBe(true)
+    expect(decision.reviews.find(r=>r.kind==='rights')?.status).toBe('rejected')
+  })
   it('never fabricates absent review kinds',()=>{
     expect(resolveEffectiveRecastReviews(rows().slice(0,3),date).complete).toBe(false)
   })
