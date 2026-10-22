@@ -101,7 +101,16 @@ describe('Phantom persistent wallet authorization .07',()=>{
   expect(state.connections).toHaveLength(1)
   const view=await GET(),data=await view.json()
   expect(data.data.connections[0].address).toBe(address)
+  expect(data.data.connections[0].status).toBe('ACTIVE')
   expect(data.data.canMoveFunds).toBe(false)
+ })
+ it('downgrades a legacy address-only active row lacking verified ownership',async()=>{
+  state.connections.push({
+   connection_id:'legacy',user_id:state.userId,provider:'phantom',
+   network:'SOLANA',address,status:'ACTIVE',updated_at:new Date().toISOString(),
+  })
+  const res=await GET(),value=await res.json()
+  expect(value.data.connections[0].status).toBe('DISCONNECTED')
  })
  it('rejects wrong-user challenges and expired challenges',async()=>{
   let challengeId=seed('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
