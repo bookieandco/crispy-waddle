@@ -11,13 +11,13 @@
 // meaningfully bigger build than this single-model registry; this is the
 // config FORMAT that pipeline would output, not the pipeline itself.
 
-import { Product3DConfig } from "@/lib/product3d/types";
+import { Product3DConfig } from '@/lib/product3d/types';
 
 export const product3DModels: Record<string, Product3DConfig> = {
   canvas: {
-    id: "canvas",
-    displayName: "Gallery Canvas",
-    primitive: "canvas",
+    id: 'canvas',
+    displayName: 'Gallery Canvas',
+    primitive: 'canvas',
     supportsColorChange: false,
     camera: {
       position: [0, 0, 2.1],
@@ -27,8 +27,8 @@ export const product3DModels: Record<string, Product3DConfig> = {
     },
     printAreas: [
       {
-        name: "front",
-        position: [0, 0, 0.041],
+        name: 'front',
+        position: [0, 0, 0.024],
         rotation: [0, 0, 0],
         scale: 0.72,
       },
@@ -36,13 +36,13 @@ export const product3DModels: Record<string, Product3DConfig> = {
   },
 
   shirt: {
-    id: "shirt",
-    displayName: "T-Shirt",
-    glbPath: "/models/shirt_baked.glb",
-    meshName: "T_Shirt_male",
-    materialName: "lambert1",
+    id: 'shirt',
+    displayName: 'T-Shirt',
+    glbPath: '/models/shirt_baked.glb',
+    meshName: 'T_Shirt_male',
+    materialName: 'lambert1',
     supportsColorChange: true,
-    defaultColor: "#f4f4f4",
+    defaultColor: '#f4f4f4',
     camera: {
       position: [0, 0, 2.4],
       fov: 30,
@@ -51,7 +51,7 @@ export const product3DModels: Record<string, Product3DConfig> = {
     },
     printAreas: [
       {
-        name: "front",
+        name: 'front',
         position: [0, 0.04, 0.15],
         rotation: [0, 0, 0],
         scale: 0.22,
@@ -64,16 +64,14 @@ export const product3DModels: Record<string, Product3DConfig> = {
   },
 
   hoodie: {
-    id: "hoodie",
-    displayName: "Hoodie",
-    glbPath: "/models/hoodie.glb",
-    meshName: "hoodie_body",
-    materialName: "hoodie_material",
-    // Whether this material responds to color tinting the way the shirt's
-    // does wasn't verified — it has its own baked base-color + normal map
-    // (see the audit), so a flat color multiply may look wrong. Defaulting
-    // off until checked visually.
-    supportsColorChange: false,
+    id: 'hoodie',
+    displayName: 'Hoodie',
+    glbPath: '/models/hoodie.glb',
+    meshName: 'hoodie_body',
+    materialName: 'hoodie_material',
+    // Tint a private clone; never mutate another product's cached material.
+    supportsColorChange: true,
+    defaultColor: '#f4f4f4',
     // AUDITED, from a real Stable Fast 3D output (see README for the full
     // report): 12,303 vertices, 21,044 triangles, UVs + normals present,
     // 1024x1024 base color + normal map textures, not watertight (open
@@ -117,7 +115,7 @@ export const product3DModels: Record<string, Product3DConfig> = {
         // not confirmed against an actual rendered decal — same caveat
         // as the mug's — but the mesh placement itself is real geometry
         // from this asset, not carried over from the wrong frame.
-        name: "front",
+        name: 'front',
         position: [0, 0.123, 0.06],
         rotation: [0, 0, 0],
         scale: 0.2,
@@ -126,16 +124,16 @@ export const product3DModels: Record<string, Product3DConfig> = {
   },
 
   mug: {
-    id: "mug",
-    displayName: "Mug",
-    glbPath: "/models/mug.glb",
-    meshName: "mug_body",
-    materialName: "mug_material",
+    id: 'mug',
+    displayName: 'Mug',
+    glbPath: '/models/mug.glb',
+    meshName: 'mug_body',
+    materialName: 'mug_material',
     // No base color/normal texture — flat gray factor (0.8,0.8,0.8) only,
     // same situation as pillow. Renders flat until the print decal is
     // applied.
     supportsColorChange: true,
-    defaultColor: "#f4f4f0",
+    defaultColor: '#f4f4f0',
     // AUDITED (asset-audits/scores/mug.json): 6,008 vertices, 10,682
     // triangles as sourced from `scripts/obj_to_glb.py` (manual OBJ->GLB
     // conversion, no trimesh/Blender CLI available offline). Originally
@@ -198,7 +196,7 @@ export const product3DModels: Record<string, Product3DConfig> = {
         // generation to test — not available in this pass) — the mesh
         // placement itself is now real geometry, not a guess, but the
         // decal-on-surface look hasn't been eyeballed.
-        name: "front",
+        name: 'front',
         position: [0, 0.053, 0.043],
         rotation: [0, 0, 0],
         scale: 0.15,
@@ -210,11 +208,11 @@ export const product3DModels: Record<string, Product3DConfig> = {
   // the remaining products reuse the approved repository GLBs.
 
   bottle: {
-    id: "bottle",
-    displayName: "Bottle",
-    glbPath: "/models/bottle.glb",
-    meshName: "bottle_body",
-    materialName: "bottle_material",
+    id: 'bottle',
+    displayName: 'Bottle',
+    glbPath: '/models/bottle.glb',
+    meshName: 'bottle_body',
+    materialName: 'bottle_material',
     // PROCEDURALLY MODELED, not sourced from a photo/reference — real
     // dimensions (20oz bottle: 7.3cm diameter, 27.2cm total height
     // including neck+cap), built with Blender's Python API
@@ -224,7 +222,7 @@ export const product3DModels: Record<string, Product3DConfig> = {
     // AUDITED: 100/100, APPROVED — single continuous lathe/revolve
     // surface (no seams to weld in the first place), real UVs.
     supportsColorChange: true,
-    defaultColor: "#bfc2c6",
+    defaultColor: '#bfc2c6',
     // VERIFIED, not a guess: exported bounding box is (0.073, 0.272,
     // 0.073) — Y is the tallest dimension and matches this bottle's own
     // modeled total height (0.20 body + 0.02 shoulder + 0.03 neck +
@@ -258,7 +256,7 @@ export const product3DModels: Record<string, Product3DConfig> = {
         // sits at the vertical midpoint of that wall. Needs confirming
         // against the live mesh before trusting it, same as every other
         // model here.
-        name: "front",
+        name: 'front',
         position: [0, -0.036, 0.037],
         rotation: [0, 0, 0],
         scale: 0.1,
@@ -267,11 +265,11 @@ export const product3DModels: Record<string, Product3DConfig> = {
   },
 
   tote: {
-    id: "tote",
-    displayName: "Tote",
-    glbPath: "/models/tote.glb",
-    meshName: "tote_body",
-    materialName: "tote_material",
+    id: 'tote',
+    displayName: 'Tote',
+    glbPath: '/models/tote.glb',
+    meshName: 'tote_body',
+    materialName: 'tote_material',
     // PROCEDURALLY MODELED, same tool and same reason as bottle above.
     // Real dimensions (38cm wide, 42cm tall body, 10cm gusset depth),
     // handles Boolean-unioned into the body (real merged solid geometry
@@ -283,7 +281,7 @@ export const product3DModels: Record<string, Product3DConfig> = {
     // running the audit/looking at renders, not assumed fixed).
     // AUDITED: 98.8/100, APPROVED.
     supportsColorChange: true,
-    defaultColor: "#d9ceae",
+    defaultColor: '#d9ceae',
     // VERIFIED: exported bounding box is (0.38, 0.518, 0.10) — X matches
     // the modeled width exactly, Z matches the modeled gusset depth
     // exactly, and Y (tallest) matches body height + handle rise
@@ -300,7 +298,7 @@ export const product3DModels: Record<string, Product3DConfig> = {
         // NOT verified — placeholder centered on the front face (body
         // height 0.42, below the handles), needs confirming against the
         // live mesh before trusting it, same as every other model here.
-        name: "front",
+        name: 'front',
         position: [0, 0.18, 0.051],
         rotation: [0, 0, 0],
         scale: 0.22,
@@ -309,34 +307,16 @@ export const product3DModels: Record<string, Product3DConfig> = {
   },
 
   pillow: {
-    id: "pillow",
-    displayName: "Pillow",
-    glbPath: "/models/pillow.glb",
-    meshName: "Box001",
-    materialName: "Material",
-    // No base color or normal texture on this material at all — just a
-    // flat gray baseColorFactor. Renders as flat/untextured until a real
-    // print-area decal is applied; don't expect fabric weave detail from
-    // the base material itself (an earlier render made it LOOK textured,
-    // but that was the mesh's own triangulation density showing through
-    // this project's flat-shaded audit renderer, not an actual texture map).
+    id: 'pillow',
+    displayName: 'Pillow',
+    glbPath: '/models/pillow.glb',
+    meshName: 'Box001',
+    materialName: 'Material',
+    // The GLB has a 0.01 node scale and X/Z broad face; honor it once.
     supportsColorChange: true,
-    defaultColor: "#e8e8e8",
-    // AUDITED: 2,170 vertices, 3,840 triangles — lighter than shirt/hoodie,
-    // good for mobile. UVs + normals present, 0 degenerate triangles,
-    // single connected surface once welded. Not watertight (488 boundary
-    // edges) — fine for a visual preview per the same reasoning as the
-    // other assets. Silhouette confirmed genuinely pillow-shaped (puffy
-    // cushion volume, pinched corners) from the front/perspective renders
-    // with NO rotation correction needed — unlike the hoodie, this one
-    // came in already oriented upright.
-    //
-    // This asset's units are ~100x larger than the shirt/hoodie's (bounding
-    // box ~109 x 42 x 108 vs. their ~0.2-0.9 range) — a different source
-    // pipeline, different unit convention. modelScale below normalizes it
-    // into the same rough range as the other products so camera/print-area
-    // values stay comparable if this ever needs to sit in a shared scene.
-    modelScale: 0.008,
+    defaultColor: '#e8e8e8',
+    modelScale: 0.8,
+    modelRotation: [Math.PI / 2, 0, 0],
     camera: {
       position: [0, 0, 2.4],
       fov: 30,
@@ -345,11 +325,11 @@ export const product3DModels: Record<string, Product3DConfig> = {
     },
     printAreas: [
       {
-        // NOT verified — placeholder centered on the front face, needs
-        // confirming against the actual UVs live before trusting it.
-        name: "front",
-        position: [0, 0, 0.17],
-        rotation: [0, 0, 0],
+        // Transformed cushion top becomes its front after X rotation.
+        // Fixture-render checked previously; provider placement remains uncertified.
+        name: 'front',
+        position: [-0.17, 0.35, 0.03],
+        rotation: [-Math.PI / 2, 0, 0],
         scale: 0.5,
       },
     ],

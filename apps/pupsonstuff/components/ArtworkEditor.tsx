@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { placementBounds } from '@/lib/product3d/placement';
 import type { ArtworkTransform } from '@/types/creative';
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
   transform: ArtworkTransform;
   onTransformChange: (transform: ArtworkTransform) => void;
   className?: string;
+  printAreaAspect?: number;
 }
 
 type SnapState = {
@@ -19,17 +21,7 @@ const SNAP_DISTANCE = 0.028;
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 2;
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
-
-function rotatedHalfExtent(scale: number, rotation: number): number {
-  const radians = (rotation * Math.PI) / 180;
-  const squareHalf = 0.25 * scale;
-  return Math.min(
-    0.5,
-    squareHalf * (Math.abs(Math.cos(radians)) + Math.abs(Math.sin(radians)))
-  );
-}
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 function snapPosition(value: number, min: number, max: number) {
   const candidates: Array<[number, 'left' | 'center' | 'right']> = [
@@ -48,6 +40,7 @@ export default function ArtworkEditor({
   transform,
   onTransformChange,
   className = '',
+  printAreaAspect = 1,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pointerRef = useRef<{
@@ -56,23 +49,22 @@ export default function ArtworkEditor({
     y: number;
     transform: ArtworkTransform;
   } | null>(null);
+  const touchRef = useRef<{ x: number; y: number; transform: ArtworkTransform } | null>(null);
   const gestureRef = useRef<{
     startDistance: number;
     startAngle: number;
     transform: ArtworkTransform;
   } | null>(null);
+  const [imageAspect, setImageAspect] = useState(1);
   const [selected, setSelected] = useState(false);
   const [snaps, setSnaps] = useState<SnapState>({ x: null, y: null });
 
   const applyTransform = useCallback(
     (next: ArtworkTransform) => {
-      const half = rotatedHalfExtent(next.scale, next.rotation);
-      const min = Math.min(0.5, half);
-      const max = Math.max(0.5, 1 - half);
-      const [x, snapX] = snapPosition(next.x, min, max);
-      const [rawY, rawSnapY] = snapPosition(next.y, min, max);
-      const snapY =
-        rawSnapY === 'left' ? 'top' : rawSnapY === 'right' ? 'bottom' : rawSnapY;
+      const bounds = placementBounds(next, imageAspect, printAreaAspect);
+      const [x, snapX] = snapPosition(next.x, bounds.minX, bounds.maxX);
+      const [rawY, rawSnapY] = snapPosition(next.y, bounds.minY, bounds.maxY);
+      const snapY = rawSnapY === 'left' ? 'top' : rawSnapY === 'right' ? 'bottom' : rawSnapY;
       setSnaps({ x: snapX, y: snapY });
       onTransformChange({
         ...next,
@@ -82,7 +74,7 @@ export default function ArtworkEditor({
         rotation: clamp(next.rotation, -180, 180),
       });
     },
-    [onTransformChange]
+    [onTransformChange, imageAspect, printAreaAspect]
   );
 
   const applyPosition = useCallback(
@@ -93,6 +85,8 @@ export default function ArtworkEditor({
   useEffect(() => {
     if (!selected) setSnaps({ x: null, y: null });
   }, [selected]);
+
+  const bounds = placementBounds(transform, imageAspect, printAreaAspect);
 
   if (!imageUrl) {
     return (
@@ -109,7 +103,27 @@ export default function ArtworkEditor({
   return (
     <div
       ref={containerRef}
-      className={`relative aspect-square touch-none overflow-hidden rounded-xl border border-greige/40 bg-white/30 ${className}`}
+      role="group"
+      tabIndex={0}
+      aria-label="Artwork placement. Arrow keys move, plus and minus resize, R rotates."
+      onFocus={() => setSelected(true)}
+      onBlur={() => setSelected(false)}
+      onKeyDown={(event) => {
+        const step = event.shiftKey ? 0.05 : 0.01;
+        const next = { ...transform };
+        if (event.key === 'ArrowLeft') next.x -= step;
+        else if (event.key === 'ArrowRight') next.x += step;
+        else if (event.key === 'ArrowUp') next.y -= step;
+        else if (event.key === 'ArrowDown') next.y += step;
+        else if (event.key === '+' || event.key === '=') next.scale += 0.05;
+        else if (event.key === '-') next.scale -= 0.05;
+        else if (event.key.toLowerCase() === 'r') next.rotation += event.shiftKey ? -5 : 5;
+        else return;
+        event.preventDefault();
+        applyTransform(next);
+      }}
+      style={{ aspectRatio: printAreaAspect }}
+      className={`relative touch-none overflow-hidden rounded-xl border border-greige/40 bg-white/30 ${className}`}
       onPointerDown={(event) => {
         if (event.pointerType === 'touch') return;
         const rect = containerRef.current?.getBoundingClientRect();
@@ -138,16 +152,22 @@ export default function ArtworkEditor({
       onPointerCancel={() => {
         pointerRef.current = null;
         gestureRef.current = null;
+        touchRef.current = null;
         setSelected(false);
       }}
       onTouchStart={(event) => {
         setSelected(true);
+        if (event.touches.length === 1)
+          touchRef.current = {
+            x: event.touches[0].clientX,
+            y: event.touches[0].clientY,
+            transform: { ...transform },
+          };
         if (event.touches.length === 2) {
           const [a, b] = [event.touches[0], event.touches[1]];
           gestureRef.current = {
             startDistance: Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY),
-            startAngle:
-              Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX) * (180 / Math.PI),
+            startAngle: Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX) * (180 / Math.PI),
             transform: { ...transform },
           };
         }
@@ -158,8 +178,10 @@ export default function ArtworkEditor({
           if (!rect) return;
           const touch = event.touches[0];
           applyPosition(
-            (touch.clientX - rect.left) / rect.width,
-            (touch.clientY - rect.top) / rect.height
+            (touchRef.current?.transform.x ?? transform.x) +
+              (touch.clientX - (touchRef.current?.x ?? touch.clientX)) / rect.width,
+            (touchRef.current?.transform.y ?? transform.y) +
+              (touch.clientY - (touchRef.current?.y ?? touch.clientY)) / rect.height
           );
           return;
         }
@@ -175,7 +197,15 @@ export default function ArtworkEditor({
           rotation: clamp(gesture.transform.rotation + angle - gesture.startAngle, -180, 180),
         });
       }}
-      onTouchEnd={() => {
+      onTouchEnd={(event) => {
+        touchRef.current =
+          event.touches.length === 1
+            ? {
+                x: event.touches[0].clientX,
+                y: event.touches[0].clientY,
+                transform: { ...transform },
+              }
+            : null;
         gestureRef.current = null;
         setSelected(false);
       }}
@@ -212,17 +242,22 @@ export default function ArtworkEditor({
       )}
 
       <div
-        className="absolute h-1/2 w-1/2 origin-center"
+        className="absolute origin-center"
         style={{
+          width: `${bounds.width * 100}%`,
+          height: `${bounds.height * 100}%`,
           left: `${transform.x * 100}%`,
           top: `${transform.y * 100}%`,
-          transform: `translate(-50%, -50%) scale(${transform.scale}) rotate(${transform.rotation}deg)`,
+          transform: `translate(-50%, -50%) rotate(${transform.rotation}deg)`,
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageUrl}
           alt="Generated pet artwork"
+          onLoad={(event) =>
+            setImageAspect(event.currentTarget.naturalWidth / event.currentTarget.naturalHeight)
+          }
           draggable={false}
           className="h-full w-full select-none object-contain"
         />

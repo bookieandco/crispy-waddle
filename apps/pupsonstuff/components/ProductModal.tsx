@@ -13,6 +13,7 @@ import { useMusic } from '@/context/MusicContext';
 import { useCart } from '@/context/CartContext';
 import { getHotspot3DMapping, getProduct3DConfig } from '@/config/product3dModels';
 import { screenshotPlugin } from './product3d-plugins/screenshotPlugin';
+import { resolveProductPrintProfile } from '@/lib/print-profile';
 import AsciiSpinner from './AsciiSpinner';
 import ArtworkEditor from './ArtworkEditor';
 import PortraitEasel from './PortraitEasel';
@@ -66,6 +67,14 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
   const variants = activeProduct?.fulfillment?.variants ?? [];
   const activeVariant = variants.find((v) => v.variantId === selectedVariant) ?? variants[0];
 
+  const printProfile =
+    activeProduct?.fulfillment && activeVariant
+      ? resolveProductPrintProfile(activeProduct, activeVariant.variantId)
+      : null;
+  const printAreaAspect = printProfile
+    ? (printProfile.printWidthInches - 2 * printProfile.safeMarginInches) /
+      (printProfile.printHeightInches - 2 * printProfile.safeMarginInches)
+    : 1;
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [approved, setApproved] = useState(false);
   const [creativeOutputId, setCreativeOutputId] = useState<string | null>(null);
@@ -81,7 +90,9 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
   const [animatedVideoUrl, setAnimatedVideoUrl] = useState<string | null>(null);
   const [animateError, setAnimateError] = useState<string | null>(null);
 
-  const threeDMapping = activeProduct ? getHotspot3DMapping(activeProduct.id) ?? undefined : undefined;
+  const threeDMapping = activeProduct
+    ? (getHotspot3DMapping(activeProduct.id) ?? undefined)
+    : undefined;
   const threeDConfig = threeDMapping ? getProduct3DConfig(threeDMapping.modelId) : null;
   const supports3D = !!threeDConfig;
 
@@ -352,6 +363,8 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                   ) : viewMode !== 'animated' && supports3D && threeDConfig && threeDMapping ? (
                     <div className="mb-6">
                       <Product3DEngine
+                        key={activeProduct.id}
+                        printAreaAspect={printAreaAspect}
                         config={threeDConfig}
                         color={threeDMapping.color}
                         decals={{ [threeDMapping.printArea]: previewUrl }}
@@ -407,11 +420,15 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
 
                   {useSavedPet && activePet ? (
                     <div className="mb-5 rounded-lg border border-honey-oak/40 bg-white/45 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-bronze/70">Pet Identity</p>
+                      <p className="text-xs uppercase tracking-[0.18em] text-bronze/70">
+                        Pet Identity
+                      </p>
                       <div className="mt-1 flex items-center justify-between gap-3">
                         <div>
                           <p className="font-display text-lg text-bronze">{activePet.name}</p>
-                          <p className="text-xs text-ink/50">Ready to reuse across products — no re-upload needed.</p>
+                          <p className="text-xs text-ink/50">
+                            Ready to reuse across products — no re-upload needed.
+                          </p>
                         </div>
                         <button
                           type="button"
@@ -446,7 +463,8 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                           Pet reference photos
                         </span>
                         <span className="mb-2 block text-xs text-ink/50">
-                          One strong photo is enough. Add a second or third only when it shows useful markings or another angle.
+                          One strong photo is enough. Add a second or third only when it shows
+                          useful markings or another angle.
                         </span>
                         <input
                           type="file"
@@ -485,13 +503,17 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                   </label>
 
                   <div className="mb-6">
-                    <span className="mb-2 block text-sm font-medium text-bronze">Photo background</span>
+                    <span className="mb-2 block text-sm font-medium text-bronze">
+                      Photo background
+                    </span>
                     <div className="grid grid-cols-3 gap-2">
-                      {([
-                        ['auto', 'Remove'],
-                        ['keep', 'Keep'],
-                        ['generate', 'Generate'],
-                      ] as const).map(([mode, label]) => (
+                      {(
+                        [
+                          ['auto', 'Remove'],
+                          ['keep', 'Keep'],
+                          ['generate', 'Generate'],
+                        ] as const
+                      ).map(([mode, label]) => (
                         <button
                           key={mode}
                           type="button"
@@ -513,7 +535,8 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                       ))}
                     </div>
                     <p className="mt-2 text-xs text-ink/45">
-                      Remove is the default. Generate keeps the subject but lets your prompt define a new background.
+                      Remove is the default. Generate keeps the subject but lets your prompt define
+                      a new background.
                     </p>
                   </div>
 
@@ -526,7 +549,8 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                         className="mt-0.5"
                       />
                       <span>
-                        I have permission to use these photos and agree to have them processed to create this custom product.
+                        I have permission to use these photos and agree to have them processed to
+                        create this custom product.
                       </span>
                     </label>
                   )}
@@ -589,6 +613,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                         Place your artwork
                       </span>
                       <ArtworkEditor
+                        printAreaAspect={printAreaAspect}
                         imageUrl={previewUrl}
                         transform={artworkTransform}
                         onTransformChange={(next) => {
