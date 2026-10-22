@@ -1,5 +1,6 @@
 import {createHash} from 'node:crypto'
 import type {SniperPaperCycleResult} from './sniper-paper-cycle'
+import type {SniperIntelFusion} from './sniper-intel-fusion'
 
 /**
  * SHARK-INTEL.DURABLE.02: one durable atomic decision snapshot per cycle.
@@ -88,12 +89,14 @@ function stable(value:unknown):string{
  }
  return JSON.stringify(transform(value))
 }
+type ArchivableCycle=Pick<SniperPaperCycleResult,
+  'tokenAddress'|'disposition'|'intel'|'risk'|'reasonCodes'|'paper'|'acceptance'|'authority'|'canExecute'>
 export function buildSniperArchiveRow(input:{
  /** Owner ID must come from a trusted server-side user/session assertion. */
  ownerId:string
  tradeId:string
  informationCutoff:string
- result:SniperPaperCycleResult
+ result:ArchivableCycle
 }):SniperIntelArchiveRow{
  const {tradeId,informationCutoff,result}=input
  const canonicalCutoff=iso(informationCutoff)?new Date(informationCutoff).toISOString():''
@@ -144,6 +147,33 @@ export function buildSniperArchiveRow(input:{
  return Object.freeze({
   receipt_id:receiptId,owner_id:input.ownerId,trade_id:tradeId,token_address:result.tokenAddress,
   information_cutoff:canonicalCutoff,payload_hash:digest,payload_json:payload,
+ })
+}
+/** Record an assessed hard veto WITHOUT constructing an imaginary quote,
+ * order, fill, reverse route or successful paper entry. This preserves the
+ * full screened denominator instead of selection-biased winning trades only.
+ */
+export function buildSniperVetoArchiveRow(input:{
+ ownerId:string
+ tradeId:string
+ informationCutoff:string
+ risk:SniperPaperCycleResult['risk']
+ intel:SniperIntelFusion
+ reasonCodes:readonly string[]
+}):SniperIntelArchiveRow{
+ if(input.risk.disposition==='PAPER_CANDIDATE'||input.intel.riskDisposition!==input.risk.disposition||
+   input.reasonCodes.length===0){
+  throw new Error('SHARK_INTEL_VETO_PROVENANCE_INVALID')
+ }
+ const result:ArchivableCycle=Object.freeze({
+  tokenAddress:input.risk.tokenAddress,disposition:'NO_TRADE',
+  intel:input.intel,risk:input.risk,
+  reasonCodes:Object.freeze([...input.reasonCodes]),
+  authority:'SHARK_MONEY_PAPER_ONLY',canExecute:false,
+ })
+ return buildSniperArchiveRow({
+  ownerId:input.ownerId,tradeId:input.tradeId,
+  informationCutoff:input.informationCutoff,result,
  })
 }
 function matches(a:SniperIntelArchiveRow,b:SniperIntelArchiveRow):boolean{
