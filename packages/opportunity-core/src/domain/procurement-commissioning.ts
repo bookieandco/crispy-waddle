@@ -170,6 +170,7 @@ export function verifyProcurementProviders(set:OpportunityRequirementSet,provide
  return providers.map(provider=>{
   const base=ranked.find(x=>x.providerId===provider.id)
   const blockers=[...(base?.blockers??[])]
+  if(!set.requirements.some(r=>r.severity==='required'&&r.evidenceStatus==='explicit'&&r.kind==='capability'&&r.sourceEvidenceIds.length))blockers.push('No official evidence-backed required capability scope has been decomposed.')
   if(provider.verificationStatus!=='verified'||provider.stage!=='verified')blockers.push('Canonical provider verification is incomplete.')
   if(!provider.identifiers.some(id=>id.verified&&id.evidenceRefs.length&&id.evidenceRefs.every(ref=>provider.evidence.some(e=>e.id===ref&&e.relationship==='supports_identity'))))blockers.push('Verified legal identity is missing.')
   if(!provider.capabilities.some(c=>c.verified&&c.evidenceRefs.length&&c.evidenceRefs.every(ref=>provider.evidence.some(e=>e.id===ref&&e.relationship==='supports_capability'))))blockers.push('Verified required service capability is missing.')
