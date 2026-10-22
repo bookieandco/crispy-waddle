@@ -31,6 +31,11 @@ type WorkstationClip = TimelineClip & { name: string; kind: 'video' | 'audio' };
 type WorkstationTrack = TimelineTrack & { clips: WorkstationClip[] };
 
 const DURATION_SECONDS = 30;
+type Stage = 'project' | 'direct' | 'review' | 'edit' | 'finish';
+const STAGES: ReadonlyArray<{id:Stage;label:string}> = [
+  {id:'project',label:'1. Project'}, {id:'direct',label:'2. Direct'},
+  {id:'review',label:'3. Review'}, {id:'edit',label:'4. Edit'}, {id:'finish',label:'5. Finish'},
+];
 
 function createInitialTracks(): WorkstationTrack[] {
   return [
@@ -89,6 +94,7 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
     : undefined;
   const initialTracks = useMemo(() => createInitialTracks(), []);
   const [projectId, setProjectId] = useState(requestedProjectId);
+  const [stage,setStage] = useState<Stage>('project');
   const [projectError, setProjectError] = useState<string | null>(null);
   const [timelineTracks, setTimelineTracks] = useState<WorkstationTrack[]>(initialTracks);
   const [timelineKey, setTimelineKey] = useState(0);
@@ -220,6 +226,7 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
       setTimelineRevision(data.revision!);
       setTimelineTracks(normalizeTracks(data.timeline.tracks));
       setTimelineKey(key => key + 1);
+      setStage('edit');
     } catch (error) {
       setInsertError(error instanceof Error ? error.message : 'Unable to insert generated asset.');
     } finally {
@@ -249,69 +256,65 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
         <p className="text-sm text-muted-foreground">Project: {projectId}</p>
       </header>
 
-      <WorkstationBusinessContext projectId={projectId} />
-
-      <WorkstationProjectInputs projectId={projectId} />
-
-      <WorkstationScreenplayProposals projectId={projectId} />
-
-      <WorkstationProductionGates projectId={projectId} />
-
-      <WorkstationRoughCut projectId={projectId} onMaterialized={refreshTimelineFromServer} />
-
-      <WorkstationTakeSets projectId={projectId} />
-
-      <WorkstationAudioPost projectId={projectId} />
-
-      <WorkstationFinalQc projectId={projectId} />
-
-      <WorkstationAnnotationReview projectId={projectId} />
-
-      <WorkstationBusinessCanary projectId={projectId} />
-
-      <WorkstationAutoFinal projectId={projectId} />
-
-      <WorkstationWatchCommissioning />
-
-      <WorkstationWatchStudy />
-
-      <WorkstationMediaStudy />
-
-      <WorkstationSocialScheduler projectId={projectId} />
-
-      <ReferenceCharacterVideoPanel projectId={projectId} />
-
-      <section className="rounded-xl border bg-background p-4">
-        <div className="mb-3">
-          <h2 className="font-semibold">Generated editing assets</h2>
-          <p className="text-xs text-muted-foreground">Persisted assets are retrieved by project and require explicit approval before use.</p>
-        </div>
-        <LiveGeneratedEditingAssetShelf projectId={projectId} onUseAsset={setSelectedAsset} />
-        {selectedAsset ? (
-          <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-xs">
-            <p className="font-medium">Selected for edit</p>
-            <p>Job: {selectedAsset.generationJobId}</p>
-            <p>Operation: {selectedAsset.operationId ?? '—'}</p>
-            <p>URI: {selectedAsset.uri}</p>
-            <p>MIME: {selectedAsset.mimeType}</p>
-            <button className="mt-3 rounded bg-primary px-3 py-2 text-xs text-primary-foreground disabled:opacity-50" disabled={inserting} onClick={() => void insertSelectedAsset()}>{inserting ? 'Inserting…' : 'Insert into timeline'}</button>
-            {insertError ? <p className="mt-2 text-destructive">{insertError}</p> : null}
-          </div>
-        ) : null}
-      </section>
-
-      <WorkstationTimeline
-        key={timelineKey}
-        projectId={projectId}
-        durationSeconds={timelineRef.current.durationSeconds}
-        tracks={timelineTracks}
-        revision={timelineRevision}
-        versions={timelineRef.current.versions}
-        playheadSeconds={timelineRef.current.playheadSeconds}
-        markers={timelineRef.current.markers}
-        transitions={timelineRef.current.transitions}
-        onTimelineChange={handleTimelineChange}
-      />
+      <nav aria-label="Director production stages" className="sticky top-0 z-30 flex gap-2 overflow-x-auto rounded-xl border bg-background/95 p-2 shadow-sm">
+        {STAGES.map(item => <button
+          key={item.id}
+          type="button"
+          aria-current={stage===item.id?'step':undefined}
+          className={'min-h-11 shrink-0 rounded-lg border px-4 py-2 text-sm font-medium '+(stage===item.id?'border-primary bg-primary text-primary-foreground':'bg-background')}
+          onClick={()=>setStage(item.id)}
+        >{item.label}</button>)}
+      </nav>
+      {projectError?<p role="alert" className="text-sm text-destructive">{projectError}</p>:null}
+      {stage==='project'?<div className="space-y-4">
+        <WorkstationBusinessContext projectId={projectId} />
+        <WorkstationProjectInputs projectId={projectId} />
+        <WorkstationScreenplayProposals projectId={projectId} />
+      </div>:null}
+      {stage==='direct'?<div className="space-y-4">
+        <ReferenceCharacterVideoPanel projectId={projectId} />
+        <WorkstationProductionGates projectId={projectId} />
+        <WorkstationWatchStudy />
+        <WorkstationMediaStudy />
+        <WorkstationWatchCommissioning />
+      </div>:null}
+      {stage==='review'?<div className="space-y-4">
+        <WorkstationTakeSets projectId={projectId} />
+        <WorkstationAnnotationReview projectId={projectId} />
+        <section className="rounded-xl border bg-background p-4">
+          <h2 className="font-semibold">Approved editing assets</h2>
+          <p className="text-xs text-muted-foreground">Select a real, approved source to add to the canonical edit.</p>
+          <LiveGeneratedEditingAssetShelf projectId={projectId} onUseAsset={setSelectedAsset} />
+          {selectedAsset?<div className="mt-3 space-y-2 rounded-lg border p-3 text-xs">
+            <p>Selected: {selectedAsset.assetId}</p>
+            <p className="break-all text-muted-foreground">Source: {selectedAsset.uri}</p>
+            <button className="min-h-11 rounded bg-primary px-3 py-2 text-primary-foreground disabled:opacity-50" disabled={inserting} onClick={()=>void insertSelectedAsset()}>{inserting?'Inserting…':'Insert into timeline'}</button>
+            {insertError?<p role="alert" className="text-destructive">{insertError}</p>:null}
+          </div>:null}
+        </section>
+      </div>:null}
+      {stage==='edit'?<div className="space-y-4">
+        <WorkstationRoughCut projectId={projectId} onMaterialized={refreshTimelineFromServer} />
+        <WorkstationAudioPost projectId={projectId} />
+        <WorkstationTimeline
+          key={timelineKey}
+          projectId={projectId}
+          durationSeconds={timelineRef.current.durationSeconds}
+          tracks={timelineTracks}
+          revision={timelineRevision}
+          versions={timelineRef.current.versions}
+          playheadSeconds={timelineRef.current.playheadSeconds}
+          markers={timelineRef.current.markers}
+          transitions={timelineRef.current.transitions}
+          onTimelineChange={handleTimelineChange}
+        />
+      </div>:null}
+      {stage==='finish'?<div className="space-y-4">
+        <WorkstationFinalQc projectId={projectId} />
+        <WorkstationBusinessCanary projectId={projectId} />
+        <WorkstationAutoFinal projectId={projectId} />
+        <WorkstationSocialScheduler projectId={projectId} />
+      </div>:null}
     </main>
   );
 }
