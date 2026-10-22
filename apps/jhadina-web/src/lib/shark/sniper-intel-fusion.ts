@@ -1,4 +1,3 @@
-import {createHash} from 'node:crypto'
 import type {SniperLiveRiskDecision} from '@jhadina/shark-intelligence-core/meme-trader'
 import type {SharkShadowCounterfactualLesson,SniperPaperTradeReceipt,SniperSettlementEvidence} from '@jhadina/money-core'
 
@@ -68,7 +67,6 @@ const claims:readonly SniperIntelClaim[]=[
 const iso=(x:string)=>{const t=Date.parse(x);if(!x||!Number.isFinite(t))throw new Error('SHARK_INTEL_TIMESTAMP_INVALID');return t}
 const id=(x:string)=>typeof x==='string'&&x.length>0&&x.length<=256
 const uniq=(xs:readonly string[])=>Object.freeze([...new Set(xs)].sort())
-const digest=(s:string)=>createHash('sha256').update(s).digest('hex')
 
 export function fuseSniperIntelligence(input:{
  decisionId:string
