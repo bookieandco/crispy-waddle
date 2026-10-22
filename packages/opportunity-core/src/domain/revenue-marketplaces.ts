@@ -79,7 +79,7 @@ export function normalizeMarketplaceBounties(
     const amount = typeof o.rewardAmount === 'number' && Number.isFinite(o.rewardAmount) &&
       o.rewardAmount > 0 && o.rewardAmount <= 10_000_000 ? o.rewardAmount : null
     const currency = typeof o.rewardCurrency === 'string' ? o.rewardCurrency.toUpperCase() : null
-    const competitorVerified = Number.isSafeInteger(o.competingClaims) && o.competingClaims !== null && o.competingClaims >= 0
+    const competitorVerified = typeof o.competingClaims === 'number' && Number.isSafeInteger(o.competingClaims) && o.competingClaims >= 0
     const payer = typeof o.payerDisplayName === 'string' && o.payerDisplayName.trim()
       ? o.payerDisplayName.trim() : null
     const risks = [
