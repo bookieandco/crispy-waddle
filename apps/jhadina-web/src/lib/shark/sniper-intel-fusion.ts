@@ -91,6 +91,8 @@ export function fuseSniperIntelligence(input:{
  paper?:SniperPaperTradeReceipt
  /** Real settlement is supplied only AFTER independent provider/onchain reconciliation. */
  settlement?:SniperSettlementEvidence
+ /** Required canonical Money trade linkage; token alone cannot identify a settlement. */
+ settlementTradeId?:string
 }):SniperIntelFusion{
  const cutoff=iso(input.cutoff)
  if(!id(input.decisionId)||!id(input.tokenAddress)||input.chainId!=='solana-mainnet'||
@@ -164,7 +166,7 @@ export function fuseSniperIntelligence(input:{
  let followup:SniperIntelFusion['followup']
  const s=input.settlement
  if(s){
-  if(s.tokenAddress!==input.tokenAddress||!id(s.outcomeId)||!s.evidenceIds.length||
+  if(input.settlementTradeId!==input.decisionId||s.tokenAddress!==input.tokenAddress||!id(s.outcomeId)||!s.evidenceIds.length||
     iso(s.settledAt)>iso(s.availableAt)||iso(s.availableAt)>cutoff){
     throw new Error('SHARK_INTEL_SETTLEMENT_PROVENANCE_INVALID')
   }
