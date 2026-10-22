@@ -124,13 +124,32 @@ function canonicalAction(value: unknown, ancestors: Set<object> = new Set()): st
   if (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) {
     throw new Error('Unsupported approval action object');
   }
+  if (Object.getOwnPropertySymbols(value).length) {
+    throw new Error('Unsupported approval action symbol key');
+  }
   ancestors.add(value);
   try {
     if (Array.isArray(value)) {
-      return `array:[${value.map((item) => canonicalAction(item, ancestors)).join(',')}]`;
+      const items: string[] = [];
+      for (let index = 0; index < value.length; index++) {
+        if (!Object.prototype.hasOwnProperty.call(value, index)) {
+          throw new Error('Sparse approval action array');
+        }
+        items.push(canonicalAction(value[index], ancestors));
+      }
+      if (Object.keys(value).some((key) => !/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= value.length)) {
+        throw new Error('Unsupported approval action array property');
+      }
+      return `array:[${items.join(',')}]`;
     }
     const record = value as Record<string, unknown>;
     const keys = Object.keys(record).sort();
+    for (const key of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(record, key);
+      if (!descriptor || !('value' in descriptor)) {
+        throw new Error('Unsupported approval action accessor');
+      }
+    }
     return `object:{${keys.map((key) => `${JSON.stringify(key)}:${canonicalAction(record[key], ancestors)}`).join(',')}}`;
   } finally {
     ancestors.delete(value);
