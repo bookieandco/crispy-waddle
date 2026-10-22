@@ -25,7 +25,7 @@ export type BranchReconciliation=Readonly<{
 /** .15: fail-closed PR reconciliation. A mergeable API flag is not a conflict audit. */
 export function reconcileSharkFilterBranches(input:{
   canonicalChangedPaths:readonly string[]
-  branches:readonly Omit<BranchReconciliation,'overlappingPaths'|'admission'>[]
+  branches:readonly Omit<BranchReconciliation,'admission'>[]
 }):readonly BranchReconciliation[]{
   const canonical=new Set(input.canonicalChangedPaths)
   if(canonical.size!==input.canonicalChangedPaths.length)throw new Error('shark_accept_duplicate_canonical_path')
