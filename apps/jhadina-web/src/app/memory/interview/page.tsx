@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState, type ChangeEvent } from "react"
 import { getCurrentUserId } from "@/lib/auth/current-user"
-import { parseRoundOneLedger, ROUND_ONE_FILE_LIMIT, type RoundOneLedger } from "@/lib/memory/round-one-interview"
+import { mergeRoundOneLedgers, ROUND_ONE_FILE_LIMIT, type RoundOneLedger } from "@/lib/memory/round-one-interview"
 
 /** Archive bytes stay in the browser. Only owner-selected answers become pending Memory. */
 export default function RoundOneInterviewPage() {
@@ -15,16 +15,18 @@ export default function RoundOneInterviewPage() {
 
   async function loadFile(event: ChangeEvent<HTMLInputElement>) {
     setLedger(null); setSelected([]); setMessage(""); setError("")
-    const file = event.target.files?.[0]
-    if (!file) return
+    const files = Array.from(event.target.files ?? [])
+    if (!files.length) return
     try {
-      if (file.size > ROUND_ONE_FILE_LIMIT || file.size < 2) {
-        throw new Error("Private interview archive must be smaller than 256 KB")
+      if (files.length > 5 || files.some(file => file.size > ROUND_ONE_FILE_LIMIT || file.size < 2)) {
+        throw new Error("Choose up to five private JSON archives, each under 256 KB")
       }
-      const parsed = parseRoundOneLedger(JSON.parse(await file.text()))
-      setLedger(parsed)
+      const archives = await Promise.all(files.map(async file => JSON.parse(await file.text()) as unknown))
+      setLedger(mergeRoundOneLedgers(archives))
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not read the archive")
+      setError(cause instanceof Error ? cause.message : "Could not read the archives")
+    } finally {
+      event.target.value = ""
     }
   }
   function toggle(questionNumber: number) {
@@ -63,11 +65,11 @@ export default function RoundOneInterviewPage() {
     <h1 className="jh-title">Review the completed interview</h1>
     <p className="jh-copy">Round 1 ended at Question 120. Round 2 is deferred until a private Jhadina session passes memory recall and correction tests. Your answers are never bundled in the app or inferred from Facebook.</p>
     <div className="jh-card" style={{ marginTop: 18 }}>
-      <label htmlFor="round-one-archive" className="jh-card-title">Load private Round 1 JSON archive</label>
-      <input id="round-one-archive" aria-label="Private Round 1 interview archive"
-        style={{ display: "block", marginTop: 12 }} type="file"
+      <label htmlFor="round-one-archive" className="jh-card-title">Load private Round 1 JSON archives</label>
+      <input id="round-one-archive" aria-label="Private Round 1 interview archives"
+        style={{ display: "block", marginTop: 12 }} type="file" multiple
         accept=".json,application/json" disabled={busy} onChange={event => void loadFile(event)}/>
-      <p className="jh-meta">The file stays on your device. Nothing is submitted until you select answers and click Submit for approval. Nothing is automatically approved.</p>
+      <p className="jh-meta">Select the Q1–Q94 and Q95–Q120 JSON files together, or one at a time. Identical duplicates are deduplicated; conflicts are rejected. Files stay in your browser until you deliberately select and submit individual answers for pending approval. Nothing is automatically approved.</p>
     </div>
     {error ? <div className="jh-error" role="alert">{error}</div> : null}
     {message ? <div role="status" className="jh-item">{message}</div> : null}
@@ -76,7 +78,7 @@ export default function RoundOneInterviewPage() {
         <h2 className="jh-section-title">{ledger.entries.length} recovered direct answers</h2>
         <span className="jh-status">Round 1 closed</span>
       </div>
-      <p className="jh-copy">Missing earlier answers are not invented. Select what Jhadina may propose for long-term memory.</p>
+      <p className="jh-copy">Only answers present in your selected files are shown. Any missing numbers remain missing, not invented. Select what Jhadina may propose for long-term memory.</p>
       <div className="jh-list">{ledger.entries.map(entry => <article className="jh-item" key={entry.questionId}>
         <label style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
           <input type="checkbox" checked={selected.includes(entry.questionNumber)}
