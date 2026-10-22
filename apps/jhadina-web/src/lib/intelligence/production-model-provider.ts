@@ -43,13 +43,19 @@ export type JllmReasoningReadiness = Readonly<{
   note: string
 }>
 
-export function readJllmReasoningReadiness(env: Partial<Record<
+export function readJllmReasoningReadiness(env?: Partial<Record<
   "JHADINA_REASONING_PROVIDER" | "ANTHROPIC_API_KEY" | "GEMINI_API_KEY", string | undefined
->> = process.env): JllmReasoningReadiness {
-  const selected = env.JHADINA_REASONING_PROVIDER === "gemini" ? "gemini" : "anthropic"
-  const configured = Boolean((selected === "gemini" ? env.GEMINI_API_KEY : env.ANTHROPIC_API_KEY)?.trim())
+>>): JllmReasoningReadiness {
+  // Construct the optional-key shape explicitly: some builds narrow NodeJS.ProcessEnv.
+  const config = env ?? {
+    JHADINA_REASONING_PROVIDER: process.env.JHADINA_REASONING_PROVIDER,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  }
+  const selected = config.JHADINA_REASONING_PROVIDER === "gemini" ? "gemini" : "anthropic"
+  const configured = Boolean((selected === "gemini" ? config.GEMINI_API_KEY : config.ANTHROPIC_API_KEY)?.trim())
   const alternative = selected === "gemini" ? "anthropic" : "gemini"
-  const alternateConfigured = Boolean((alternative === "gemini" ? env.GEMINI_API_KEY : env.ANTHROPIC_API_KEY)?.trim())
+  const alternateConfigured = Boolean((alternative === "gemini" ? config.GEMINI_API_KEY : config.ANTHROPIC_API_KEY)?.trim())
   return {
     selected,
     status: configured ? "CONFIGURED_UNVERIFIED" : "NOT_CONFIGURED",
