@@ -150,9 +150,17 @@ export function allocatePurseCapital(input:{
  let remaining=min(incrementalCapacity,capital.availableLiquidityMinor)
 
  const laneUsed=new Map<MoneyStrategyLane,bigint>()
+ // Cap aggregate exposure to an instrument across accounts, lots and strategies.
+ const instrumentUsed=new Map<string,bigint>()
  const correlationUsed=new Map<string,bigint>()
+ const seenExposureIds=new Set<string>()
+
  for(const e of input.currentExposures){
+  if(seenExposureIds.has(e.exposureId))throw new Error('PURSE_DUPLICATE_EXPOSURE_ID')
+  seenExposureIds.add(e.exposureId)
   laneUsed.set(e.lane,(laneUsed.get(e.lane)??0n)+e.reportingValueMinor)
+  const instrumentKey=e.lane+':'+e.instrumentId
+  instrumentUsed.set(instrumentKey,(instrumentUsed.get(instrumentKey)??0n)+e.reportingValueMinor)
   for(const group of e.correlationGroupIds)correlationUsed.set(group,(correlationUsed.get(group)??0n)+e.reportingValueMinor)
  }
 
@@ -174,7 +182,10 @@ export function allocatePurseCapital(input:{
   sizeMultiplierBps:number
   learning?:PurseStrategyLearningProfile
  }>
+ const seenOpportunityIds=new Set<string>()
  const scored:Scored[]=input.opportunities.flatMap(env=>{
+  if(seenOpportunityIds.has(env.opportunity.opportunityId))throw new Error('PURSE_DUPLICATE_OPPORTUNITY_ID')
+  seenOpportunityIds.add(env.opportunity.opportunityId)
   if(env.authority!=='OPPORTUNITY_BUS_ONLY'||env.canExecute!==false)throw new Error('PURSE_OPPORTUNITY_ENVELOPE_AUTHORITY_INVALID')
   assertPurseOpportunity(env.opportunity,input.informationCutoff)
   if(env.charterId!==charter.charterId)throw new Error('PURSE_OPPORTUNITY_CHARTER_MISMATCH')
@@ -204,17 +215,16 @@ export function allocatePurseCapital(input:{
   const laneCap=bpsValue(total,lanePolicy.maxAllocationBps)
   const laneRoom=max(0n,laneCap-(laneUsed.get(o.lane)??0n))
   const learnedOpportunityCap=bpsValue(o.maximumCapitalMinor,sizeMultiplierBps)
-  const opportunityCap=min(
-   bpsValue(total,charter.maxSingleOpportunityBps),
-   bpsValue(total,lanePolicy.maxSinglePositionBps),
-   learnedOpportunityCap,
-  )
+  const instrumentKey=o.lane+':'+o.instrumentId
+  const positionCap=bpsValue(total,lanePolicy.maxSinglePositionBps)
+  const positionRoom=max(0n,positionCap-(instrumentUsed.get(instrumentKey)??0n))
+  const opportunityCap=min(bpsValue(total,charter.maxSingleOpportunityBps),learnedOpportunityCap)
   let correlationRoom=remaining
   for(const group of o.correlationGroupIds){
    const groupCap=bpsValue(total,charter.maxCorrelatedExposureBps)
    correlationRoom=min(correlationRoom,max(0n,groupCap-(correlationUsed.get(group)??0n)))
   }
-  const desired=min(remaining,laneRoom,opportunityCap,correlationRoom)
+  const desired=min(remaining,laneRoom,positionRoom,opportunityCap,correlationRoom)
   if(desired<o.minimumCapitalMinor||desired<=0n){rejected.add(o.opportunityId);continue}
   const scoreBps=Math.round(score*10000)
   const learningText=learning?` Learning profile ${learning.status.toLowerCase()} (${learning.sampleWeight} weighted samples) adjusted confidence to ${effectiveConfidenceBps} bps and capped sizing at ${sizeMultiplierBps} bps of the base opportunity limit.`:''
@@ -233,6 +243,7 @@ export function allocatePurseCapital(input:{
   })
   targets.push(target)
   laneUsed.set(o.lane,resultingLaneExposure)
+  instrumentUsed.set(instrumentKey,(instrumentUsed.get(instrumentKey)??0n)+desired)
   for(const group of o.correlationGroupIds)correlationUsed.set(group,(correlationUsed.get(group)??0n)+desired)
   remaining-=desired
   evidenceIds.push(...o.evidenceIds,...(learning?.evidenceIds??[]))
