@@ -20,6 +20,7 @@
     "./timeline-editing": "./src/timeline-editing.ts",
     "./timeline-model": "./src/timeline-model.ts",
     "./timeline-playback-plan": "./src/timeline-playback-plan.ts",
+    "./offline-final-render-plan": "./src/offline-final-render-plan.ts",
     "./timeline-command": "./src/timeline-command.ts",
     "./studio-contracts": "./src/studio-contracts.ts",
     "./studio-governed-action": "./src/studio-governed-action.ts",
