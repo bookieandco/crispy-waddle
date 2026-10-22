@@ -111,7 +111,7 @@ export function SportsHistoryCard({view}:{view:SportsHistoryViewForUi}){
      {view.summaries.slice(0,12).map(summary=><details className="jh-item" key={summary.statKey}>
       <summary style={{cursor:"pointer"}}>
        <strong>{summary.statLabel}</strong>
-       <span className="jh-meta"> · n={summary.sampleSize.toLocaleString()} · avg {formatNumber(summary.mean)} · median {formatNumber(summary.p50)} · P10–P90 {formatNumber(summary.p10)}–{formatNumber(summary.p90)}</span>
+       <span className="jh-meta"> · total {formatNumber(summary.sum)} · n={summary.sampleSize.toLocaleString()} · avg {formatNumber(summary.mean)} · median {formatNumber(summary.p50)} · P10–P90 {formatNumber(summary.p10)}–{formatNumber(summary.p90)}</span>
       </summary>
       <p className="jh-meta" style={{marginTop:8}}>Range {formatNumber(summary.min)}–{formatNumber(summary.max)} · SD {formatNumber(summary.stdDev)} · {summary.statKey}</p>
       {summary.seasons.length?<div style={{overflowX:"auto",marginTop:8}}>
