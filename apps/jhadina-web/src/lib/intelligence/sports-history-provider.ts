@@ -63,19 +63,31 @@ function parseRecord(value:unknown):SportsHistoricalStatRecord{
 export function createProductionSportsHistoryProvider(options:{
   baseUrl?:string
   token?:string
+  vercelBypassSecret?:string
   fetchImpl?:FetchLike
 }={}):SportsHistoryProvider{
   const baseUrl=options.baseUrl??process.env.SPORTS_HISTORY_URL
   const token=options.token??process.env.SPORTS_HISTORY_TOKEN
+  const vercelBypassSecret=options.vercelBypassSecret??process.env.SPORTS_HISTORY_VERCEL_BYPASS_SECRET
   const fetchImpl=options.fetchImpl??fetch
   return {
     async query(input){
       if(!baseUrl?.trim())return null
+      // A protection-bypass token grants access to the provider's whole
+      // deployment. Never send it to plain HTTP or a non-Vercel hostname.
+      if(vercelBypassSecret){
+        let target:URL
+        try{target=new URL(baseUrl)}catch{throw new Error("SPORT_HISTORY_PROVIDER_BYPASS_TARGET_INVALID")}
+        if(target.protocol!=="https:"||!target.hostname.endsWith(".vercel.app")){
+          throw new Error("SPORT_HISTORY_PROVIDER_BYPASS_TARGET_FORBIDDEN")
+        }
+      }
       const response=await fetchImpl(baseUrl,{
         method:"POST",
         headers:{
           "content-type":"application/json",
           ...(token?{authorization:"Bearer "+token}:{}),
+          ...(vercelBypassSecret?{"x-vercel-protection-bypass":vercelBypassSecret}:{})
         },
         body:JSON.stringify({
           query:input.rawQuery,
