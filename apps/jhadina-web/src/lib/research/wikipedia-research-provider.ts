@@ -54,7 +54,7 @@ const credentialLike = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|(?:\+?\d[\d ()-]{8
 /** Only deliberate encyclopedia questions, never arbitrary prompts, go to Wikimedia. */
 export function extractWikipediaQuery(activeTask: string): string | null {
   const task = activeTask.trim()
-  if (!task || task.length > 320 || sensitive.test(task) || credentialLike.test(task) || /[\r\n<>]/.test(task)) return null
+  if (!task || task.length > 320 || credentialLike.test(task) || /[\r\n<>]/.test(task)) return null
   const explicit = task.match(/^(?:(?:please\s+)?(?:search|look\s*up|check|find|research)\s+)?(?:(?:on|in|using)\s+)?(?:wikipedia|encyclopedia)\s*(?:(?:for|about|on)\s+|:\s*)?(.+)$/i)
   const general = task.match(/^(?:who (?:was|is)|what (?:was|is|are)|when (?:was|did)|where (?:was|is)|history of|tell me about)\s+(.+)$/i)
   const query = (explicit?.[1] ?? general?.[1] ?? "").trim().replace(/^["'“”]+|["'“”?.!]+$/g, "").trim()
