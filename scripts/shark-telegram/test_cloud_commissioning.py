@@ -130,7 +130,7 @@ class CloudCommissioningTests(unittest.TestCase):
         self.assertEqual(cloud.parse_private_exclusions(""), [])
         self.assertEqual(cloud.parse_private_exclusions(
             "@unrelatedChat,-1001234567890"), ["@unrelatedChat", "-1001234567890"])
-        for raw in ("@short", "@private, @other", "@private,@private",
+        for raw in ("@tiny", "@private, @other", "@private,@private",
                     "abc", ";@", "@" + "q" * 100, "1,2," * 50):
             with self.subTest(raw=raw):
                 with self.assertRaises(cloud.CloudHold) as caught:
