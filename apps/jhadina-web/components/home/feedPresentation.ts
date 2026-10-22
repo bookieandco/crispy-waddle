@@ -1,4 +1,5 @@
 import type { FeedSource, Story } from "./storyTypes"
+import {balancedSourceMix} from "./superFeedMixer"
 
 export type FeedView = "updates" | "social" | "watch" | "work"
 const socialSources = new Set<FeedSource>(["Social","TikTok","Facebook","Snapchat","Instagram","Reddit","X","LinkedIn","Threads","Bluesky","Mastodon","Tumblr","VK"])
@@ -26,9 +27,5 @@ export function selectHomeStories(stories: readonly Story[], view: FeedView, pla
     return true
   }).sort((a,b)=>stamp(b)-stamp(a))
   if(ordering==="latest")return sorted
-  const grouped=new Map<string,Story[]>()
-  for(const item of sorted){const bucket=grouped.get(item.source)??[];bucket.push(item);grouped.set(item.source,bucket)}
-  const out:Story[]=[]
-  while(out.length<sorted.length){for(const bucket of grouped.values()){const next=bucket.shift();if(next)out.push(next)}}
-  return out
+  return balancedSourceMix(sorted,{minPerSource:2,maxStreak:2})
 }
