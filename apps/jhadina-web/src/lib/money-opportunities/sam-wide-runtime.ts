@@ -4,6 +4,7 @@ import { classifySamNoticeChange, computeSamMarketCoverage, nextSamBootstrapWind
 import { scanSamOpportunityWindow, searchSamOpportunities } from './sam-client'
 import { extractSamAttachmentText } from './sam-document-extractor'
 import { getSamApiKey } from './sam-config'
+import { splitSamGatewayBatches } from './sam-safe-batches'
 import { certifySamBulkCoverageRange, samBulkPostedDay, samBulkRowToApiNotice, streamSamBulkRows } from './sam-bulk-client'
 
 export type SamWideScanReceipt={
@@ -48,30 +49,7 @@ export async function runSamWideScan(client:SupabaseClient,input:{postedFrom:str
     for(let start=0;start<notices.length;start+=250){
       const chunk=notices.slice(start,start+250)
       const ids=chunk.map(x=>x.noticeId)
-      const {data:existingRows,error:existingError}=await client.from('jhadina_sam_catalog').select('notice_id,checksum,version').in('notice_id',ids)
-      if(existingError)throw new Error(`Unable to read SAM catalog: ${existingError.message}`)
-      const existing=new Map(rows(existingRows).map(x=>[String(x.notice_id),x as unknown as Existing]))
-      const upserts:Array<Record<string,unknown>>=[]
-      const versions:Array<Record<string,unknown>>=[]
-      for(const notice of chunk){
-        const previous=existing.get(notice.noticeId)
-        const change=classifySamNoticeChange(previous?.checksum,notice.checksum)
-        const version=change==='amended'?(previous?.version??0)+1:previous?.version??1
-        if(change==='new')receipt.newRecords+=1
-        else if(change==='amended')receipt.amendedRecords+=1
-        else receipt.unchangedRecords+=1
-        if(change!=='unchanged'){
-          receipt.changedNoticeIds.push(notice.noticeId)
-          versions.push({notice_id:notice.noticeId,version,checksum:notice.checksum,snapshot:notice.raw,captured_at:notice.capturedAt})
-        }
-        upserts.push(catalogRow(notice,version))
-      }
-      const {error:upsertError}=await client.from('jhadina_sam_catalog').upsert(upserts,{onConflict:'notice_id'})
-      if(upsertError)throw new Error(`Unable to persist SAM catalog: ${upsertError.message}`)
-      if(versions.length){
-        const {error:versionError}=await client.from('jhadina_sam_versions').upsert(versions,{onConflict:'notice_id,checksum',ignoreDuplicates:true})
-        if(versionError)throw new Error(`Unable to persist SAM versions: ${versionError.message}`)
-      }
+      await persistSamNoticeChunk(client,chunk,receipt)
     }
   }catch(error){
     receipt.status='failed';receipt.errors.push(error instanceof Error?error.message:'SAM scan failed')
@@ -103,11 +81,15 @@ async function persistSamNoticeChunk(client:SupabaseClient,chunk:SamWideNotice[]
     }
     upserts.push(catalogRow(notice,version))
   }
-  const {error:upsertError}=await client.from('jhadina_sam_catalog').upsert(upserts,{onConflict:'notice_id'})
-  if(upsertError)throw new Error(`Unable to persist SAM catalog: ${upsertError.message}`)
-  if(versions.length){
-    const {error:versionError}=await client.from('jhadina_sam_versions').upsert(versions,{onConflict:'notice_id,checksum',ignoreDuplicates:true})
-    if(versionError)throw new Error(`Unable to persist SAM versions: ${versionError.message}`)
+  // Gateway requests are capped at 5MB. Bulk rows contain unbounded raw SAM
+  // description/attachment metadata, so count-only batches can fail mid-scan.
+  for(const batch of splitSamGatewayBatches(upserts)){
+    const {error}=await client.from('jhadina_sam_catalog').upsert(batch,{onConflict:'notice_id'})
+    if(error)throw new Error(`Unable to persist SAM catalog: ${error.message}`)
+  }
+  for(const batch of splitSamGatewayBatches(versions)){
+    const {error}=await client.from('jhadina_sam_versions').upsert(batch,{onConflict:'notice_id,checksum',ignoreDuplicates:true})
+    if(error)throw new Error(`Unable to persist SAM versions: ${error.message}`)
   }
 }
 
