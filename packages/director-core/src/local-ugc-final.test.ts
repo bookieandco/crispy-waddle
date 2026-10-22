@@ -226,4 +226,24 @@ describe('DIRECTOR-LOCAL-UGC.FINAL convergence',()=>{
     expect(result.reasons).toContain('DIRECTOR_LOCAL_UGC_FINAL_SOCIAL_CANARY_LINEAGE_REQUIRED');
     expect(result.reasons).toContain('DIRECTOR_LOCAL_UGC_FINAL_SOCIAL_MASTER_QC_LINK_REQUIRED');
   });
+  it('rejects a UGC outcome referencing a different asset with the same hash',()=>{
+    const x=fixture();
+    const result=certifyDirectorLocalUgcFinal({
+      ...x,ugcOutcome:{...x.ugcOutcome,artifactId:'asset:unreviewed'},
+    });
+    expect(result.admissible).toBe(false);
+    expect(result.reasons).toContain('DIRECTOR_LOCAL_UGC_FINAL_UGC_OUTCOME_QC_ASSET_MISMATCH');
+  });
+
+  it('rejects NaN, infinity, and negative accepted-output economics',()=>{
+    const x=fixture();
+    for(const cost of [Number.NaN,Number.POSITIVE_INFINITY,-1]){
+      const result=certifyDirectorLocalUgcFinal({
+        ...x,ugcOutcome:{...x.ugcOutcome,acceptedOutputCostUsd:cost},
+      });
+      expect(result.admissible).toBe(false);
+      expect(result.reasons).toContain('DIRECTOR_LOCAL_UGC_FINAL_REALIZED_COST_MISMATCH');
+    }
+  });
+
 });

@@ -94,6 +94,10 @@ export function certifyDirectorLocalUgcFinal(x:DirectorLocalUgcFinalInput):Direc
   if(o.projectId!==projectId)r.push('DIRECTOR_LOCAL_UGC_FINAL_UGC_OUTCOME_PROJECT_MISMATCH');
   if(!o.artifactId.trim()||!SHA.test(o.artifactSha256))
     r.push('DIRECTOR_LOCAL_UGC_FINAL_UGC_OUTCOME_ARTIFACT_INVALID');
+  if(o.artifactId!==x.qcInput.outputAssetId)
+    r.push('DIRECTOR_LOCAL_UGC_FINAL_UGC_OUTCOME_QC_ASSET_MISMATCH');
+  if(SHA.test(o.artifactSha256)&&norm(o.artifactSha256)!==norm(x.qcInput.outputSha256))
+    r.push('DIRECTOR_LOCAL_UGC_FINAL_UGC_OUTCOME_QC_HASH_MISMATCH');
   if(o.generationJobId!==x.executionReceipt.providerJobId&&o.generationJobId!==x.jobRequest.id)
     r.push('DIRECTOR_LOCAL_UGC_FINAL_UGC_OUTCOME_EXECUTION_MISMATCH');
   mark(r,oe,marker,'DIRECTOR_LOCAL_UGC_FINAL_UGC_OUTCOME_CANARY_LINEAGE_REQUIRED');
@@ -105,7 +109,9 @@ export function certifyDirectorLocalUgcFinal(x:DirectorLocalUgcFinalInput):Direc
     r.push('DIRECTOR_LOCAL_UGC_FINAL_EXECUTION_OUTCOME_HASH_MISMATCH');
 
   const realized=summarizeDirectorHumanMediaAttemptCost(e).totalCostUsd;
-  if(Math.abs(realized-o.acceptedOutputCostUsd)>.01)
+  if(!Number.isFinite(realized)||realized<0||
+    !Number.isFinite(o.acceptedOutputCostUsd)||o.acceptedOutputCostUsd<0||
+    Math.abs(realized-o.acceptedOutputCostUsd)>.01)
     r.push('DIRECTOR_LOCAL_UGC_FINAL_REALIZED_COST_MISMATCH');
   if(!o.costEvidenceIds.includes(`human-media-attempt-economics:${e.id}`))
     r.push('DIRECTOR_LOCAL_UGC_FINAL_UGC_COST_RECEIPT_LINK_REQUIRED');
