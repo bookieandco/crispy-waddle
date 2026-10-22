@@ -59,7 +59,7 @@ export function buildPurseLiquiditySnapshot(input:{
  const externalObligations=obligations.pendingWithdrawalsMinor+obligations.pendingFeesMinor+obligations.pendingTaxReserveMinor+obligations.ownerSweepHoldMinor+obligations.chainFeeReserveMinor+obligations.otherRestrictedMinor
  const grossLiquid=portfolio.liquidAccountValueMinor
  const allocateDeductions=portfolio.unsettledMinor+portfolio.reservedMinor+protectedReserve+externalObligations
- const withdrawalDeductions=portfolio.unsettledMinor+portfolio.reservedMinor+protectedReserve+obligations.pendingFeesMinor+obligations.pendingTaxReserveMinor+obligations.chainFeeReserveMinor+obligations.otherRestrictedMinor
+ const withdrawalDeductions=portfolio.unsettledMinor+portfolio.reservedMinor+protectedReserve+obligations.pendingWithdrawalsMinor+obligations.pendingFeesMinor+obligations.pendingTaxReserveMinor+obligations.chainFeeReserveMinor+obligations.otherRestrictedMinor
  return Object.freeze({
   liquiditySnapshotId:'purse-liquidity:'+hash({charterId:charter.charterId,portfolio:portfolio.snapshotId,obligations,observedAt:input.observedAt}),
   charterId:charter.charterId,portfolioSnapshotId:portfolio.snapshotId,reportingCurrency:charter.reportingCurrency,grossLiquidMinor:grossLiquid,
