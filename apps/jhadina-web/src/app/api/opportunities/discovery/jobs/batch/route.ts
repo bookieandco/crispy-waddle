@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createSupabaseOpportunityRepository } from '@/lib/opportunities/supabase-opportunity-repository'
 import { discoverPublicBoard } from '@/lib/opportunities/public-job-board'
 import { runBoundedBoardCycle } from '@/lib/opportunities/autonomy-board-cycle'
+import { verifyCanonicalImportReadback } from '@/lib/opportunities/job-import-acceptance'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -26,7 +27,10 @@ export async function POST(request: Request) {
       discover:discoverPublicBoard,
       ingest:async opportunity=>{
         const saved=await repository.upsert(user.id,opportunity)
-        return {id:saved.opportunity.id}
+        const persisted=await repository.get(opportunity.id)
+        const verified=verifyCanonicalImportReadback({expectedId:opportunity.id,expectedOwnerId:user.id,persisted})
+        if(!verified) throw new Error('Canonical read-after-write confirmation failed')
+        return {id:saved.opportunity.id,verified}
       },
     })
     return NextResponse.json({ok:result.failed.length===0,...result}, {
