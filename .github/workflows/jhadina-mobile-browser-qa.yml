@@ -59,6 +59,7 @@ jobs:
             exit 1
           fi
           node apps/jhadina-web/scripts/qa-jhadina-mobile.mjs
+          node apps/jhadina-web/scripts/qa-oce-mobile.mjs
       - name: Save mobile layout screenshots for review
         if: always()
         uses: actions/upload-artifact@v4
