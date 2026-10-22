@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable @next/next/no-html-link-for-pages -- Native navigation is intentional: it must work without Next router hydration on iPhone. */
+
 import { useEffect, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import styles from "./JhadinaShellNavigation.module.css"
