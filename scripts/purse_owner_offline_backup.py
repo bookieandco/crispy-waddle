@@ -54,7 +54,7 @@ def parse_source(dsn: str) -> dict:
         raise ExportBlocked("Connection does not identify the canonical Jhadina database")
     if not secret or database != "postgres" or not (1 <= port <= 65535):
         raise ExportBlocked("Expected the canonical PostgreSQL database and an owner-supplied password")
-    if uri.fragment or uri.params if hasattr(uri, 'params') else uri.fragment:
+    if uri.fragment:
         raise ExportBlocked("Unexpected connection URI components")
     if any(k not in ("sslmode", "application_name") for k in query):
         raise ExportBlocked("Unsupported connection URI setting")
@@ -166,8 +166,8 @@ def run_backup(source: dict, recipient: str, output_dir: Path) -> tuple[Path, Pa
             archive.name, archive.stat().st_size, h.hexdigest(),
             dt.datetime.now(dt.timezone.utc).isoformat(), source["sourceKind"]
         )
-        with manifest.open("x", encoding="utf-8") as dst:
-            os.chmod(manifest, 0o600)
+        receipt_fd = os.open(manifest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(receipt_fd, "w", encoding="utf-8") as dst:
             json.dump(receipt, dst, indent=2, sort_keys=True)
             dst.write("\n")
         return archive, manifest
