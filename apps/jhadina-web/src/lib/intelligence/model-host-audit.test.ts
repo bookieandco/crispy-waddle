@@ -12,7 +12,7 @@ describe("MacBook audit quarantine",()=>{
   expect(assessLocalModelHost(undefined).readiness).toBe("HOST_ID_REQUIRED")
   expect(assessLocalModelHost("../mac").permittedForCandidateConfiguration).toBe(false)
   expect(assessLocalModelHost("approved-candidate-node")).toMatchObject({
-   readiness:"ALTERNATE_HOST_CONFIGURED_UNVERIFIED",permittedForCandidateConfiguration:true,auditIssue:null,
+   readiness:"ALTERNATE_HOST_IDENTIFIED_UNVERIFIED",permittedForCandidateConfiguration:true,auditIssue:null,
   })
  })
 })
