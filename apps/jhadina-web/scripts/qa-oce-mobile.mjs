@@ -18,6 +18,8 @@ try{
     const workbench=page.getByRole('region',{name:'Autonomy research tools'})
     await workbench.waitFor({state:'visible'})
     await workbench.getByRole('button',{name:'Preview public listings'}).waitFor({state:'visible'})
+    await workbench.getByRole('button',{name:'Check owner commissioning readiness'}).waitFor({state:'visible'})
+    await workbench.getByRole('button',{name:'Reload saved run and report'}).waitFor({state:'visible'})
     const importButton=workbench.getByRole('button',{name:'Import published jobs'})
     assert(await importButton.isDisabled(),'No default import without board token')
     assert(await workbench.getByRole('button',{name:'Create governed internal report'}).isDisabled().catch(()=>true),
@@ -36,6 +38,11 @@ try{
         ([302,303,307,308].includes(result.status())&&new URL(location,root).pathname==='/login'),
         'Unauthenticated API should deny/redirect to login for '+url+'; got '+result.status())
     }
+    const read=await unauth.request.get(root+'/api/opportunities/commissioning/readiness',{maxRedirects:0})
+    const readRedirect=read.headers()['location']??''
+    assert(read.status()===401||read.status()===403||
+      ([302,303,307,308].includes(read.status())&&new URL(readRedirect,root).pathname==='/login'),
+      'Unauthenticated activation-readiness data must be denied')
     const commercial=await unauth.request.get(root+'/api/opportunities/pilots/commercial-readiness?workOrderId=example',{maxRedirects:0})
     const loc=commercial.headers()['location']??''
     assert(commercial.status()===401||commercial.status()===403||
