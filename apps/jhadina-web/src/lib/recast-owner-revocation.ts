@@ -22,10 +22,9 @@ export function prepareRecastOwnerRevocation(input:{
   const reviewed=Date.parse(input.reviewedAt)
   const expires=Date.parse(input.expiresAt)
   if(prior.disposition!=='UNPERSISTED_INSERT_MANIFEST'||
-    prior.status!=='approved'||!uuid(prior.id)||!uuid(input.newServerReceiptId)||
+    prior.status!=='approved'||prior.kind==='media-probe'||!uuid(prior.id)||!uuid(input.newServerReceiptId)||
     input.newServerReceiptId===prior.id||
     prior.owner_user_id!==input.authenticatedOwnerUserId||
-    prior.reviewed_by_user_id!==input.authenticatedOwnerUserId||
     input.explicitOwnerRevocation!==true||
     !verifyRecastEvidenceSeal(prior.evidence,prior.evidence_sha256)||
     input.reason.trim().length<12||input.reason.trim().length>500||
@@ -48,6 +47,7 @@ export function prepareRecastOwnerRevocation(input:{
     ...prior,
     id:input.newServerReceiptId,
     status:'rejected',
+    reviewed_by_user_id:input.authenticatedOwnerUserId,
     method:'human-review',
     reviewed_at:input.reviewedAt,
     expires_at:input.expiresAt,
