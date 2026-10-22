@@ -1,5 +1,5 @@
 import {assessSniperLiveRisk,type RugProtectionInput,type SniperVerifiedEvidence} from '@jhadina/shark-intelligence-core/meme-trader'
-import {fuseSniperIntelligence,type SniperIntelObservation,type SniperIntelFusion} from './sniper-intel-fusion'
+import {fuseSniperIntelligence,type SniperIntelObservation,type SniperIntelFusion,type SniperIndependentOutcomeProof} from './sniper-intel-fusion'
 import type {SharkShadowCounterfactualLesson} from '@jhadina/money-core'
 import {
  compareSniperLandingRoutes,runSniperPaperRoundTrip,acceptSniperLiveWiringPaper,
@@ -54,6 +54,7 @@ export function runSniperPaperCycle(input:{
  /** Snapshot / prior lessons are research-only; they never alter the hard safety gate. */
  intelObservations?:readonly SniperIntelObservation[]
  priorShadowLessons?:readonly SharkShadowCounterfactualLesson[]
+ priorLessonProofs?:readonly SniperIndependentOutcomeProof[]
 }):SniperPaperCycleResult{
  const risk=assessSniperLiveRisk({
   evidence:input.riskEvidence,rug:input.rugInput,now:input.now,
@@ -66,7 +67,7 @@ export function runSniperPaperCycle(input:{
  const intelFor=(paper?:SniperPaperTradeReceipt)=>fuseSniperIntelligence({
   decisionId:input.tradeId,tokenAddress:input.tokenAddress,chainId:'solana-mainnet',
   cutoff:input.now,risk,observations:input.intelObservations,
-  priorShadowLessons:input.priorShadowLessons,paper,
+  priorShadowLessons:input.priorShadowLessons,priorLessonProofs:input.priorLessonProofs,paper,
  })
  const route=compareSniperLandingRoutes({
   candidates:input.landingCandidates,observations:input.landingObservations,cutoff:input.now,
