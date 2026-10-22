@@ -1,0 +1,52 @@
+name: Social Audit Disposable PostgreSQL Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/proposals/social_core_recover_08_audit_domain_UNAPPLIED.sql'
+      - 'scripts/social-audit-postgres-accept.sh'
+      - '.github/workflows/social-audit-disposable-postgres.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  social-audit-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: social_audit_ci
+          POSTGRES_PASSWORD: social-audit-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d social_audit_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - name: Checkout exact head without production credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Ensure PostgreSQL client
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Certify Social-only audit restrictions and hash chain in disposable database
+        shell: bash
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: social_audit_ci
+          PGPASSWORD: social-audit-ci-only
+        run: bash scripts/social-audit-postgres-accept.sh
