@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { persistSamCatalogBatches } from './sam-gateway-batches'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { classifySamNoticeChange, computeSamMarketCoverage, nextSamBootstrapWindow, normalizeSamWideNotice, type SamCoverageInterval, type SamMarketCoverage, type SamWideNotice } from '@jhadina/opportunity-core'
 import { scanSamOpportunityWindow, searchSamOpportunities } from './sam-client'
@@ -66,12 +67,7 @@ export async function runSamWideScan(client:SupabaseClient,input:{postedFrom:str
         }
         upserts.push(catalogRow(notice,version))
       }
-      const {error:upsertError}=await client.from('jhadina_sam_catalog').upsert(upserts,{onConflict:'notice_id'})
-      if(upsertError)throw new Error(`Unable to persist SAM catalog: ${upsertError.message}`)
-      if(versions.length){
-        const {error:versionError}=await client.from('jhadina_sam_versions').upsert(versions,{onConflict:'notice_id,checksum',ignoreDuplicates:true})
-        if(versionError)throw new Error(`Unable to persist SAM versions: ${versionError.message}`)
-      }
+      await persistSamCatalogBatches(client,upserts,versions)
     }
   }catch(error){
     receipt.status='failed';receipt.errors.push(error instanceof Error?error.message:'SAM scan failed')
@@ -103,12 +99,7 @@ async function persistSamNoticeChunk(client:SupabaseClient,chunk:SamWideNotice[]
     }
     upserts.push(catalogRow(notice,version))
   }
-  const {error:upsertError}=await client.from('jhadina_sam_catalog').upsert(upserts,{onConflict:'notice_id'})
-  if(upsertError)throw new Error(`Unable to persist SAM catalog: ${upsertError.message}`)
-  if(versions.length){
-    const {error:versionError}=await client.from('jhadina_sam_versions').upsert(versions,{onConflict:'notice_id,checksum',ignoreDuplicates:true})
-    if(versionError)throw new Error(`Unable to persist SAM versions: ${versionError.message}`)
-  }
+  await persistSamCatalogBatches(client,upserts,versions)
 }
 
 export async function runSamBulkSnapshotScan(
