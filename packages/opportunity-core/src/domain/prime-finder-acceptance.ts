@@ -12,7 +12,7 @@ export type PrimeFinderPilotEvidence={
   primeSubRelationshipEdges:number
   evidencedCommercialOutcomes:number
   realSourcePilotPairs:number
-  unauthorizedOutreachActions:number
+  unauthorizedOutreachActions:number|null
 }
 export function certifyPrimeFinderPilot(e:PrimeFinderPilotEvidence){
   const blockers:string[]=[]
@@ -24,7 +24,8 @@ export function certifyPrimeFinderPilot(e:PrimeFinderPilotEvidence){
   if(e.primeSubRelationshipEdges<3)blockers.push('Fewer than three persisted prime/provider CRM edges.')
   if(e.realSourcePilotPairs<3)blockers.push('Fewer than three source-backed end-to-end pilot pairs.')
   if(e.evidencedCommercialOutcomes<1)blockers.push('No evidenced commercial outcome; commercial completion remains unproven.')
-  if(e.unauthorizedOutreachActions>0)blockers.push('Unauthorized outreach violates the pursuit boundary.')
+  if(e.unauthorizedOutreachActions===null)blockers.push('Unauthorized-outreach audit has no verified evidence.')
+  if(e.unauthorizedOutreachActions!==null&&e.unauthorizedOutreachActions>0)blockers.push('Unauthorized outreach violates the pursuit boundary.')
   return Object.freeze({
     status:blockers.length?'BLOCKED' as const:'EVIDENCE_ACCEPTED' as const,
     blockers,authority:'RESEARCH_ONLY' as const,
