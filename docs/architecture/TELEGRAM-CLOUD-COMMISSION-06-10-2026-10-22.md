@@ -11,7 +11,7 @@ All work remains Mac-independent in architecture, not live commissioned.
 ## .06 — Inventory and isolate the eventual host
 A read-only Railway account inventory on October 22 showed two projects:
 **OverageOS** (no services) and **PupsonStuff Media Services**
-(with active media/remover services). Neither is a verified dedicated
+(with configured media/remover services). Neither is a verified dedicated
 Telegram host. Do not repurpose either project, create a Railway service,
 assume that Railway is healthy, or pay for a plan without separate owner
 authorization. No other provider account was certified for this purpose.
@@ -38,6 +38,11 @@ a new account. Phone number, OTP and 2FA are requested through hidden
 private-terminal prompts. Identity must match independently verified
 owner numeric ID. Provider exceptions are sanitized before reaching
 service output; the client is disconnected after enrollment.
+The operator may privately configure `TELEGRAM_CLOUD_EXCLUDE_CHATS` as
+a comma-separated list of up to 40 Telegram usernames (`@username`)
+or numeric peer IDs, without spaces. Malformed/duplicate exclusions fail
+closed; never commit or echo those private chat identifiers. Resolve and
+test unrelated-chat exclusions before starting a future live listener.
 
 Do not paste the Telegram API hash, phone, one-time code, 2FA, or
 `owner.session` into ChatGPT, GitHub Actions, public log viewers or Drive.
