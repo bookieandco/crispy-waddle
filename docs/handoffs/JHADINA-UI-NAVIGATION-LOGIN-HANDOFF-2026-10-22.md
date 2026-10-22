@@ -79,3 +79,33 @@ Check each exposed destination against real data/API responses. Keep available w
 ### JH-UI.ACCEPT.05 — visual and release acceptance
 
 Inspect iPhone portrait screenshots, touch targets, overflow, menus, login and feed details. Record actual acceptance evidence. Obtain any separately required deployment authorization before promoting production; verify the resulting deployed commit and give the owner its private URL.
+
+## Continuation receipt — JH-UI.ACCEPT.01 → .05, October 22
+
+**Implementation state before this documentation-only receipt:** `c658de6da28489d459335bb6062a6439f626ef67` on `fix/jhadina-navigation-faceid`; draft PR [#1470](https://github.com/bookieandco/crispy-waddle/pull/1470) targeting `main`. This is a continuation, NOT a fresh subsystem, merge or deployment.
+
+### Preserved and repaired
+
+- `.01` Reconciled this branch with `main` (zero commits behind when initially compared), and created draft PR #1470. Protected-preview owner email/PKCE work in draft PR #1463 is separately stacked on social branches: do not blindly overwrite or merge it.
+- `.02` Added `apps/jhadina-web/scripts/qa-jhadina-mobile.mjs` plus scoped `.github/workflows/jhadina-mobile-browser-qa.yml`. Real local production-build Chromium runs at 390×844 and 320×568; tests App/Pages Router shell mounting, More scrolling/reopen/Escape, navigation to Sports and JhadinaTV, labeled Homebase demo, login without OS shell, horizontal overflow and top-bar 44px touch targets. Loopback smoke headers are never remote authentication evidence.
+- `.02` First browser run at `f2a99e45` found **real JhadinaTV Pages Router horizontal overflow: 628px document at 390px viewport**. Fixed home navigation/search header to wrap and shrink, and adjusted fixed Worlds/VPN controls to avoid portrait overlap. Subsequent browser QA at `c658de6d` succeeded.
+- `.03` Hardened email-link flow: `shouldCreateUser: false` prevents duplicate signup attempts; removed duplicate-owner signup prompt from private login. Prioritize strict environment-supplied Vercel preview hostname over a static canonical URL for email callbacks, with new regression tests. Did NOT request an email, create a user, reset credentials or enroll new passkeys.
+- `.04` Existing native destinations remain wired. Unfinished worlds retain clearly labeled local-only demos; route presence is not live provider acceptance.
+- `.05` Downloaded/reviewed screenshots from the successful GitHub Actions artifact for 390px and 320px Work, menu and login. Layout is readable in these Chromium captures; actual Safari/iPhone visual acceptance remains outstanding.
+
+### Verification and operating state (implementation commit `c658de6d`)
+
+- GitHub run [Jhadina Private Mobile Browser QA #39741254300](https://github.com/bookieandco/crispy-waddle/actions/runs/39741254300): **PASS** at `c658de6d`. Artifact `jhadina-mobile-browser-evidence`, ID `12409816182`, contains six viewport screenshots. Chromium emulator proof, not physical-device Face ID proof.
+- At time of writing, **UX Final Certification, Jhadina Web Deploy Conformance, JhadinaTV PR, JLLM Runtime, Spatial, Social, Money, CRM, Media and Growth certifications all report success** on the same implementation SHA. Broad Jhadina Launch Gate was still in progress. The documentation-only receipt creates a subsequent commit; check exact latest HEAD status again.
+- Independently inspected Vercel project `crispy-waddle-jhadina-web`: Vercel SSO/Authentication protection enabled; **no deployment found for this branch**. No private preview URL was manufactured, requested or published.
+- Read-only Supabase `Jhadina` project status: `ACTIVE_HEALTHY`. This does not prove redirect allowlists, an actual new login session, current passkey origin binding or real iPhone auth success.
+
+### Release blockers / next coding sequence
+
+1. Check CI for the **new exact documentation HEAD**; if Launch Gate or browser QA fails, repair and record resulting HEAD. Do not count cancelled prior-head workflows.
+2. Reconcile (without overwriting) distinct draft owner email-link PR #1463, including PKCE route and Vercel preview protection. Prove the current deployment origin is allowed by Supabase Auth before initiating owner link checks.
+3. On a separately authorized, protected preview of this exact head: owner opens Vercel Auth, performs previously enrolled WebAuthn passkey on iPhone Safari, reloads a protected route, tests cancel/retry, and proves non-owner denial. iOS may legitimately permit device passcode fallback; biometric-only is not guaranteed.
+4. Walk all world destinations and classify real provider states versus explicitly local-only demos, with source-backed provider health. Do not claim providers operational just because a page renders.
+5. Review actual iPhone portrait layout alongside Chromium evidence; then obtain explicit permission before any production promotion or broad visibility change. Preserve spending, wallet signing, publishing and trading approval gates.
+
+**No merge, production deploy, Vercel protection change, Supabase mutation, credential read/reset, paid provisioning or live actions in this continuation.**
