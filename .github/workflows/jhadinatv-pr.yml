@@ -47,6 +47,7 @@ jobs:
         run: |
           set -o pipefail
           pnpm --filter @jhadina/jhadina-web exec vitest run \
+            lib/jhadinatv/server-viewer.test.ts \
             lib/jhadinatv/stream-capability.test.ts \
             lib/jhadinatv/hls-proxy.test.ts \
             lib/jhadinatv/playback-recovery.test.ts \
