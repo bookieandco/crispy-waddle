@@ -107,7 +107,7 @@ function verifiedReadback(post:MomentsSocialReadback,asset:MomentsDirectorProof,
 }
 function qualifyLearning(posts:readonly MomentsSocialReadback[],
   outcomes:readonly MomentsMeasuredOutcome[],song:SongRecord,
-  asset:MomentsDirectorProof,brief:MusicCreativeBrief):MusicAdmittedCreativeLearning|null{
+  brief:MusicCreativeBrief):MusicAdmittedCreativeLearning|null{
   const byPost=new Map(posts.map(post=>[post.providerPostId,post]));
   const qualified=outcomes.filter(outcome=>{
     const post=byPost.get(outcome.providerPostId);
@@ -153,7 +153,7 @@ export function buildMomentsPilot(input:MomentsPilotInput):MomentsPilot{
     ?(input.socialReadbacks??[]).filter(post=>verifiedReadback(post,input.directorProof!,song,section)&&post.experimentKey==='moments:'+song.id+':'+section.id+':search'):[];
   const brief=validAsset&&input.directorProof?briefs.find(row=>row.id===input.directorProof!.briefId):undefined;
   const learning=brief&&song&&input.directorProof
-    ?qualifyLearning(posts,input.measuredOutcomes??[],song,input.directorProof,brief):null;
+    ?qualifyLearning(posts,input.measuredOutcomes??[],song,brief):null;
   const experimentKey= song&&section?'moments:'+song.id+':'+section.id+':search':null;
   const socialDraft=validAsset&&input.directorProof&&experimentKey?{
     experimentKey,briefId:input.directorProof.briefId,
