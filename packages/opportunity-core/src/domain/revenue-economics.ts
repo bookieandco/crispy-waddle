@@ -98,7 +98,7 @@ export function scoreEarnedRevenueOpportunity(x: RevenueScoreInput): RevenueScor
     gaps.push('COMPETITOR_COUNT_UNKNOWN')
   else if (x.activeCompetitors >= x.saturationThreshold) gaps.push('SATURATED_COMPETITION')
   const reasons = [...new Set([...blocks,...gaps])]
-  const readyForMath = reasons.every(r=>r !== 'SUCCESS_PROBABILITY_UNSUPPORTED' &&
+  const readyForMath = blocks.length === 0 && reasons.every(r=>r !== 'SUCCESS_PROBABILITY_UNSUPPORTED' &&
     r !== 'COSTS_OR_EFFORT_UNKNOWN' && r !== 'INDIVIDUAL_USD_REWARD_UNVERIFIED' &&
     r !== 'REWARD_VALUATION_STALE')
   let expectedGrossUsd: number | null = null
