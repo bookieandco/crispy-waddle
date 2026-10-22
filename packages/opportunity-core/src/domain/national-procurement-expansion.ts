@@ -41,20 +41,22 @@ export type PendingJurisdictionIdentity={
  authorityConfirmed:boolean;bidPortalUrl?:string;bidPortalOfficiallyLinked:boolean
 }
 export function assessExpansionIdentity(row:PendingJurisdictionIdentity){
- const blockers:string[]=[]
+ const identityBlockers:string[]=[]
  if(!row.canonicalId.trim()||!row.name.trim()||!row.officialRecordId.trim())
-  blockers.push('Canonical identity and source government-unit ID required.')
+  identityBlockers.push('Canonical identity and source government-unit ID required.')
  const catalog=NATIONAL_PROCUREMENT_GAP_SOURCES.find(c=>c.family===row.family)
  if(!catalog||catalog.officialCatalogUrl!==row.officialCatalogUrl)
-  blockers.push('Official government-unit catalog provenance not matched.')
+  identityBlockers.push('Official government-unit catalog provenance not matched.')
  if(row.family==='territorial_government'&&(!row.territoryCode||
    !US_TERRITORY_CODES.some(code=>code===row.territoryCode)))
-  blockers.push('Territory must have its own supported official code.')
- if(!row.authorityConfirmed)blockers.push('Legal government or procurement authority unverified.')
- if(!row.bidPortalUrl||!row.bidPortalOfficiallyLinked)
-  blockers.push('No buyer-authorized solicitation source or portal evidence.')
- return {canonicalId:row.canonicalId,governmentIdentityVerified:blockers.length===0,
-  bidFeedCertified:false,blockers,externalContactAuthorized:false,bidSubmissionAuthorized:false}
+  identityBlockers.push('Territory must have its own supported official code.')
+ if(!row.authorityConfirmed)identityBlockers.push('Legal government or procurement authority unverified.')
+ const procurementBlockers=(!row.bidPortalUrl||!row.bidPortalOfficiallyLinked)
+  ?['No buyer-authorized solicitation source or portal evidence.']:[]
+ return {canonicalId:row.canonicalId,governmentIdentityVerified:identityBlockers.length===0,
+  officialBuyerPortalObserved:procurementBlockers.length===0,
+  bidFeedCertified:false,blockers:[...identityBlockers,...procurementBlockers],
+  externalContactAuthorized:false,bidSubmissionAuthorized:false}
 }
 
 export type ProcurementPortalFamily='opengov'|'planetbids'|'ionwave'|'bonfire'|'bidnet'|'publicpurchase'|'demandstar'|'bidsandtenders'|'official_owned'|'unknown'
