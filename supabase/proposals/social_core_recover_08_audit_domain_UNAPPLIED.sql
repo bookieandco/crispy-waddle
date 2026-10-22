@@ -71,7 +71,7 @@ begin
 
   return v_row;
 end;
-$function$
+$function$;
 
 
 -- Keep existing grants unchanged; authenticated calls in other domains
