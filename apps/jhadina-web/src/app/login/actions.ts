@@ -58,6 +58,7 @@ export async function signup(formData: FormData) {
     appUrl: process.env.NEXT_PUBLIC_APP_URL,
     vercelEnv: process.env.VERCEL_ENV,
     vercelUrl: process.env.VERCEL_URL,
+    vercelBranchUrl: process.env.VERCEL_BRANCH_URL,
   });
   let failure: AuthFailureCode | undefined;
   try {
@@ -103,6 +104,7 @@ export async function sendOwnerSignInLink(formData: FormData) {
     appUrl: process.env.NEXT_PUBLIC_APP_URL,
     vercelEnv: process.env.VERCEL_ENV,
     vercelUrl: process.env.VERCEL_URL,
+    vercelBranchUrl: process.env.VERCEL_BRANCH_URL,
   });
   let failure: AuthFailureCode | undefined;
   try {
