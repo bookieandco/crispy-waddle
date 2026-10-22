@@ -20,6 +20,12 @@ const lesson=(decisionId:string,lessonId:string,horizon:'15M'|'1H',evaluatedAt='
  instrumentId:'solana-mainnet:'+token,decisionId,lessonId,horizon,evaluatedAt,evidenceIds:['shadow:'+lessonId],
  authority:'LEARNING_ONLY',canExecute:false,canAuthorizeLive:false,
 } as unknown as SharkShadowCounterfactualLesson)
+const proof=(decisionId:string,lessonId:string,overrides:Record<string,unknown>={})=>({
+ decisionId,lessonId,tokenAddress:token,
+ observedAt:'2026-10-22T17:59:57Z',availableAt:'2026-10-22T17:59:58Z',
+ returnBasis:'DECISION_RELATIVE' as const,independentlyVerified:true,
+ independentEvidenceIds:['shadow:'+lessonId],...overrides,
+})
 const settlement=(overrides:Partial<SniperSettlementEvidence>={}):SniperSettlementEvidence=>({
  tokenAddress:token,outcomeId:'outcome:1',settledAt:'2026-10-22T17:59:58Z',
  availableAt:'2026-10-22T17:59:59Z',evidenceIds:['chain:tx:1'],
@@ -46,10 +52,25 @@ describe('SHARK + sniper + transcript/Telegram + Shadow research fusion',()=>{
   const fused=fuseSniperIntelligence({...base,priorShadowLessons:[
    lesson('d1','l1','15M'),lesson('d1','l2','1H'),lesson('d2','l3','1H'),
    lesson('d3','future','1H','2026-10-22T18:02:00Z'),
+  ],priorLessonProofs:[
+   proof('d1','l1'),proof('d1','l2'),proof('d2','l3'),
+   proof('d3','future',{availableAt:'2026-10-22T18:02:00Z'}),
   ]})
   expect(fused.historicalIndependentDecisions).toBe(2)
   expect(fused.historicalLessonIds).toEqual(['l2','l3'])
   expect(fused.historicalLessonIds).not.toContain('future')
+ })
+ it('rejects ungraded, unsupported or legacy wrong-basis Shadow memories even if they claim profitability',()=>{
+   const record=lesson('d1','legacy','15M')
+   const ungraded=fuseSniperIntelligence({...base,priorShadowLessons:[record],
+    priorLessonProofs:[proof('d1','legacy',{returnBasis:'UNAVAILABLE'})]})
+   expect(ungraded.historicalIndependentDecisions).toBe(0)
+   const noIndependent=fuseSniperIntelligence({...base,priorShadowLessons:[record],
+    priorLessonProofs:[proof('d1','legacy',{independentlyVerified:false})]})
+   expect(noIndependent.historicalIndependentDecisions).toBe(0)
+   const noProof=fuseSniperIntelligence({...base,priorShadowLessons:[record]})
+   expect(noProof.historicalIndependentDecisions).toBe(0)
+   expect(noProof.deferredReasons).toContain('DECISION_RELATIVE_VERIFIED_SHADOW_LESSONS_MISSING')
  })
  it('paper profit never becomes real account settlement or signed trade authority',()=>{
   const fused=fuseSniperIntelligence({...base,paper,settlement:settlement({
