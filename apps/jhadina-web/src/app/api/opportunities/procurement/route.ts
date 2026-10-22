@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRequestIdentityVerifier } from '@/lib/auth/request-identity'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { planProcurementSourceRecovery, reconcileProcurementNotice, prepareProcurementBidPacket, reviewProcurementCommercial, type ProcurementSource, type ProcurementDocument } from '@jhadina/opportunity-core'
+import { planProcurementSourceRecovery, reconcileProcurementNotice, prepareProcurementBidPacket, reviewProcurementCommercial, type ProcurementSource, type ProcurementDocument, assembleProcurementPilot } from '@jhadina/opportunity-core'
 import type { FulfillmentPlan } from '@jhadina/opportunity-core'
 
 export const dynamic='force-dynamic'
@@ -23,6 +23,7 @@ function errorReply(error:unknown){
 export async function GET(request:NextRequest){
  try{
   await authorize()
+  if(request.nextUrl.searchParams.get('mode')==='pilot')return reply({ok:true,docket:assembleProcurementPilot()})
   const service=createServiceRoleClient()
   if(!service)return reply({ok:false,error:'Procurement registry unavailable'},503)
   const state=(request.nextUrl.searchParams.get('state')||'CA').toUpperCase()
