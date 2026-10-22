@@ -14,7 +14,7 @@ Canonically preserve:
 - JLLM **delegates** creative requests to Director. PupsonStuff and generalized POD **own** their image jobs/approvals. One Compute scheduler; no duplicate store, no duplicate Director.
 
 ## Changes proposed in this branch
-1. Shared pure `planFreeFirstCreative` admission and consumer-specific Compute profile mapping. It chooses only pre-certified *owned private* runtimes without metered external-provider calls and blocks missing owner authorization, job identity, reference assets, consent, runtime receipts and rights. It never executes.
+1. Shared pure `planFreeFirstCreative` admission and consumer-specific Compute profile mapping. It chooses only pre-certified *owned private* runtimes without metered external-provider calls and blocks missing owner authorization, job identity, reference assets, consent, source-media usage rights, runtime receipts and model/workflow rights. It never executes.
 2. PupsonStuff opt-in `PUPSON_CREATIVE_COST_POLICY=local_only` routes **every non-ASCII style** through the *existing private ComfyUI-backed worker*. Legacy `PUPSON_OPENAI_STYLE_BACKEND=local_worker` remains compatible. Paid OpenAI/Muapi routes stay unchanged until the new local-only setting is intentionally enabled following an actual canary; there is no paid fallback in local-only mode.
 3. Regression tests for provider routing and no silent metered fallback. Catalog entries do not establish model health, installed weights, licensing or free compute.
 

@@ -4,7 +4,8 @@ import { computeProfileForCreative, planFreeFirstCreative, type CreativeLocalBac
 const request: CreativeLocalRequest = {
   requestId:'r1', ownerId:'owner1', projectId:'venture1', idempotencyKey:'r1',
   consumer:'pupsonstuff', operation:'image-to-image', sourceAssetIds:['private-pet-ref'],
-  includesCustomerMedia:true, customerConsentGranted:true, commercialUse:true, ownerAuthorized:true,
+  includesCustomerMedia:true, customerConsentGranted:true, commercialUse:true,
+  sourceUsageRightsVerified:true, ownerAuthorized:true,
 };
 const ready: CreativeLocalBackend = {
   id:'local-comfy-receipt', engine:'comfyui', capabilities:['image-to-image','text-to-video'],
@@ -34,7 +35,7 @@ describe('shared free-first image/video planning', () => {
   });
   it('requires consent, authoritative owner, references and durable job identity', () => {
     for (const changes of [
-      {customerConsentGranted:false}, {ownerAuthorized:false}, {sourceAssetIds:[]},
+      {customerConsentGranted:false}, {sourceUsageRightsVerified:false}, {ownerAuthorized:false}, {sourceAssetIds:[]},
       {idempotencyKey:''}, {ownerId:''},
     ]) {
       expect(planFreeFirstCreative({...request,...changes},[ready]).status).toBe('blocked');
@@ -45,6 +46,10 @@ describe('shared free-first image/video planning', () => {
     expect(computeProfileForCreative('jllm','image-to-video')).toBe('director.video.default');
     expect(computeProfileForCreative('pod','text-to-image')).toBe('pod.image.default');
     expect(()=>computeProfileForCreative('pod','image-to-video')).toThrow('POD_VIDEO_REQUIRES_DIRECTOR_AUTHORITY');
+  });
+  it('requires referenced licensed footage for montage work', () => {
+    expect(planFreeFirstCreative({...request,consumer:'director',operation:'video-montage',sourceAssetIds:[]},[]))
+      .toMatchObject({status:'blocked',reasons:['REFERENCE_MEDIA_REQUIRED']});
   });
   it('prefers the OpenMontage local renderer for licensed footage montage', () => {
     const localMontage={...ready,id:'montage',engine:'openmontage' as const,capabilities:['video-montage'] as const};

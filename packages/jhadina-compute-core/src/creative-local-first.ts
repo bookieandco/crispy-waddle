@@ -36,6 +36,7 @@ export type CreativeLocalRequest = {
   includesCustomerMedia: boolean;
   customerConsentGranted: boolean;
   commercialUse: boolean;
+  sourceUsageRightsVerified: boolean;
   ownerAuthorized: boolean;
 };
 
@@ -46,7 +47,7 @@ export type CreativeLocalPlan =
     }; limitations: readonly string[] };
 
 const VIDEO_OPS: readonly CreativeOperation[] = ['text-to-video', 'image-to-video', 'video-to-video', 'video-montage'];
-const REFERENCE_OPS: readonly CreativeOperation[] = ['image-to-image', 'image-upscale', 'image-to-video', 'video-to-video'];
+const REFERENCE_OPS: readonly CreativeOperation[] = ['image-to-image', 'image-upscale', 'image-to-video', 'video-to-video', 'video-montage'];
 const BACKEND_PREFERENCE: Record<CreativeOperation, readonly CreativeLocalBackend['engine'][]> = {
   'text-to-image': ['comfyui', 'automatic1111', 'openmontage'],
   'image-to-image': ['comfyui', 'automatic1111', 'openmontage'],
@@ -114,6 +115,9 @@ export function planFreeFirstCreative(
   }
   if (request.includesCustomerMedia && !request.customerConsentGranted) {
     reasons.push('CUSTOMER_MEDIA_CONSENT_REQUIRED');
+  }
+  if (request.commercialUse && request.sourceAssetIds.length > 0 && !request.sourceUsageRightsVerified) {
+    reasons.push('SOURCE_MEDIA_COMMERCIAL_RIGHTS_REQUIRED');
   }
   if (reasons.length) return { status: 'blocked', reasons, computeProfileId };
 
