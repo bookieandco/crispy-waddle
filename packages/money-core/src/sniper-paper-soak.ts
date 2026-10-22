@@ -41,7 +41,7 @@ export function runSniperPaperRoundTrip(input:{
  const {entry,exit}=input
  const runId=entry.order.paperRunId
  const currency=entry.order.requestedNotional.currency
- if(!input.tokenAddress.trim()||runId.trim()===''||input.startingCashMinor<=0n||input.markPriceMinor<=0n||
+ if(currency!=='SOL_LAMPORTS'||!input.tokenAddress.trim()||runId.trim()===''||input.startingCashMinor<=0n||input.markPriceMinor<=0n||
    !Number.isFinite(Date.parse(input.asOf))||entry.order.side!=='BUY'||entry.order.instrumentId!==entry.market.instrumentId||
    !entry.order.instrumentId.endsWith(':'+input.tokenAddress)||entry.filledAt>input.asOf){
   throw new Error('SNIPER_PAPER_IDENTITY_INVALID')
