@@ -1,9 +1,10 @@
-/** Source-only until live schema, owner isolation and device acceptance are proven.
- * Intentionally no environment/header/body override or public enabling switch.
- * API denial is independent of UI controls and database availability.
+/** SOCIAL-FREE-FINAL.05: owner-authenticated draft persistence commissioned
+ * only after live Jhadina RLS checks. This grants no external marketing authority.
+ * POST/PATCH/import remain subject to canonical auth, same-origin requests,
+ * Supabase RLS, immutable owner and zero-action record constraints.
  */
-export const CREATOR_PERSISTENCE_COMMISSIONED = false
+export const CREATOR_PERSISTENCE_COMMISSIONED = true as const;
 
 export function assertCreatorPersistenceCommissioned(): void {
-  throw new Error('SOCIAL_FREE_NOT_COMMISSIONED')
+ if (!CREATOR_PERSISTENCE_COMMISSIONED) throw Error('SOCIAL_FREE_NOT_COMMISSIONED');
 }
