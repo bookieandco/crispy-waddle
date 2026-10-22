@@ -96,6 +96,7 @@ jobs:
             src/lib/opportunities/public-job-board.test.ts \
             src/lib/opportunities/autonomy-board-cycle.test.ts \
             src/lib/opportunities/autonomy-agent-runtime.test.ts \
+            src/lib/opportunities/public-source-verifier.test.ts \
             src/lib/opportunities/growth-side-hustle-runtime.test.ts \
             src/lib/opportunities/venture-experiment-runtime.test.ts \
             src/lib/opportunities/side-hustle-lab-runtime.test.ts \
