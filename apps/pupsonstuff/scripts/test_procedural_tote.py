@@ -51,6 +51,37 @@ class ToteCpuTests(unittest.TestCase):
         self.assertAlmostEqual(bounds[0],.38,delta=.012)
         self.assertAlmostEqual(bounds[1],.095,delta=.012)
         self.assertAlmostEqual(bounds[2],.53,delta=.012)
+    def test_refined_preview_has_hem_reinforcements_and_measured_bounds(self):
+        # The mesh remains ONE candidate mesh even with folded rim and
+        # reinforcement islands. The result is not a certified product.
+        model=build_geometry(DIMS,SPEC)
+        signals=model["construction"]
+        self.assertTrue(signals["foldedInnerHem"])
+        self.assertEqual(signals["separateRibbonHandles"],2)
+        self.assertEqual(signals["reinforcementPanels"],4)
+        self.assertTrue(signals["supplierSilhouetteReviewRequired"])
+        self.assertFalse(signals["physicalPrintZoneMappingVerified"])
+        self.assertGreater(len(model["faces"]),2600)
+        self.assertEqual(len(model["vertices"]),len(model["uv"]))
+        bounds=measured_bounds(model)
+        self.assertAlmostEqual(bounds[0],DIMS[0]/1000,delta=.012)
+        self.assertAlmostEqual(bounds[2],DIMS[1]/1000,delta=.007)
+        # No handle/patch component may turn the finished tote into
+        # materially thicker geometry than its supplier dimension envelope.
+        self.assertLessEqual(bounds[1],DIMS[2]/1000*1.035)
+        self.assertTrue(all(0<=u<=1 and 0<=v<=1 for u,v in model["uv"]))
+
+    def test_refined_preview_keeps_thin_and_wide_tote_handling_numerically_stable(self):
+        # Synthetic unit-fixture values ONLY, never a merchant source pack.
+        spec={**SPEC,"bodyHeightMm":350,"handleDropMm":110,
+              "strapWidthMm":12,"strapThicknessMm":.6,
+              "handleAnchorSpacingMm":110}
+        thin=build_geometry([320,460,9],spec)
+        bounds=measured_bounds(thin)
+        self.assertGreater(bounds[1],.008)
+        self.assertLessEqual(bounds[1],.0094)
+        self.assertAlmostEqual(bounds[2],.46,delta=.006)
+
     def test_existing_product_dimensions_or_no_source_pack_fail_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
