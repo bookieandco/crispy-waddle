@@ -35,6 +35,7 @@ import { createProductionGrowthContextProvider } from "../context/production-gro
 import { createProductionMoneyContextProvider } from "../context/production-money-context-provider"
 import { createProductionKnowledgeContextProvider } from "../context/production-knowledge-context-provider"
 import { createWikipediaAugmentedKnowledgeContextProvider } from "../research/wikipedia-knowledge-context-provider"
+import type { WikipediaResearchResult } from "../research/wikipedia-research-provider"
 import { createProductionOwnerContextProvider } from "../context/production-owner-context-provider"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
 import { createProductionQuipGenerator } from "../personality/live-quip-provider"
@@ -101,6 +102,7 @@ export interface JhadinaCommandResult extends GovernedIntelligenceProposalResult
   verificationReason?: string
   personalityDrift: PersonalityDriftObservationResult
   spatialContext: SpatialContextUsageReceipt
+  wikipediaResearch?: WikipediaResearchResult
 }
 
 function summarizeSpatialContext(spatial: SpatialDomainContext | undefined): SpatialContextUsageReceipt {
@@ -135,9 +137,14 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
   const personalityContextProvider =
     overrides.personalityContextProvider ??
     createProductionPersonalityContextProvider(storage, verifiedIdentity.userId)
+  let wikipediaResearch: WikipediaResearchResult | undefined
   const knowledgeContextProvider =
     overrides.knowledgeContextProvider ??
-    createWikipediaAugmentedKnowledgeContextProvider(createProductionKnowledgeContextProvider())
+    createWikipediaAugmentedKnowledgeContextProvider(
+      createProductionKnowledgeContextProvider(),
+      undefined,
+      (research) => { wikipediaResearch = research },
+    )
   const ownerContextProvider =
     overrides.ownerContextProvider ??
     createProductionOwnerContextProvider()
@@ -234,6 +241,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     verificationReason: "no action was executed for this proposal",
     personalityDrift,
     spatialContext,
+    ...(wikipediaResearch ? { wikipediaResearch } : {}),
   }
 
   const verification = await verifyCandidateDurable(memoryRepo, result.verifiedUserId, result.candidate)
@@ -248,7 +256,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     metadata: { stage: "verify", reason: verification.reason ?? "durable read-back matched executed content" },
   })
   if (!verification.verified) throw new Error(`JHADINA_COMMAND_VERIFICATION_FAILED:${verification.reason}`)
-  return { ...result, expression, makeItMakeSense, verified: true, verificationReason: verification.reason, personalityDrift, spatialContext }
+  return { ...result, expression, makeItMakeSense, verified: true, verificationReason: verification.reason, personalityDrift, spatialContext, ...(wikipediaResearch ? { wikipediaResearch } : {}) }
 }
 
 async function verifyCandidateDurable(memoryRepo: MemoryRepository, userId: string, candidate: NonNullable<GovernedIntelligenceProposalResult["candidate"]>): Promise<{ verified: boolean; reason?: string }> {
