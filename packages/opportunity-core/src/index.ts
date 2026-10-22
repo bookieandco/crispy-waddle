@@ -154,4 +154,5 @@ export * from './domain/zero-rig-live-transport.js'
 export * from './domain/zero-rig-live-eligibility.js'
 
 export * from './domain/zero-rig-live-certification.js'
-\nexport * from './domain/autonomy-pilot.js'\n
+
+export * from './domain/autonomy-pilot.js'
