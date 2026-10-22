@@ -22,6 +22,7 @@ ALIASES = {
     "three_pt": "three_point_field_goals_made",
     "three_pt_made": "three_point_field_goals_made",
     "3pt": "three_point_field_goals_made",
+    "3_pt": "three_point_field_goals_made",
     "3pt_made": "three_point_field_goals_made",
     "3pm": "three_point_field_goals_made",
     "field_goals": "field_goals_made",
