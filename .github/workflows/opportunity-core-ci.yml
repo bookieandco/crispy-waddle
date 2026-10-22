@@ -93,6 +93,9 @@ jobs:
             src/__tests__/opportunities.test.ts \
             src/lib/opportunities/overageAdapter.test.ts \
             src/lib/opportunities/vertical-ingestion.test.ts \
+            src/lib/opportunities/public-job-board.test.ts \
+            src/lib/opportunities/autonomy-board-cycle.test.ts \
+            src/lib/opportunities/autonomy-agent-runtime.test.ts \
             src/lib/opportunities/growth-side-hustle-runtime.test.ts \
             src/lib/opportunities/venture-experiment-runtime.test.ts \
             src/lib/opportunities/side-hustle-lab-runtime.test.ts \

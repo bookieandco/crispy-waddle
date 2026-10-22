@@ -105,7 +105,9 @@ export function toOpportunityView(stored: StoredCanonicalOpportunity): Opportuni
   const opportunity = stored.opportunity
   const metadata = opportunity.metadata ?? {}
   const kind = isOpportunityKind(metadata.opportunityKind) ? metadata.opportunityKind : inferKind(opportunity)
-  const automationLevel = isAutomationLevel(metadata.automationLevel) ? metadata.automationLevel : "user_led"
+  // Source/category metadata is not an independently certified execution capability.
+  const proposedLevel = isAutomationLevel(metadata.automationLevel) ? metadata.automationLevel : "user_led"
+  const automationLevel = proposedLevel === "ai_can_do_it" ? "ai_plus_user" : proposedLevel
   const startupCost = typeof metadata.startupCost === "number" ? metadata.startupCost : undefined
   const estimatedHours = typeof metadata.estimatedHours === "number" ? metadata.estimatedHours : undefined
   const payCadence = isPayCadence(metadata.payCadence) ? metadata.payCadence : "unknown"
