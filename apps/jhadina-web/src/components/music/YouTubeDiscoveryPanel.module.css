@@ -1,0 +1,44 @@
+
+.wrapper{border-radius:23px;padding:20px;background:linear-gradient(135deg,#1d1a27,#121017);border:1px solid #ffffff16;margin:25px 0 30px;color:#f8f2ff}
+.heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.heading h2{margin:0;font-size:22px;font-weight:860;letter-spacing:-.045em}
+.eyebrow{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:#c8a8ec;font-weight:850;margin:0 0 6px}
+.source{font-size:10px;font-weight:760;color:#d5b4f8;background:#7c55ae21;border:1px solid #b185e34d;padding:8px 10px;border-radius:999px;white-space:nowrap}
+.detail{font-size:12px;line-height:1.6;color:#a69caf;max-width:700px;margin:11px 0 18px}
+.tabs{display:flex;gap:8px;margin:0 0 14px}
+.tab,.tabActive{padding:9px 15px;border:1px solid #ffffff18;border-radius:999px;background:#25202f;color:#cdc3d6;font-size:12px;font-weight:770}
+.tabActive{color:#25152d;background:#e9d6ff;border-color:transparent}
+.search{display:flex;gap:8px;margin-bottom:15px}
+.search input{flex:1;min-width:0;background:#09080f;color:#fff;border:1px solid #ffffff25;border-radius:13px;padding:12px;font-size:12px}
+.search input::placeholder{color:#8d8299}
+.search button,.save,.resultHead button,.more{border:0;border-radius:12px;background:#d7fa82;color:#182317;font-size:11px;font-weight:850;padding:10px 13px;cursor:pointer}
+.search button:disabled,.save:disabled,.more:disabled{opacity:.4}
+.results{border-top:1px solid #ffffff13;margin-top:15px;padding-top:15px}
+.resultHead{display:flex;justify-content:space-between;align-items:center;gap:9px;margin-bottom:8px}
+.resultHead strong{font-size:12px}
+.result{display:flex;align-items:center;gap:10px;border-bottom:1px solid #ffffff10;padding:9px 0;min-width:0}
+.art,.artFallback{width:58px;height:40px;border-radius:7px;object-fit:cover;flex:none;background:linear-gradient(120deg,#aa73c9,#403267)}
+.artFallback{display:grid;place-items:center;font-size:22px}
+.info{flex:1;min-width:0}
+.info strong{display:block;font-size:12px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.info span{display:block;color:#aaa1b5;font-size:10px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.open{font-size:18px;color:#ceb3ec;text-decoration:none;padding:6px}
+.save{background:#bea0e7;color:#26183b;white-space:nowrap}
+.more{display:block;margin:14px auto 0;width:100%}
+.error,.notice{border-radius:10px;padding:11px 12px;font-size:12px;background:#8532482f;color:#ffc6d3;border:1px solid #fd749c4c}
+.notice{background:#50642a38;color:#e3ffc7;border:1px solid #b8df8941}
+.footer{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:10px;color:#9389a2;line-height:1.5;margin-top:14px}
+.connect{font-size:11px;color:#d9baff;font-weight:850;white-space:nowrap}
+@media(max-width:390px){.wrapper{padding:13px}.source{font-size:9px;padding:6px}.search{flex-wrap:wrap}.search button{width:100%}.result{gap:6px}.art,.artFallback{width:48px;height:36px}.resultHead strong{font-size:11px}}
+
+.playButton{border:1px solid #cfaddc69;color:#f6e7ff;background:#594063;border-radius:10px;min-width:62px;padding:10px 7px;font-size:11px;font-weight:780;white-space:nowrap;cursor:pointer}
+.playButton:focus-visible,.save:focus-visible,.previewClose:focus-visible,.open:focus-visible{outline:2px solid #d7fa82;outline-offset:2px}
+.preview{margin:18px 0 8px;background:#090810;border:1px solid #be97e748;border-radius:15px;padding:11px}
+.previewHeader{display:flex;gap:10px;justify-content:space-between;align-items:flex-start;padding:4px 1px 11px}
+.previewHeader div{min-width:0;flex:1}.previewHeader strong{display:block;font-size:12px;overflow-wrap:anywhere}
+.previewHeader small{display:block;color:#afa4be;font-size:10px;margin-top:3px}
+.previewClose{font-size:19px;color:#fff;background:#282031;border:1px solid #ffffff26;width:32px;height:32px;border-radius:9px;flex:none}
+.video{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;display:block;background:#000}
+.previewNote{color:#aa9db6;font-size:11px;line-height:1.6}
+.previewLink{font-size:11px;color:#d4aff6;font-weight:800}
+@media(max-width:390px){.playButton{padding:8px 6px;min-width:54px}.result{gap:5px}.save{padding:9px 7px}.open{padding:3px}}

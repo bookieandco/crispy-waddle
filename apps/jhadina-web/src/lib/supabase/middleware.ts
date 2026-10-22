@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabasePublicConfig } from "./public-config";
+import { isLocalMusicPreviewRoute } from "@/lib/music/local-route-policy";
 
 const SELF_AUTHENTICATED_MACHINE_ROUTES = new Set([
   "/api/health",
@@ -29,6 +30,13 @@ function isSelfAuthenticatedMachineRoute(pathname: string): boolean {
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
   const pathname = request.nextUrl.pathname;
+
+  // Browser-local audio uses Vercel Authentication on preview deployments.
+  // No production route or /api route receives this exception.
+  if (isLocalMusicPreviewRoute(pathname, process.env.VERCEL_ENV) ||
+    (process.env.VERCEL_ENV === "preview" && request.method === "GET" &&
+      ["/api/music/youtube/search","/api/music/youtube/playlist",
+       "/api/music/youtube/status","/api/auth/youtube/start","/api/auth/youtube/callback"].includes(pathname))) return response;
 
   // These machine routes enforce their own bearer-secret boundary. Requiring a
   // browser Supabase session in front of them would make CRON/worker callbacks

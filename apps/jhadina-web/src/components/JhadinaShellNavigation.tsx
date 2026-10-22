@@ -66,6 +66,7 @@ export function JhadinaShellNavigation(){
   document.addEventListener("mousedown",close);document.addEventListener("keydown",escape)
   return()=>{document.removeEventListener("mousedown",close);document.removeEventListener("keydown",escape)}
  },[open])
+ if(pathname==="/music/local")return null
  return <>
   <div className={styles.brand}><Link href="/" aria-label="Jhadina home"><span className={styles.brandMark}><Icon name="ask"/></span><span className={styles.brandText}>Jhadina</span></Link></div>
   <div className={styles.vpnWrap}><VpnShellControl/></div>

@@ -4,6 +4,11 @@ export interface MusicRepository {
   getTrack(userId: string, trackId: string): Promise<Track | null>;
   upsertTrack(userId: string, track: Track): Promise<Track>;
   listTracks(userId: string): Promise<Track[]>;
+  listArtists(userId: string): Promise<Artist[]>;
+  listAlbums(userId: string): Promise<Album[]>;
+  listPlaylists(userId: string): Promise<Playlist[]>;
+  getPlaylist(userId: string, playlistId: string): Promise<Playlist | null>;
+  listListeningEvents(userId: string, limit?: number): Promise<ListeningEvent[]>;
   upsertArtist(userId: string, artist: Artist): Promise<Artist>;
   upsertAlbum(userId: string, album: Album): Promise<Album>;
   upsertPlaylist(userId: string, playlist: Playlist): Promise<Playlist>;
@@ -31,6 +36,14 @@ export class InMemoryMusicRepository implements MusicRepository {
   async getTrack(userId: string, trackId: string) { return this.tracks.get(this.key(userId, trackId)) ?? null; }
   async upsertTrack(userId: string, track: Track) { const copy = structuredClone(track); this.tracks.set(this.key(userId, track.id), copy); return copy; }
   async listTracks(userId: string) { return [...this.tracks.entries()].filter(([k]) => k.startsWith(`${userId}:`)).map(([,v]) => structuredClone(v)); }
+  async listArtists(userId: string) { return [...this.artists.entries()].filter(([k]) => k.startsWith(`${userId}:`)).map(([,v]) => structuredClone(v)); }
+  async listAlbums(userId: string) { return [...this.albums.entries()].filter(([k]) => k.startsWith(`${userId}:`)).map(([,v]) => structuredClone(v)); }
+  async listPlaylists(userId: string) { return [...this.playlists.entries()].filter(([k]) => k.startsWith(`${userId}:`)).map(([,v]) => structuredClone(v)); }
+  async getPlaylist(userId: string, id: string) { return structuredClone(this.playlists.get(this.key(userId,id)) ?? null); }
+  async listListeningEvents(userId: string, limit = 50) {
+    return [...this.listening.entries()].filter(([k]) => k.startsWith(`${userId}:`))
+      .map(([,v]) => structuredClone(v)).sort((a,b) => b.startedAt.localeCompare(a.startedAt)).slice(0, Math.min(100, Math.max(0, limit)));
+  }
   async upsertArtist(userId: string, artist: Artist) { const copy = structuredClone(artist); this.artists.set(this.key(userId, artist.id), copy); return copy; }
   async upsertAlbum(userId: string, album: Album) { const copy = structuredClone(album); this.albums.set(this.key(userId, album.id), copy); return copy; }
   async upsertPlaylist(userId: string, playlist: Playlist) { this.assertUser(userId, playlist.ownerUserId); const copy = structuredClone(playlist); this.playlists.set(this.key(userId, playlist.id), copy); return copy; }
