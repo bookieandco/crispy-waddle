@@ -12,6 +12,7 @@
     "lint": "eslint src --ext .ts,.tsx"
   },
   "dependencies": {
+    "@jhadina/agent-runtime-core": "workspace:*",
     "@jhadina/action-core": "workspace:*",
     "@jhadina/compute-core": "workspace:*",
     "@jhadina/director-core": "workspace:*",
