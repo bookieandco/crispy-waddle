@@ -1,0 +1,295 @@
+{
+  "schema_version": "sam_partner_docket.v1",
+  "snapshot_date": "2026-10-22",
+  "source_type": "public_research_manual_seed_not_runtime_ingestion",
+  "repository_owner": "packages/opportunity-core",
+  "user_scope": "Southern California reference tranche plus federal/national sources to be commissioned",
+  "lifecycle": {
+    "discovery": "researched",
+    "provider_match": "capability_candidate_only",
+    "quote": "not_requested",
+    "outreach": "not_sent",
+    "bid": "not_submitted",
+    "award": "none_verified"
+  },
+  "authority": {
+    "automatic_prime_contact": false,
+    "automatic_provider_outreach": false,
+    "automatic_quote_request": false,
+    "bid_submission": false,
+    "contract_signature": false,
+    "spending": false
+  },
+  "opportunities": [
+    {
+      "id": "RUSD-2026-27-12",
+      "buyer": "Riverside Unified School District",
+      "kind": "school_bid",
+      "title": "Chemawa and Rivera Public Address System Replacement",
+      "scope": "Public address replacement at named schools; exact SOW/addenda still require planholder download",
+      "source": "https://webapps.riversideunified.org/apps/planholdersregistration/BidsSelect.aspx",
+      "deadline_local": "2026-11-10T10:30:00",
+      "deadline_timezone": "America/Los_Angeles",
+      "estimated_value_usd": 150000,
+      "source_confidence": "official_public_list",
+      "buyer_contact": {
+        "department": "Purchasing",
+        "phone": "+1-951-352-6729 x82601"
+      },
+      "provider_ids": [
+        "sciens-time-alarm"
+      ],
+      "status": "source_confirmed_scope_pending",
+      "next": "Register as planholder; pull full docs/addenda; confirm CUPCCAA eligibility, license, capacity and quote"
+    },
+    {
+      "id": "RUSD-2026-27-09",
+      "buyer": "Riverside Unified School District",
+      "kind": "school_bid",
+      "title": "Nutrition Services Roof Restoration",
+      "scope": "Roof restoration; confirm roofing system and license/manufacturer requirements in documents",
+      "source": "https://webapps.riversideunified.org/apps/planholdersregistration/BidsSelect.aspx",
+      "deadline_local": "2026-11-09T10:00:00",
+      "deadline_timezone": "America/Los_Angeles",
+      "estimated_value_usd": 500000,
+      "source_confidence": "official_public_list",
+      "buyer_contact": {
+        "department": "Purchasing",
+        "phone": "+1-951-352-6729 x82601"
+      },
+      "provider_ids": [
+        "rite-way-roof"
+      ],
+      "status": "source_confirmed_scope_pending",
+      "next": "Register as planholder; obtain documents, job walk, C-39 and DIR/bonding requirements; request firm price only after authorized"
+    },
+    {
+      "id": "RUSD-2026-27-11",
+      "buyer": "Riverside Unified School District",
+      "kind": "school_rf_q",
+      "title": "Nutrition Services Vented Box Truck",
+      "scope": "One compliant vented box truck; secondary description says 2025 Ford F-450 or equivalent, subject to official specifications",
+      "source": "https://webapps.riversideunified.org/apps/planholdersregistration/BidsSelect.aspx",
+      "deadline_local": "2026-11-04T10:00:00",
+      "deadline_timezone": "America/Los_Angeles",
+      "estimated_value_usd": null,
+      "source_confidence": "official_public_list_secondary_specs",
+      "buyer_contact": {
+        "department": "Purchasing",
+        "phone": "+1-951-352-6729 x82601"
+      },
+      "provider_ids": [
+        "fritts-fleet"
+      ],
+      "status": "source_confirmed_scope_pending",
+      "next": "Pull exact chassis/body/ventilation/delivery requirements, upfit timeline and eligibility; written vendor quote"
+    },
+    {
+      "id": "SBCUSD-27-09",
+      "buyer": "San Bernardino City Unified School District",
+      "kind": "school_bid",
+      "title": "Infrastructure Equipment, Cabling and Services",
+      "scope": "Network equipment, structured cabling, fiber and services; exact quantities/addenda unknown",
+      "source": "https://procurement.opengov.com/portal/sbcusd/projects/300319",
+      "secondary_source": "https://www.govcb.com/government-bids/BID-NO-INFRASTRUCTURE-EQUIPMENT-AND-23966451.htm",
+      "deadline_local": "2026-11-03T11:00:00",
+      "deadline_timezone": "America/Los_Angeles",
+      "estimated_value_usd": null,
+      "source_confidence": "secondary_addendum; official_portal_fetch_blocked",
+      "buyer_contact": {
+        "name": "Corey DeBrule",
+        "role": "Buyer",
+        "email": "corey.debrule@sbcusd.k12.ca.us",
+        "phone": "+1-909-381-1129 x4885"
+      },
+      "provider_ids": [
+        "empire-technologies"
+      ],
+      "status": "amended_deadline_needs_primary_verification",
+      "next": "Confirm Addendum 1 deadline and changed clarification deadline directly inside OpenGov; review all required forms, contractor credentials, supplier quote"
+    },
+    {
+      "id": "LAC-GCS-10639-S",
+      "buyer": "Los Angeles County ISD",
+      "kind": "continuous_rfsq",
+      "title": "Facility Ancillary Services Master Agreement (FASMA)",
+      "scope": "Includes as-needed temporary custodial, other facility ancillary categories; provider matched solely to janitorial category",
+      "source": "https://camisvr.co.la.ca.us/LACoBids/BidLookUp/BidDetail?BidNumber=GCS-10639-S",
+      "deadline_local": null,
+      "deadline_timezone": "America/Los_Angeles",
+      "estimated_value_usd": null,
+      "source_confidence": "official_continuous_rfsq",
+      "buyer_contact": {
+        "name": "Tatiana Menendez",
+        "phone": "+1-323-607-1153",
+        "email": "FASMA@isd.lacounty.gov"
+      },
+      "provider_ids": [
+        "uniserve"
+      ],
+      "status": "qualification_open_not_award",
+      "next": "Verify custodial category eligibility, staffing/payroll, registration and RFSQ attachments; provider interest"
+    },
+    {
+      "id": "LAC-GCS-10635-S",
+      "buyer": "Los Angeles County ISD",
+      "kind": "continuous_rfsq",
+      "title": "Disaster and Emergency Services Master Agreement (DESMA)",
+      "scope": "As-needed disaster and emergency response with 24-hour response requirement; provider candidate has restoration capabilities but category fit unknown",
+      "source": "https://camisvr.co.la.ca.us/LACoBids/BidLookUp/BidDetail?BidNumber=GCS-10635-S",
+      "deadline_local": null,
+      "deadline_timezone": "America/Los_Angeles",
+      "estimated_value_usd": null,
+      "source_confidence": "official_continuous_rfsq",
+      "buyer_contact": {
+        "name": "Bernardo Franco",
+        "phone": "+1-323-443-8886",
+        "email": "BFranco@isd.lacounty.gov"
+      },
+      "provider_ids": [
+        "servpro-westlake"
+      ],
+      "status": "qualification_open_not_award",
+      "next": "Read service group and emergency deployment conditions; confirm company coverage, large-loss capacity, licensing and price"
+    },
+    {
+      "id": "LAC-ITS-I10611-S",
+      "buyer": "Los Angeles County ISD",
+      "kind": "continuous_rfsq",
+      "title": "Telecommunications Services RFSQ 2026",
+      "scope": "Data network service or other specifically eligible telecom category; not a blanket match to all six categories",
+      "source": "https://camisvr.co.la.ca.us/LACoBids/BidLookUp/BidDetail?BidNumber=ITS-I10611-S",
+      "deadline_local": null,
+      "deadline_timezone": "America/Los_Angeles",
+      "estimated_value_usd": null,
+      "source_confidence": "official_continuous_rfsq",
+      "buyer_contact": {
+        "name": "Neary Ros",
+        "phone": "+1-562-359-2599",
+        "email": "telecomm.contracts@isd.lacounty.gov"
+      },
+      "provider_ids": [
+        "bti-communications"
+      ],
+      "status": "qualification_open_not_award",
+      "next": "Compare Appendix D services against vendor-specific delivery evidence and contracting minimums"
+    }
+  ],
+  "providers": [
+    {
+      "id": "sciens-time-alarm",
+      "name": "Sciens Time & Alarm Division",
+      "address": "3828 Wacker Dr, Jurupa Valley, CA 91752",
+      "phone": "+1-951-685-1761",
+      "website": "https://www.sciensusa.com/service-area/los-angeles-ca/",
+      "evidence": "Advertised K-12 experience, paging, mass notification and communications",
+      "eligibility": "not_independently_verified",
+      "capacity": "unknown",
+      "consent_to_partner": "not_requested"
+    },
+    {
+      "id": "rite-way-roof",
+      "name": "Rite-Way Roof Corp.",
+      "address": "15425 Arrow Route, Fontana, CA 92335",
+      "phone": "+1-909-350-8490",
+      "website": "https://ritewayroofing.com/projects/",
+      "evidence": "Published school/public project portfolio; lists C-39 #661941 and DIR #1000001946; Sourcewell listed supplier contact Jeffery Hughes jeff@ritewayroofing.com",
+      "eligibility": "requires_current_registry_check_and_bid_specific_review",
+      "capacity": "unknown",
+      "consent_to_partner": "not_requested"
+    },
+    {
+      "id": "fritts-fleet",
+      "name": "Fritts Fleet",
+      "address": "7990 Auto Dr, Riverside, CA 92504",
+      "phone": "+1-951-353-8800",
+      "website": null,
+      "evidence": "Commercial Ford fleet and work vehicle sourcing / coordination",
+      "eligibility": "vehicle_spec_compliance_unverified",
+      "capacity": "unknown",
+      "consent_to_partner": "not_requested"
+    },
+    {
+      "id": "empire-technologies",
+      "name": "Empire Technologies Group",
+      "address": "7010 Arlington Ave Suite 205, Riverside, CA 92503",
+      "phone": "+1-909-417-4875",
+      "website": "https://empiretechs.com/contact-us/",
+      "evidence": "Advertises low voltage, network infrastructure and structured cabling",
+      "eligibility": "public_works_credentials_and_bid_vendor_requirements_unverified",
+      "capacity": "unknown",
+      "consent_to_partner": "not_requested"
+    },
+    {
+      "id": "uniserve",
+      "name": "Uniserve Facilities Services",
+      "address": "2363 S Atlantic Blvd, Commerce, CA 90040",
+      "phone": "+1-888-676-1000",
+      "website": null,
+      "evidence": "Commercial/institutional janitorial and public facilities cleaning",
+      "eligibility": "specific_rfsq_category_eligibility_unverified",
+      "capacity": "unknown",
+      "consent_to_partner": "not_requested"
+    },
+    {
+      "id": "servpro-westlake",
+      "name": "SERVPRO of Westlake",
+      "address": "1022 Venice Blvd, Los Angeles, CA 90015",
+      "phone": "+1-213-986-8567",
+      "website": null,
+      "evidence": "24/7 emergency restoration, mold, fire/water damage, debris clean-up",
+      "eligibility": "response_and_scope_eligibility_unverified",
+      "capacity": "unknown",
+      "consent_to_partner": "not_requested"
+    },
+    {
+      "id": "bti-communications",
+      "name": "BTI Communications Group, LTD.",
+      "address": "12155 Mora Dr 1 & 2, Santa Fe Springs, CA 90670",
+      "phone": "+1-562-298-5000",
+      "website": null,
+      "evidence": "Commercial networking, communications and managed services",
+      "eligibility": "specific_service_category_eligibility_unverified",
+      "capacity": "unknown",
+      "consent_to_partner": "not_requested"
+    }
+  ],
+  "other_sources": [
+    {
+      "name": "SAM.gov / SBA SUBNet",
+      "status": "existing_code_path; live_2026-10-22_runtime_not_reverified"
+    },
+    {
+      "name": "USAC FCC Form 470 FY2027",
+      "url": "https://www.usac.org/e-rate/applicant-process/competitive-bidding/fcc-form-470-filing/",
+      "status": "active_procurement_channel; individual_470s_not_reviewed"
+    },
+    {
+      "name": "Moreno Valley Unified Purchasing",
+      "url": "https://www.mvusd.net/departments/business-services/purchasing/bids",
+      "contact": "contract@mvusd.net",
+      "status": "official_vendor_portal; no_current_specific_bid_verified"
+    },
+    {
+      "name": "LAUSD procurement",
+      "url": "https://procurement.lausd.org/apps/pages/Solicitations",
+      "status": "official_portal; no_current_specific_bid_verified"
+    },
+    {
+      "name": "CalRecycle disaster prequalification",
+      "url": "https://calrecycle.ca.gov/contracts/disaster/",
+      "contact": "Contracts@calrecycle.ca.gov",
+      "status": "ongoing_prequalification_no_active_mission_task"
+    }
+  ],
+  "review_gates": [
+    "Official scope/specs/addenda and exact deadline revalidation before any bid",
+    "Planholder/vendor registration and mandatory walk/qualification deadlines",
+    "Prime license, DIR, bond, insurance, prevailing wage/certified payroll, manufacturer authorization where required",
+    "Set-aside, performance-of-work and subcontractor rules",
+    "Direct vs disclosed subcontract/teaming/referral structure with legal fee review",
+    "Written firm quote, cost breakdown, dates, availability and substitution risk",
+    "Solicitation-specific confidentiality, protest and communications rules",
+    "Explicit separate approval to outreach, bid, execute contract or spend"
+  ]
+}
