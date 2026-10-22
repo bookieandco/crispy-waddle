@@ -63,6 +63,18 @@ export default function PurseSelfFundingPage(){
      {snapshot.schemaChecks.map(x=><div key={x.name} style={{...small,padding:'9px 0',borderBottom:'1px solid #eee',overflowWrap:'anywhere'}}>{x.name} — <strong>{x.state.replace(/_/g,' ')}</strong></div>)}
      <p style={small}>Query permission is not proof of correct migrations, row-level security, genuine provider settlement or bank custody.</p>
     </section>
+    <section aria-label="Live commissioning stages" style={{...panel,marginTop:18}}>
+     <h2 style={{fontSize:20,marginTop:0}}>LIVE · .07–.10 acceptance</h2>
+     {[
+      ['.07 · Database restore','Independent backup/isolated restore and tenant RLS proof pending'],
+      ['.08 · Stripe TEST','Signed payment, refund and journal readback pending'],
+      ['.09 · iPhone Safari','Portrait navigation, protected session and logout acceptance pending'],
+      ['.10 · First customer','Owner-approved client, delivery, settlement and custody evidence pending'],
+     ].map(([stage,description])=><div key={stage} style={{padding:'12px 0',borderBottom:'1px solid #eee'}}>
+      <strong>{stage}</strong><div style={small}>{description}</div>
+     </div>)}
+     <p style={small}>Agent Bank patterns are research-only. Jhadina does not have a connected Agent Bank account, independent transfer authority or verified customer revenue.</p>
+    </section>
     <section style={{...panel,marginTop:18}}>
      <h2 style={{fontSize:20,marginTop:0}}>Remaining gates</h2>
      <ul>{snapshot.blockers.map(x=><li key={x} style={{...small,margin:'8px 0'}}>{x.replace(/_/g,' ')}</li>)}</ul>
