@@ -31,6 +31,22 @@ export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
   const pathname = request.nextUrl.pathname;
 
+  // Private Safari acceptance uses client-side Blob slices only. Allow ONLY
+  // this static page to load without an application Supabase session, and
+  // ONLY on the approved Facebook-import branch in Vercel preview.
+  // Vercel's project-level Deployment Protection remains in force.
+  // This does NOT exempt /api/personality/facebook/propose, /approvals,
+  // other Memory routes or any production deployment from owner identity.
+  const isOwnerLocalImportPreview =
+    pathname === "/memory/facebook" &&
+    process.env.VERCEL_ENV === "preview" &&
+    process.env.VERCEL_GIT_COMMIT_REF === "feat/jhadina-facebook-owner-style-import-20261017";
+  if (isOwnerLocalImportPreview) {
+    response.headers.set("cache-control", "private, no-store");
+    response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+    return response;
+  }
+
   // These machine routes enforce their own bearer-secret boundary. Requiring a
   // browser Supabase session in front of them would make CRON/worker callbacks
   // impossible and, when public auth env is absent, used to crash middleware

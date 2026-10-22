@@ -1,0 +1,24 @@
+{
+  // Copy to wrangler.jsonc ONLY after a private D1 database is created.
+  // A placeholder ID intentionally prevents accidental deployment.
+  "$schema": "https://json.schemastore.org/wrangler.json",
+  "name": "jhadina-memory-d1-private",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "jhadina-memory-private",
+      "database_id": "REPLACE_WITH_YOUR_CLOUDFLARE_D1_DATABASE_ID",
+      "migrations_dir": "./migrations"
+    }
+  ],
+  "vars": {
+    "OIDC_ISSUER": "https://oidc.vercel.com",
+    "OIDC_AUDIENCE": "REPLACE_WITH_EXPECTED_VERCEL_AUDIENCE",
+    "OIDC_SUBJECT": "REPLACE_WITH_EXACT_VERIFIED_VERCEL_SUBJECT",
+    "OIDC_PROJECT_ID": "REPLACE_WITH_VERCEL_PROJECT_ID",
+    "OIDC_ENVIRONMENT": "preview"
+  }
+}

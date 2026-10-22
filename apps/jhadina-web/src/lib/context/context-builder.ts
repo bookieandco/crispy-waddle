@@ -23,6 +23,7 @@ import { TimelineRepository } from "../repositories/TimelineRepository"
 import type { Memory, TimelineEvent } from "../storage/InMemoryStorage"
 import { getWorld, type JhadinaWorldId } from "../jhadina/jhadina-world-registry"
 import { redactSecrets } from "./redact"
+import { isOwnerInteractionPreference } from "../personality/owner-interaction-preference"
 
 /** Provider-neutral, read-only spatial contribution. The provider cannot mutate ContextPacket or reality. */
 export interface SpatialContextProvider {
@@ -407,7 +408,21 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
 
   const allApproved = await deps.memoryRepo.listApproved(input.userId)
   const keywords = extractKeywords(input.memoryRelevanceQuery ?? input.activeTask)
-  const relevantMemories = sortMemoriesDeterministically(allApproved.filter((m) => isRelevant(m.content, keywords)))
+  const topicalMemories = sortMemoriesDeterministically(allApproved.filter((m) => isRelevant(m.content, keywords)))
+  // Opted-in, approved preference guidance is the only Facebook-related note
+  // eligible for cross-topic recall. Descriptive writing observations remain
+  // query-relevant only. This does NOT mutate Jhadina's own personality.
+  // Suppress the optional guidance for serious, distressed or high-stakes turns.
+  const safetyPosture = input.behaviorContext ??
+    deriveBehaviorContextWithRecentTurns(input.activeTask, input.liveContext?.recentTurns)
+  const ordinaryTurn = !safetyPosture.serious && !safetyPosture.highStakes && !safetyPosture.distress && !safetyPosture.requiresPrecision
+  const approvedInteraction = ordinaryTurn
+    ? sortMemoriesDeterministically(allApproved.filter((m) =>
+        m.type === "PREFERENCE" && isOwnerInteractionPreference(m.content)))[0]
+    : undefined
+  const relevantMemories = approvedInteraction
+    ? [approvedInteraction, ...topicalMemories.filter((m) => m.id !== approvedInteraction.id)]
+    : topicalMemories
   const excludedMemoryCount = allApproved.length - relevantMemories.length
   if (excludedMemoryCount > 0) excludedContext.push(`${excludedMemoryCount} of ${allApproved.length} approved ${allApproved.length === 1 ? "memory" : "memories"} excluded as not relevant to the current request`)
   const boundedMemories = relevantMemories.slice(0, limits.maxMemories)
@@ -416,7 +431,15 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
   totalRedactions += memoryRefs.reduce((sum, r) => sum + r.redactionCount, 0)
 
   const timeline = await deps.timelineRepo.list(input.userId, Math.max(limits.maxRecentApprovals * 10, 50))
-  const approvals = sortTimelineDeterministically(timeline.filter((e) => e.type === "APPROVAL"))
+  // Timeline is append-only audit history, NOT a current recall authority.
+  // A corrected/forgotten memory retains its approval event for lineage but
+  // that event must never leak stale text back into model Knowledge context.
+  const liveMemoryById = new Map(allApproved.map((memory) => [memory.id, memory]))
+  const approvals = sortTimelineDeterministically(timeline.filter((event) =>
+    event.type === "APPROVAL" &&
+    Boolean(event.memoryId && liveMemoryById.get(event.memoryId)?.content === event.memoryContent) &&
+    (ordinaryTurn || !isOwnerInteractionPreference(event.memoryContent ?? ""))
+  ))
   const boundedApprovals = approvals.slice(0, limits.maxRecentApprovals)
   if (approvals.length > boundedApprovals.length) excludedContext.push(`${approvals.length - boundedApprovals.length} recent approved ${approvals.length - boundedApprovals.length === 1 ? "observation" : "observations"} excluded past the maxRecentApprovals limit (${limits.maxRecentApprovals})`)
   const approvalRefs = boundedApprovals.map(approvalToEvidenceRef)

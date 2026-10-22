@@ -1,0 +1,36 @@
+name: Jhadina Cloudflare D1 Memory Source CI
+
+on:
+  push:
+    paths:
+      - 'deploy/jhadina-memory-cloudflare/**'
+      - 'apps/jhadina-web/src/lib/storage/createMemoryStorage.*'
+      - '.github/workflows/jhadina-memory-cloudflare-d1-ci.yml'
+  pull_request:
+    paths:
+      - 'deploy/jhadina-memory-cloudflare/**'
+      - 'apps/jhadina-web/src/lib/storage/createMemoryStorage.*'
+      - '.github/workflows/jhadina-memory-cloudflare-d1-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  cloudflare-d1-memory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse Worker, D1 repository and verification modules
+        run: |
+          node --check deploy/jhadina-memory-cloudflare/worker.mjs
+          node --check deploy/jhadina-memory-cloudflare/security.mjs
+          node --check deploy/jhadina-memory-cloudflare/repository.mjs
+      - name: Exercise standalone D1 SQLite and signature tests (no remote database)
+        run: node --test deploy/jhadina-memory-cloudflare/*.test.mjs
+      - name: Verify no live database identifier in checked-in template
+        run: |
+          grep -Fq REPLACE_WITH_YOUR_CLOUDFLARE_D1_DATABASE_ID deploy/jhadina-memory-cloudflare/wrangler.example.jsonc

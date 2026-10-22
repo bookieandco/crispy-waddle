@@ -47,6 +47,24 @@ describe("canonical Memory storage composition", () => {
     expect(createMemoryStorageForRuntime()).toBeInstanceOf(VercelOidcMemoryStorage)
   })
 
+  it("selects Cloudflare D1 explicitly even if Supabase credentials exist", () => {
+    vi.stubEnv("NODE_ENV", "production")
+    vi.stubEnv("JHADINA_MEMORY_STORAGE_PROVIDER", "cloudflare_d1")
+    vi.stubEnv("JHADINA_MEMORY_GATEWAY_URL", "https://jhadina-memory.private.workers.dev/memory")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://offline.supabase.co")
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "old-provider-must-not-be-used")
+    expect(createMemoryStorageForRuntime()).toBeInstanceOf(VercelOidcMemoryStorage)
+  })
+
+  it("never silently falls back to Supabase or volatile memory if Cloudflare is unconfigured", () => {
+    vi.stubEnv("NODE_ENV", "production")
+    vi.stubEnv("JHADINA_MEMORY_STORAGE_PROVIDER", "cloudflare_d1")
+    vi.stubEnv("JHADINA_MEMORY_GATEWAY_URL", "")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://offline.supabase.co")
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "legacy-still-set")
+    expect(() => createMemoryStorageForRuntime()).toThrow("JHADINA_MEMORY_GATEWAY_URL_REQUIRED")
+  })
+
   it("fails closed when an explicit OIDC gateway has no endpoint", () => {
     vi.stubEnv("NODE_ENV", "production")
     vi.stubEnv("JHADINA_MEMORY_STORAGE_PROVIDER", "oidc_gateway")

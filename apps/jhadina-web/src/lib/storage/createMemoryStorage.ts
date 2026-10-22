@@ -6,12 +6,12 @@ import { createServiceRoleClient } from "../supabase/service-role"
 
 let canonicalStorage: MemoryStorage | undefined
 
-type MemoryStorageProvider = "auto" | "supabase" | "oidc_gateway"
+type MemoryStorageProvider = "auto" | "supabase" | "oidc_gateway" | "cloudflare_d1"
 
 function configuredProvider(): MemoryStorageProvider {
   const raw = process.env.JHADINA_MEMORY_STORAGE_PROVIDER?.trim().toLowerCase()
   if (!raw) return "auto"
-  if (raw === "auto" || raw === "supabase" || raw === "oidc_gateway") return raw
+  if (raw === "auto" || raw === "supabase" || raw === "oidc_gateway" || raw === "cloudflare_d1") return raw
   throw new Error("JHADINA_MEMORY_STORAGE_PROVIDER_INVALID")
 }
 
@@ -38,7 +38,8 @@ function configuredGatewayEndpoint(): string {
  *
  * - auto: preserve the current Supabase-first behavior;
  * - supabase: require a direct service-role client;
- * - oidc_gateway: use the bounded Vercel-OIDC MemoryStorage protocol at
+ * - cloudflare_d1: explicit Worker + D1 backend over the existing Vercel OIDC gateway;
+ *   never auto-cut over or infer credentials from Cloudflare deployments.\n * - oidc_gateway: use the bounded Vercel-OIDC MemoryStorage protocol at
  *   JHADINA_MEMORY_GATEWAY_URL, regardless of whether Supabase keys are still
  *   present during migration.
  *
@@ -48,8 +49,19 @@ function configuredGatewayEndpoint(): string {
 export function createMemoryStorageForRuntime(): MemoryStorage {
   const provider = configuredProvider()
 
-  if (provider === "oidc_gateway") {
-    return new VercelOidcMemoryStorage({ endpoint: configuredGatewayEndpoint() })
+  if (provider === "oidc_gateway" || provider === "cloudflare_d1") {
+    const endpoint = configuredGatewayEndpoint()
+    if (provider === "cloudflare_d1") {
+      // Never send a Vercel workload JWT to a mistaken legacy Supabase or
+      // arbitrary URL. A custom Cloudflare hostname requires explicit pinning.
+      const url = new URL(endpoint)
+      const pinnedHost = process.env.JHADINA_MEMORY_CLOUDFLARE_HOST?.trim().toLowerCase()
+      if (url.protocol !== "https:" || url.pathname !== "/memory" ||
+          (url.hostname !== pinnedHost && !url.hostname.endsWith(".workers.dev"))) {
+        throw new Error("JHADINA_MEMORY_CLOUDFLARE_HOST_REQUIRED")
+      }
+    }
+    return new VercelOidcMemoryStorage({ endpoint })
   }
 
   const client = createServiceRoleClient()
