@@ -1,3 +1,4 @@
+import * as React from "react";
 import Link from "next/link";
 import { PasskeyAction } from "./passkey-action";
 import { safeAuthNext } from "@/lib/auth/passkey";
