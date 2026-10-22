@@ -51,7 +51,15 @@ export async function GET(req:NextRequest){
     const songKey=req.nextUrl.searchParams.get('songKey')??'catalog:moments';
     const directorProjectId=req.nextUrl.searchParams.get('directorProjectId')??undefined;
     const plan=await prepare({userId:identity.userId,songKey,directorProjectId});
-    return NextResponse.json({success:true,data:plan,staged:false},{headers});
+    const db=await createClient();
+    const {data:projects,error:projectError}=await db.from('director_production_projects')
+      .select('id,title,status').eq('owner_user_id',identity.userId)
+      .order('updated_at',{ascending:false}).limit(25);
+    return NextResponse.json({
+      success:true,data:plan,staged:false,
+      directorProjects:projectError?[]:(projects??[]),
+      directorProjectOptionsState:projectError?'unavailable':'ready',
+    },{headers});
   }catch(error){return failure(error);}
 }
 
