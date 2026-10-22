@@ -75,7 +75,9 @@ export class JupiterSwapV2QuoteAdapter implements DexQuoteOnlyAdapter{
   const out=atomic(row.outAmount)
   if(out===undefined||out<=0n)throw new Error('DEX_ROUTER_JUPITER_OUTPUT_INVALID')
   const requestId=typeof row.requestId==='string'&&row.requestId.trim()?row.requestId:'quote:'+hash(url.toString()).slice(0,24)
-  const feeBps=integer(row.feeBps)??0
+  // Missing provider fee evidence must not be silently treated as a free route.
+  const feeBps=integer(row.feeBps)
+  if(feeBps===undefined)throw new Error('DEX_ROUTER_JUPITER_FEE_EVIDENCE_REQUIRED')
   const impact=decimalFractionToBps(row.priceImpactPct)
   return Object.freeze({
    quoteId:'jupiter:'+requestId,
