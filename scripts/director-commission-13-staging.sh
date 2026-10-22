@@ -25,6 +25,8 @@ CREATE TABLE public.director_project_memberships(
   project_id text NOT NULL,user_id uuid NOT NULL REFERENCES auth.users(id),
   role text NOT NULL,PRIMARY KEY(project_id,user_id));
 CREATE TABLE public.director_generated_editing_assets(id text PRIMARY KEY);
+ALTER TABLE public.director_project_memberships ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.director_generated_editing_assets ENABLE ROW LEVEL SECURITY;
 INSERT INTO auth.users(id) VALUES
   ('00000000-0000-4000-8000-000000000001'),
   ('00000000-0000-4000-8000-000000000002'),
