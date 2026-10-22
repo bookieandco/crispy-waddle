@@ -19,6 +19,7 @@
     "./study-resume-controller": "./src/study-resume-controller.ts",
     "./timeline-editing": "./src/timeline-editing.ts",
     "./timeline-model": "./src/timeline-model.ts",
+    "./timeline-playback-plan": "./src/timeline-playback-plan.ts",
     "./timeline-command": "./src/timeline-command.ts",
     "./studio-contracts": "./src/studio-contracts.ts",
     "./studio-governed-action": "./src/studio-governed-action.ts",
