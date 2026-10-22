@@ -10,6 +10,8 @@ import type {
   SocialPublishTarget,
 } from "@jhadina/social-core"
 import { createClient } from "../supabase/server"
+import { createRequestIdentityVerifier } from "../auth/request-identity"
+import { createRuntimeServiceRoleClient } from "../supabase/service-role"
 
 type AccountRow = {
   id: string
@@ -328,19 +330,42 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async registerAccount(input) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_upsert_account", {
-          p_brand: input.brand,
-          p_provider: input.provider,
-          p_provider_profile_id: input.providerProfileId,
-          p_platform: input.platform,
-          p_display_name: input.displayName,
-          p_handle: input.handle ?? null,
-        })
+      // This method is server-only. The caller must first verify the exact
+      // provider profile using discoverProfiles() in the authenticated route.
+      // The former authenticated SECURITY DEFINER upsert allowed clients to
+      // self-declare an arbitrary provider profile as "connected".
+      const identity = await (await createRequestIdentityVerifier()).verify({})
+      if (identity.userId !== input.userId) throw new Error("SOCIAL_ACCOUNT_OWNER_MISMATCH")
+      if (process.env.JHADINA_SOCIAL_ACCOUNT_BINDING_HARDENED !== "true") {
+        throw new Error("SOCIAL_ACCOUNT_BINDING_MIGRATION_NOT_COMMISSIONED")
+      }
+      if (!input.provider.trim() || !input.providerProfileId.trim() || !input.displayName.trim()) {
+        throw new Error("SOCIAL_VERIFIED_PROVIDER_PROFILE_REQUIRED")
+      }
+      const privileged = await createRuntimeServiceRoleClient()
+      if (!privileged) throw new Error("SOCIAL_SERVER_ONLY_ACCOUNT_BINDING_UNAVAILABLE")
+      const { data, error } = await privileged
+        .from("jhadina_social_accounts")
+        .upsert({
+          user_id: input.userId,
+          brand: input.brand,
+          provider: input.provider,
+          provider_profile_id: input.providerProfileId,
+          platform: input.platform,
+          display_name: input.displayName,
+          handle: input.handle ?? null,
+          status: "connected",
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id,provider,provider_profile_id" })
+        .select("*")
         .single<AccountRow>()
       if (error || !data) throw new Error(`Unable to register social account: ${error?.message ?? "no account returned"}`)
-      if (data.user_id !== input.userId) throw new Error("SOCIAL_ACCOUNT_OWNER_MISMATCH")
+      if (data.user_id !== input.userId || data.provider !== input.provider ||
+          data.provider_profile_id !== input.providerProfileId ||
+          data.platform !== input.platform || data.brand !== input.brand ||
+          data.status !== "connected") {
+        throw new Error("SOCIAL_ACCOUNT_VERIFIED_BINDING_MISMATCH")
+      }
       return accountFromRow(data)
     },
 
