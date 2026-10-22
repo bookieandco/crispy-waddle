@@ -152,3 +152,26 @@ test('DEX-ROUTER.FINAL binds Meteora official-SDK preparation to the selected pa
  assert.equal(prepared.canSign,false)
  assert.equal(prepared.canBroadcast,false)
 })
+
+test('DEX-ROUTER fast path overlaps independent quote requests and preserves ordered evidence',async()=>{
+ const calls:string[]=[]
+ let releaseRaydium:()=>void=()=>{throw new Error('RAYDIUM_NOT_CALLED')}
+ const raydium=new RaydiumDirectQuoteAdapter(async()=>{
+  calls.push('raydium')
+  await new Promise<void>(resolve=>{releaseRaydium=resolve})
+  return {quotedOutputAtomic:500000n,priceImpactBps:40,feeBps:30,liquidityMinor:1000000n,evidenceIds:['ray:fast']}
+ })
+ const meteora=new MeteoraDirectQuoteAdapter(async()=>{
+  calls.push('meteora')
+  return {quotedOutputAtomic:510000n,priceImpactBps:40,feeBps:30,liquidityMinor:1000000n,evidenceIds:['met:fast']}
+ })
+ const router=new GovernedDexRouteRouter({adapters:[raydium,meteora],policy})
+ const pending=router.route({request:{inputMint:'USDC',outputMint:'TOKEN',inputAmountAtomic:1000000n,slippageBps:50,now},consecutiveRealizedLosses:0})
+ assert.deepEqual(calls,['raydium','meteora'],'both quote requests must start before the first completes')
+ releaseRaydium()
+ const decision=await pending
+ assert.equal(decision.selected?.provider,'meteora-direct')
+ assert.deepEqual(decision.attempts.map(x=>x.provider),['raydium-direct','meteora-direct'])
+ assert.equal(decision.canSign,false)
+ assert.equal(decision.canBroadcast,false)
+})
