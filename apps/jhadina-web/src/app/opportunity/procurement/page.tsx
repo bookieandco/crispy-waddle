@@ -14,6 +14,8 @@ type NationalResponse={ok:boolean;report?:NationalReport;expansionCatalogs?:Expa
 type PilotResponse={ok:boolean;docket?:Pilot;error?:string}
 type SourceResponse={ok:boolean;decisions?:Source[];scanned?:number;sourceSnapshotIsPartial?:boolean;error?:string}
 type Draft={ok:boolean;buyerContacts?:Array<{name?:string;email?:string;phone?:string;sourceUrl:string}>;packet?:{status:string;blockers:string[]};error?:string;observed?:{title:string}}
+type PublicCanary={id:string;title:string;specification:string;buyer:string;noticeUrl:string;officialBidListUrl:string;submissionPortalUrl:string;deadlineLocal:string;deadlineState:string;scopeSummary:string;requiredPrimeLicenseClass:string|null;bidSecurityFraction:number|null;performanceBondFraction:number|null;paymentBondFraction:number|null;retainageFraction:number|null;dirRegistrationRequired:boolean|null;prevailingWageRequired:boolean|null;addenda:Array<{number:number;url:string;summary:string;fullAttachmentsVerified:false;acknowledged:false}>;fullPortalDocumentSetComplete:false;complianceEvidenceMissing:string[]}
+type CanaryListResponse={ok:boolean;canaries?:PublicCanary[];error?:string}
 const shell:CSSProperties={minHeight:"100vh",background:"#0d131c",color:"#eff3f1",fontFamily:"system-ui,-apple-system,sans-serif",padding:"24px 14px 90px"}
 const contentWidth:CSSProperties={maxWidth:990,margin:"auto"}
 const section:CSSProperties={background:"#151f2b",border:"1px solid #334052",borderRadius:18,padding:20,marginTop:16}
@@ -33,7 +35,7 @@ function Deadline({value,continuous}:{value?:string;continuous:boolean}){
 type PrimeMatch={providerId:string;providerName:string;role:string;score:number;disposition:string;matchingSignals:string[];blockers:string[];evidenceRefs:string[]}
 type FederalPrimeResearch={ok:boolean;report?:{observations:Array<{awardedPrimeName:string;awardId:string;historicalAwardAmount:number|null;sourceUrl:string}>;sampled:boolean;workPerformedInStateDoesNotProveSupplierIsLocal:boolean};error?:string}
 type PrimeReply={ok:boolean;historicalProfilesScanned?:number;matrix?:{results:PrimeMatch[];noSend:boolean};diligence?:{status:string;totalGates:number;missing:string[];failed:string[]};error?:string}
-function RegionalPrimePanel({pilotId,inboxId,state='CA'}:{pilotId?:string;inboxId?:string;state?:string}){
+function RegionalPrimePanel({pilotId,inboxId,canaryId,state='CA'}:{pilotId?:string;inboxId?:string;canaryId?:string;state?:string}){
  const [data,setData]=useState<PrimeReply|null>(null)
  const [federal,setFederal]=useState<FederalPrimeResearch|null>(null)
  const [federalBusy,setFederalBusy]=useState(false)
@@ -44,7 +46,7 @@ function RegionalPrimePanel({pilotId,inboxId,state='CA'}:{pilotId?:string;inboxI
   try{
    const r=await fetch("/api/opportunities/procurement/primes",{
     method:"POST",headers:{"content-type":"application/json"},
-    body:JSON.stringify(pilotId?{pilotId}:{inboxId}),cache:"no-store"})
+    body:JSON.stringify(pilotId?{pilotId}:canaryId?{canaryId}:{inboxId}),cache:"no-store"})
    const value=await r.json() as PrimeReply
    if(!r.ok||!value.ok)throw new Error(value.error??"Regional prime research unavailable")
    setData(value)
@@ -205,6 +207,9 @@ function JurisdictionDirectory({state}:{state:string}){
 }
 export default function GovernmentProcurementWorkspace(){
  const [pilot,setPilot]=useState<Pilot|null>(null)
+ const [canaries,setCanaries]=useState<PublicCanary[]>([])
+ const [canaryReviews,setCanaryReviews]=useState<Record<string,Draft>>({})
+ const [reviewingCanary,setReviewingCanary]=useState<string|null>(null)
  const [sources,setSources]=useState<Source[]>([])
  const [snapshot,setSnapshot]=useState<number|null>(null)
  const [loading,setLoading]=useState(true)
@@ -220,14 +225,18 @@ export default function GovernmentProcurementWorkspace(){
  async function load(){
   setLoading(true);setError("")
   try{
-   const [pilotResponse,sourceResponse,nationalResponse]=await Promise.all([
+   const [pilotResponse,sourceResponse,nationalResponse,canaryResponse]=await Promise.all([
     fetch("/api/opportunities/procurement?mode=pilot",{cache:"no-store"}),
     fetch("/api/opportunities/procurement?state="+encodeURIComponent(selectedState)+"&limit=35",{cache:"no-store"}),
-    fetch("/api/opportunities/procurement/coverage",{cache:"no-store"})
+    fetch("/api/opportunities/procurement/coverage",{cache:"no-store"}),
+    fetch("/api/opportunities/procurement/canaries",{cache:"no-store"})
    ])
    const a=await pilotResponse.json() as PilotResponse
    const b=await sourceResponse.json() as SourceResponse
    const n=await nationalResponse.json() as NationalResponse
+   const k=await canaryResponse.json() as CanaryListResponse
+   if(canaryResponse.ok&&k.ok)setCanaries(k.canaries??[])
+   else{setCanaries([]);setError("Public notice packets unavailable. No-send review remains protected.")}
    if(nationalResponse.ok&&n.ok){setCoverage(n.report??null);setExpansionCatalogs(n.expansionCatalogs??[])}
    else{setCoverage(null);setError("National jurisdiction rollup unavailable; opportunity pilot is still usable.")}
    if(!pilotResponse.ok||!a.ok)throw new Error(a.error??"Could not load research pilot")
@@ -238,6 +247,18 @@ export default function GovernmentProcurementWorkspace(){
   finally{setLoading(false)}
  }
  useEffect(()=>{void load()},[selectedState])
+ async function reviewCanary(canaryId:string){
+  setReviewingCanary(canaryId);setError("")
+  try{
+   const res=await fetch("/api/opportunities/procurement/canaries",{
+    method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({canaryId}),cache:"no-store"})
+   const result=await res.json() as Draft
+   if(!res.ok||!result.ok)throw new Error(result.error??"Official notice packet unavailable")
+   setCanaryReviews(prev=>({...prev,[canaryId]:result}))
+  }catch(e){setError(e instanceof Error?e.message:"Public notice review blocked")}
+  finally{setReviewingCanary(null)}
+ }
  async function reviewPilot(pilotId:string){
   setReviewingPilot(pilotId);setError("")
   try{
@@ -318,6 +339,33 @@ export default function GovernmentProcurementWorkspace(){
       <p style={{...dim,fontSize:12}}>Not yet imported or bid-adapter certified</p>
      </div>)}
     </div>
+   </section>
+   <section style={section}>
+    <div style={mini}>Official public notice diligence · California canaries</div>
+    <h2 style={boxTitle}>Real source documents, still no-send</h2>
+    <p style={dim}>Oxnard public notices provide selected licensing, bonding and schedule terms. They are <strong>not</strong> complete PlanetBids document packages, and no prime contractor has accepted teaming.</p>
+    {canaries.map(c=><article key={c.id} style={{padding:"15px 0",borderTop:"1px solid #43505c"}}>
+     <h3 style={{margin:"2px 0 8px",fontSize:17}}>{c.specification} · {c.title}</h3>
+     <p style={{...dim,fontSize:12}}>{c.buyer} · Listed deadline {c.deadlineLocal.replace("T"," ")} Pacific · {c.deadlineState.replace(/_/g," ")}</p>
+     <p style={{...dim,fontSize:13}}>{c.scopeSummary}</p>
+     <div style={{display:"flex",flexWrap:"wrap",gap:12,fontSize:12}}>
+      <SourceLink href={c.noticeUrl}>Official notice PDF</SourceLink>
+      <SourceLink href={c.officialBidListUrl}>Buyer list</SourceLink>
+      <SourceLink href={c.submissionPortalUrl}>Buyer-linked PlanetBids</SourceLink>
+      {c.addenda.map(a=><SourceLink key={a.number} href={a.url}>Addendum {a.number}</SourceLink>)}
+     </div>
+     <p style={{...dim,fontSize:12}}>Required prime license: {c.requiredPrimeLicenseClass??"unverified"} · Bid security: {c.bidSecurityFraction===null?"unknown":c.bidSecurityFraction*100+"%"} · Performance/payment bonds: {c.performanceBondFraction===null?"unknown":c.performanceBondFraction*100+"%"} / {c.paymentBondFraction===null?"unknown":c.paymentBondFraction*100+"%"} · Retainage: {c.retainageFraction===null?"unknown":c.retainageFraction*100+"%"} · DIR/prevailing wage: {c.dirRegistrationRequired&&c.prevailingWageRequired?"required":"unverified"}</p>
+     {c.addenda.length>0&&<p style={{...dim,fontSize:12,color:"#f1d6a1"}}>{c.addenda.map(a=>"Addendum "+a.number+": "+a.summary).join(" ")}</p>}
+     <button type="button" onClick={()=>void reviewCanary(c.id)} disabled={reviewingCanary!==null} style={{...btn,padding:"8px 12px",fontSize:12}}>{reviewingCanary===c.id?"Preparing…":"Generate blocked no-send packet"}</button>
+     {canaryReviews[c.id]&&<div style={{...dim,fontSize:12,marginTop:10,border:"1px solid #6b563c",padding:12,borderRadius:9}}>
+      <strong>Canonical packet: {canaryReviews[c.id]?.packet?.status??"not ready"}</strong>
+      <ul>{(canaryReviews[c.id]?.packet?.blockers??[]).slice(0,12).map(x=><li key={x}>{x}</li>)}</ul>
+     </div>}
+     <RegionalPrimePanel canaryId={c.id}/>
+     <details><summary style={{cursor:"pointer",fontSize:12}}>Outstanding evidence ({c.complianceEvidenceMissing.length})</summary>
+      <ul style={{...dim,fontSize:12}}>{c.complianceEvidenceMissing.map(x=><li key={x}>{x}</li>)}</ul>
+     </details>
+    </article>)}
    </section>
    <JurisdictionDirectory state={selectedState}/>
    <section style={section}>
