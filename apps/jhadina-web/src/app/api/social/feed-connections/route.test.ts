@@ -58,6 +58,11 @@ describe("public feed connection owner security",()=>{
   expect(res.status).toBe(403)
   expect(calls.read).not.toHaveBeenCalled()
  })
+ it("rejects cross-origin removals without touching the database",async()=>{
+  const res=await DELETE(request("DELETE",{provider:"github",handle:"owner"},"https://evil.invalid"))
+  expect(res.status).toBe(403)
+  expect(calls.remove).not.toHaveBeenCalled()
+ })
  it("rejects unsupported or unverified sources; never writes",async()=>{
   expect((await POST(request("POST",{provider:"facebook",handle:"owner"}))).status).toBe(400)
   calls.read.mockResolvedValue([])
