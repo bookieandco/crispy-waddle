@@ -95,7 +95,7 @@ def save_blender_mesh(geometry,path):
             loop=mesh.loops[loop_id]
             uv_layer.data[loop_id].uv=geometry["uv"][loop.vertex_index]
         polygon.use_smooth=True
-    material=bpy.data.materials.new("canvas-fabric-neutral")
+    material=bpy.data.materials.new("tote_material")
     material.use_nodes=True
     nodes=material.node_tree.nodes
     pbr=nodes.get("Principled BSDF")
