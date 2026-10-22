@@ -61,7 +61,7 @@ describe('SAM runtime gateway bounded mutation batches', () => {
     expect(writes.filter(write => write.table === 'jhadina_sam_catalog').length).toBeGreaterThan(1)
     expect(writes.flatMap(write => write.rows).filter(row => 'raw' in row)).toEqual(catalog)
     expect(writes.flatMap(write => write.rows).filter(row => 'checksum' in row)).toEqual(versions)
-    expect(writes.at(-1)?.options).toEqual({ onConflict: 'notice_id,checksum', ignoreDuplicates: true })
+    expect(writes[writes.length - 1]?.options).toEqual({ onConflict: 'notice_id,checksum', ignoreDuplicates: true })
     expect(writes.findIndex(write => write.table === 'jhadina_sam_versions'))
       .toBe(writes.filter(write => write.table === 'jhadina_sam_catalog').length)
   })
