@@ -187,3 +187,14 @@ test('Jupiter quote cannot silently replace missing fees with zero',async()=>{
  })
  assert.equal((await present.quote(request)).feeBps,50)
 })
+
+test('direct venue without documented swap fees is not admitted as a free route',async()=>{
+ const missing=new RaydiumDirectQuoteAdapter(async()=>({
+  quotedOutputAtomic:500000n,priceImpactBps:40,liquidityMinor:1000000n,evidenceIds:['ray:missing-fee'],
+ }))
+ const router=new GovernedDexRouteRouter({adapters:[missing],policy})
+ const result=await router.route({request:{inputMint:'USDC',outputMint:'TOKEN',inputAmountAtomic:1000000n,slippageBps:50,now},consecutiveRealizedLosses:0})
+ assert.equal(result.selected,undefined)
+ assert.equal(result.attempts[0]?.errorCode,'DEX_ROUTER_DIRECT_FEE_EVIDENCE_REQUIRED')
+ assert.equal(result.canBroadcast,false)
+})
