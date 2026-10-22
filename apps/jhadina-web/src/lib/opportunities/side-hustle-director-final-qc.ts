@@ -7,6 +7,7 @@ import {
   type FinalExportInspection,
 } from '@jhadina/director-core'
 import {DirectorWorkstationTimelineRepository} from '@/lib/director-workstation-timeline-repository'
+import {directorProductionAssetBlockers} from '@jhadina/director-core/production-asset-admission'
 import type {SideHustleDirectorProductionPlan} from './side-hustle-director-bridge'
 
 type EvidenceRow={
@@ -141,6 +142,20 @@ export async function evaluateSideHustleDirectorFinalQcReadiness(input:{
 
   if(!evidence)blockers.push('DIRECTOR_PROJECT_FINAL_QC_WORKER_EVIDENCE_REQUIRED')
   if(!evidence?.final_master_asset_id)blockers.push('DIRECTOR_PROJECT_FINAL_QC_FINAL_MASTER_REQUIRED')
+  // Revalidate even historical evidence deposits before issuing an admissible QC
+  // receipt. An old smoke master may predate the API upload-time guard.
+  if(evidence?.final_master_asset_id){
+    const {data:master,error:masterError}=await client.from('director_generated_editing_assets')
+      .select('id,project_id,provider_id,metadata,media_type')
+      .eq('id',evidence.final_master_asset_id)
+      .eq('project_id',projectId)
+      .maybeSingle()
+    if(masterError)throw new Error('DIRECTOR_PROJECT_FINAL_QC_MASTER_ASSET_READ_FAILED:'+masterError.message)
+    if(!master)blockers.push('DIRECTOR_PROJECT_FINAL_QC_MASTER_ASSET_NOT_FOUND')
+    else if(String(master.media_type)!=='video'||directorProductionAssetBlockers(master).length){
+      blockers.push('DIRECTOR_PRODUCTION_ASSET_NOT_ADMISSIBLE')
+    }
+  }
   if(!evidence?.final_inspection)blockers.push('DIRECTOR_PROJECT_FINAL_QC_FINAL_WATCH_REQUIRED')
   if(!evidence?.coherence)blockers.push('DIRECTOR_PROJECT_FINAL_QC_COHERENCE_EVIDENCE_REQUIRED')
   if(!selectedTakeIds.length)blockers.push('DIRECTOR_PROJECT_FINAL_QC_SELECTED_TAKES_REQUIRED')
