@@ -1,5 +1,6 @@
 import { discoverPublicBoard, type BoardInput } from './public-job-board'
 import type { Opportunity } from '@jhadina/opportunity-core'
+import { makeDiscoveredJobReview, type DiscoveredJobReview } from './job-import-acceptance'
 
 export type BoundedBoardCycleInput = {
   sources: BoardInput[]
@@ -13,6 +14,8 @@ export type PublicBoardCycleResult = {
   persisted: number
   failed: string[]
   opportunityIds: string[]
+  previews: DiscoveredJobReview[]
+  verifiedImports: number
   applicationAuthorized: false
   eligibleForUnattendedSchedule: false
   outboundMessagesSent: 0
@@ -20,7 +23,7 @@ export type PublicBoardCycleResult = {
 }
 export type BoardCycleDeps = {
   discover: typeof discoverPublicBoard
-  ingest: (record: Opportunity) => Promise<{ id: string }>
+  ingest: (record: Opportunity) => Promise<{ id: string; verified?: boolean }>
 }
 
 /**
@@ -38,6 +41,8 @@ export async function runBoundedBoardCycle(input: BoundedBoardCycleInput, deps: 
   let scanned = 0
   let fetched = 0
   let persisted = 0
+  let verifiedImports = 0
+  const previews: DiscoveredJobReview[]=[]
   for (const raw of input.sources) {
     if (!['greenhouse','lever'].includes(raw.source) || !/^[a-z0-9][a-z0-9_-]{1,49}$/i.test(raw.board)) throw new Error('Unapproved board token')
     const key = raw.source + ':' + raw.board.toLowerCase()
@@ -48,11 +53,14 @@ export async function runBoundedBoardCycle(input: BoundedBoardCycleInput, deps: 
       const result = await deps.discover({ source:raw.source,board:raw.board,limit:Math.min(Math.max(input.maxPerBoard ?? 25,1),25) })
       for (const opportunity of result.opportunities) {
         fetched++
+        if (ids.has(opportunity.id)) continue
         ids.add(opportunity.id)
+        previews.push(makeDiscoveredJobReview(opportunity))
         if (input.mode === 'owner_import') {
           const accepted = await deps.ingest(opportunity)
           if (accepted.id !== opportunity.id) throw new Error('Canonical repository returned mismatched identity')
           persisted++
+          if(accepted.verified===true) verifiedImports++
         }
       }
     } catch (error) {
@@ -60,7 +68,7 @@ export async function runBoundedBoardCycle(input: BoundedBoardCycleInput, deps: 
     }
   }
   return {
-    scanned, fetched, persisted, failed, opportunityIds:[...ids],
+    scanned, fetched, persisted, verifiedImports, previews, failed, opportunityIds:[...ids],
     applicationAuthorized:false,eligibleForUnattendedSchedule:false,outboundMessagesSent:0,
     status:failed.length ? 'partially_failed' : input.mode === 'preview' ? 'preview' : 'owner_import_completed',
   }
