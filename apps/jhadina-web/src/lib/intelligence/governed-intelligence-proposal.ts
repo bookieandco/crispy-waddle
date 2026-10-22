@@ -51,7 +51,7 @@ import {
  * request -> approve -> consume receipt flow SP-1 (Growth) uses, so any
  * future capability this router is pointed at that *is* approval-gated
  * (e.g. a hypothetical `memory.commit`) is already governed correctly,
- * not silently unsupported.
+ * not silently auto-approved.
  */
 export interface GovernedIntelligenceProposalDeps {
   identityVerifier: JhadinaIdentityVerifier
@@ -71,7 +71,7 @@ export interface GovernedIntelligenceProposalResult {
   reasoningEventId: string
   /** Set only when disposition was PROCEED and the action executed. */
   candidate?: MemoryCandidate
-  /** Set only when policy required an explicit approval step. */
+  /** Pending human approval receipt ID; never approved by the model. */
   approvalReceiptId?: string
 }
 
@@ -210,24 +210,36 @@ export async function decideAndProposeMemoryGoverned(
   }
   const executor = new VerifiedActionExecutor(actionIdentity, policy, deps.ledger, [handler], approvalVerifier)
 
-  // 5. Explicit approval, only when policy requires it. The model's own
-  // PROCEED disposition is never treated as an approval — a distinct,
-  // separately-gated approval decision is requested and consumed here,
-  // exactly like a human-originated action would need.
-  let approvalReceiptId: string | undefined
+  // 5. A model disposition is never a human authorization. When policy
+  // requires approval, create a PENDING receipt and stop before the handler.
+  // The future Command Center approval path must explicitly approve and
+  // resume this exact action through the same ActionExecutor.
   if (decision === "approval_required") {
     const approvalService = createApprovalRequestService(deps.approvalStore, (r) =>
       fingerprintMemoryPropose(r.action as MemoryProposeAction),
     )
     const pending = await approvalService.requestApproval(request)
-    const approved = await approvalService.approve(pending.id, identity.userId)
-    approvalReceiptId = approved.id
+    await deps.ledger.append({
+      id: `${actionId}:approval-required`,
+      actionId,
+      userId: identity.userId,
+      type: MEMORY_PROPOSE_CAPABILITY,
+      status: "approval_required",
+      timestamp: now(),
+      metadata: { stage: "human_approval_pending", approvalReceiptId: pending.id },
+    })
+    return {
+      proposal,
+      verifiedUserId: identity.userId,
+      reasoningEventId: experience.id,
+      approvalReceiptId: pending.id,
+    }
   }
 
-  // 6. VerifiedActionExecutor executes (re-validates policy + receipt independently) -> audit.
-  const candidate = await executor.execute(approvalReceiptId ? { ...request, approvalReceiptId } : request)
-
-  return { proposal, verifiedUserId: identity.userId, reasoningEventId: experience.id, candidate, approvalReceiptId }
+  // 6. Only policy-allowed actions execute immediately. Existing
+  // memory.propose policy is allow; no new user approval is imposed.
+  const candidate = await executor.execute(request)
+  return { proposal, verifiedUserId: identity.userId, reasoningEventId: experience.id, candidate }
 }
 
 function confidenceFor(proposal: DecisionProposal): number {

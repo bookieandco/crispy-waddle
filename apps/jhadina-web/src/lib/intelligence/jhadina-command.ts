@@ -1,5 +1,4 @@
 import {
-  InMemoryApprovalReceiptStore,
   JhadinaValuesActionPolicy,
   type ActionPolicy,
   type ApprovalReceiptStore,
@@ -26,6 +25,7 @@ import { TimelineRepository } from "../repositories/TimelineRepository"
 import { getStorage } from "../routes/handlers"
 import type { JhadinaWorldId } from "../jhadina/jhadina-world-registry"
 import { createIntelligenceAuditLedger } from "./durable-audit-ledger"
+import { createSupabaseActionApprovalReceiptStore } from "../supabase-action-approval-receipt-store"
 import { decideAndProposeMemoryGoverned, type GovernedIntelligenceProposalResult } from "./governed-intelligence-proposal"
 import { MEMORY_PROPOSE_CAPABILITY, type MemoryProposeAction } from "./memory-propose-capability"
 import { createProductionIntelligenceRouter } from "./production-model-provider"
@@ -121,8 +121,6 @@ function summarizeSpatialContext(spatial: SpatialDomainContext | undefined): Spa
   }
 }
 
-const defaultApprovalStore = new InMemoryApprovalReceiptStore()
-
 export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides: JhadinaCommandOverrides = {}): Promise<JhadinaCommandResult> {
   const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
   const verifiedIdentity = await identityVerifier.verify({ userId: input.userId })
@@ -181,7 +179,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
 
   const ledger = overrides.ledger ?? (await createIntelligenceAuditLedger())
   const router = overrides.router ?? createProductionIntelligenceRouter(overrides.onEvent)
-  const approvalStore = overrides.approvalStore ?? defaultApprovalStore
+  const approvalStore = overrides.approvalStore ?? createSupabaseActionApprovalReceiptStore()
   const policy = overrides.policy ?? new JhadinaValuesActionPolicy<MemoryProposeAction>(JHADINA_BASE_SECURITY_POLICY, JHADINA_DEFAULT_VALUES_CONFIGURATION)
 
   const result = await decideAndProposeMemoryGoverned(
