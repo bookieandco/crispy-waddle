@@ -148,17 +148,19 @@ export class GovernedDexRouteRouter{
   this.policy=input.policy
  }
  async route(input:{request:DexQuoteRequest;consecutiveRealizedLosses:number;lossHaltActive?:boolean}):Promise<DexRouteDecision>{
-  const attempts:DexRouteAttempt[]=[]
-  for(const adapter of this.adapters){
+  // Quote independent approved venues concurrently. Promise.all preserves configured order
+  // for deterministic receipts even if responses arrive out of order.
+  // This is quote-only and cannot sign, broadcast, or authorize spending.
+  const attempts:DexRouteAttempt[]=await Promise.all(this.adapters.map(async(adapter):Promise<DexRouteAttempt>=>{
    try{
     const quote=await adapter.quote(input.request)
     if(quote.provider!==adapter.provider)throw new Error('DEX_ROUTER_PROVIDER_BINDING_MISMATCH')
     const gate=evaluateDexRouteQuote({quote,policy:this.policy,now:input.request.now,consecutiveRealizedLosses:input.consecutiveRealizedLosses,lossHaltActive:input.lossHaltActive})
-    attempts.push(Object.freeze({provider:adapter.provider,quote,gate,authority:'ROUTE_ATTEMPT_EVIDENCE_ONLY' as const}))
+    return Object.freeze({provider:adapter.provider,quote,gate,authority:'ROUTE_ATTEMPT_EVIDENCE_ONLY' as const})
    }catch(error){
-    attempts.push(Object.freeze({provider:adapter.provider,errorCode:errorCode(error),authority:'ROUTE_ATTEMPT_EVIDENCE_ONLY' as const}))
+    return Object.freeze({provider:adapter.provider,errorCode:errorCode(error),authority:'ROUTE_ATTEMPT_EVIDENCE_ONLY' as const})
    }
-  }
+  }))
   const passing=attempts.filter(x=>x.quote&&x.gate?.disposition==='PASS') as Array<DexRouteAttempt&{quote:DexRouteQuote;gate:DexRouteGateDecision}>
   passing.sort((a,b)=>a.quote.quotedOutputAtomic===b.quote.quotedOutputAtomic?a.quote.feeBps-b.quote.feeBps:a.quote.quotedOutputAtomic>b.quote.quotedOutputAtomic?-1:1)
   const selected=passing[0]?.quote
