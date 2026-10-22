@@ -149,10 +149,10 @@ function AskJhadina(){
 
  async function retrySaveOnly(){
   // The request may have performed an action; NEVER send it a second time.
-  if(busy||retryingSessionSave||!pendingSessionSaveRef.current)return
+  const pending=pendingSessionSaveRef.current
+  if(busy||retryingSessionSave||!pending)return
   setRetryingSessionSave(true)
   try{
-   const pending=pendingSessionSaveRef.current
    await persistWorkSession(pending.userId,pending.command,pending.data)
    pendingSessionSaveRef.current=null
    setPendingSessionSave(false)
