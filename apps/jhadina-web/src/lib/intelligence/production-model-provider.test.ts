@@ -3,7 +3,7 @@ import {readJllmReasoningReadiness,resolveJllmReasoningReceipt} from "./producti
 describe("explicit, zero-cost JLLM provider readiness",()=>{
  it("does not silently select Gemini because a Gemini credential happens to exist",()=>{
   const state=readJllmReasoningReadiness({GEMINI_API_KEY:"present",ANTHROPIC_API_KEY:"",JHADINA_REASONING_PROVIDER:undefined})
-  expect(state).toMatchObject({selected:"anthropic",status:"NOT_CONFIGURED",alternativeAvailable:"gemini",generalReasoningReady:false})
+  expect(state).toMatchObject({selected:"local",status:"NOT_CONFIGURED",alternativeAvailable:"gemini",generalReasoningReady:false})
  })
  it("explicit Gemini selection is only configuration readiness, not live proof",()=>{
   const state=readJllmReasoningReadiness({GEMINI_API_KEY:"present",ANTHROPIC_API_KEY:"",JHADINA_REASONING_PROVIDER:"gemini"})
@@ -23,7 +23,7 @@ describe("per-turn source verification",()=>{
   })
  })
  it("makes legacy fallback visible instead of claiming generative reasoning",()=>{
-  expect(resolveJllmReasoningReceipt("anthropic",["primary_failed","fallback_used"])).toMatchObject({
+  expect(resolveJllmReasoningReceipt("local",["primary_failed","fallback_used"])).toMatchObject({
    provider:"legacy-classifier",mode:"CLASSIFICATION_ONLY",externallyVerified:false,
   })
  })
