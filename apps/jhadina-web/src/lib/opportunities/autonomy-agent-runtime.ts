@@ -1,4 +1,5 @@
-import { randomUUID } from 'node:crypto'
+import { randomUUID,createHash } from 'node:crypto'
+import type { VerifiedPublicExcerpt } from './public-source-verifier'
 import {
   DurableAgentRuntime,
   type AgentRuntimeRepository,
@@ -22,6 +23,7 @@ export async function runSourceBoundOpportunityPilot(input: {
   opportunity: Opportunity
   pilot: ServicePilotInput
   observations: OpportunityPilotSourceCheck[]
+  sourceReceipts?: VerifiedPublicExcerpt[]
   repository: AgentRuntimeRepository
   now?: () => string
 }) {
@@ -35,6 +37,16 @@ export async function runSourceBoundOpportunityPilot(input: {
       runId:null, document:null, externalActionAuthorized:false as const,
     }
   }
+  if(input.sourceReceipts){
+    const byId=new Map(input.sourceReceipts.map(r=>[r.evidenceId,r]))
+    if(input.sourceReceipts.length!==input.observations.length ||
+      input.observations.some(o=>{
+        const r=byId.get(o.evidenceId)
+        return !r || r.sourceUrl!==o.sourceUrl || r.confirmedExcerpt!==o.excerpt ||
+          !/^[a-f0-9]{64}$/.test(r.contentSha256) || r.externalActionAuthorized!==false
+      }))throw Error('Source hash receipts do not match approved source observations')
+  }
+  const reportSha256=createHash('sha256').update(admission.draft.document).digest('hex')
   const wallClock=input.now ?? (()=>new Date().toISOString())
   // The existing Agent Runtime retrieves its latest checkpoint by timestamp.
   // Several same-millisecond writes would otherwise make terminal recovery ambiguous.
@@ -67,6 +79,8 @@ export async function runSourceBoundOpportunityPilot(input: {
           document:admission.draft!.document,
           state:admission.draft!.state,
           evidenceRefs:input.observations.map(row=>row.evidenceId),
+          sourceHashes:(input.sourceReceipts??[]).map(r=>({evidenceId:r.evidenceId,sourceUrl:r.sourceUrl,sha256:r.contentSha256})),
+          reportSha256,
           externalActionAuthorized:false,
           paymentAuthorized:false,
         }
@@ -99,6 +113,7 @@ export async function runSourceBoundOpportunityPilot(input: {
     accepted:true as const,runId:run.id,
     blockers:[] as string[],
     document:admission.draft.document,
+    reportSha256,
     resultState:'internal_complete_awaiting_owner_review' as const,
     externalActionAuthorized:false as const,
     customerAcceptanceVerified:false as const,
@@ -110,5 +125,41 @@ export function assertOwnerScopedPilotRunId(runId:string,ownerId:string) {
   if (!ownerId.trim() || !runId.startsWith('agent-run:oce:'+ownerId+':') ||
       !/^agent-run:oce:[0-9a-f-]{36}:[0-9a-f-]{36}$/i.test(runId)) {
     throw new Error('OCE_PILOT_OWNER_SCOPE_DENIED')
+  }
+}
+
+/** Cold-read a completed owner run from the shared durable agent repository.
+ * Provides the original report and source hashes after browser refresh/restart.
+ * Never trusts client-supplied status, document or execution receipts.
+ */
+export async function readOwnerPilotRun(input:{
+  ownerId:string
+  runId:string
+  repository:AgentRuntimeRepository
+}) {
+  assertOwnerScopedPilotRunId(input.runId,input.ownerId)
+  const run=await input.repository.getRun(input.runId)
+  if(!run)return undefined
+  const checkpoint=await input.repository.getLatestCheckpoint(run.id)
+  const step=run.currentStepId?await input.repository.getStep(run.currentStepId):undefined
+  if(step && (step.runId!==run.id || step.operation!=='prepare_source_bound_pilot'))throw Error('Unexpected agent execution lineage')
+  const output=step?.status==='completed' && step.output && typeof step.output==='object'
+    ? step.output as Record<string,unknown> : null
+  const original=output && output.kind==='source_bound_internal_draft'&&typeof output.document==='string'
+    ? output.document : null
+  const document=original && original.length<=160_000?original:null
+  const reportSha256=output && typeof output.reportSha256==='string'?output.reportSha256:null
+  if(document && reportSha256!==createHash('sha256').update(document).digest('hex')){
+    throw Error('Persisted report digest mismatch')
+  }
+  return {
+    id:run.id,status:run.status,version:run.version,updatedAt:run.updatedAt,
+    checkpoint:checkpoint?{reason:checkpoint.reason,createdAt:checkpoint.createdAt,planRevision:checkpoint.planRevision}:null,
+    result:run.status==='completed'&&document?{
+      document,reportSha256,
+      sourceHashes:Array.isArray(output?.sourceHashes)?output.sourceHashes:[],
+      internalDraftOnly:true as const,customerDeliveryAuthorized:false as const,paymentAuthorized:false as const,
+    }:null,
+    externalActionAuthorized:false as const,
   }
 }
