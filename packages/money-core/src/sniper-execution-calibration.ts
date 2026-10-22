@@ -68,7 +68,7 @@ export function calibrateSniperExecution(input:{
   const q=Date.parse(s.quoteObservedAt),submitted=Date.parse(s.submittedAt),settled=Date.parse(s.settledAt),observed=Date.parse(s.observedAt)
   if(!Number.isFinite(q)||!Number.isFinite(submitted)||!Number.isFinite(settled)||!Number.isFinite(observed)||
     q>submitted||submitted>settled||settled>observed)throw new Error('SNIPER_CALIBRATION_TIME_INVALID')
-  if(observed>cutoffMs||s.source!=='CONFIRMED_ONCHAIN')continue
+  if(observed>cutoffMs||s.source!=='CONFIRMED_ONCHAIN'||s.chainAttestation!=='INDEPENDENT_RPC_VERIFIED')continue
   if(seen.has(s.sampleId))continue
   seen.add(s.sampleId)
   s.evidenceIds.forEach(id=>ids.add(id))
