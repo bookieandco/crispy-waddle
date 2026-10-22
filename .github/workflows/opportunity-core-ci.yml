@@ -116,6 +116,7 @@ jobs:
             src/lib/money-opportunities/sam-client.test.ts \
             src/lib/money-opportunities/sam-bulk-client.test.ts \
             src/lib/money-opportunities/sam-gateway-batches.test.ts \
+            src/lib/money-opportunities/sam-history-recovery.test.ts \
             src/lib/money-opportunities/sam-award-client.test.ts \
             src/lib/money-opportunities/sam-analysis-runtime.test.ts \
             src/lib/money-opportunities/sam-document-extractor.test.ts \
