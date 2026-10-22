@@ -79,7 +79,7 @@ export async function GET(request:NextRequest){
     return {name:s.source_name,url:s.source_url,status:s.adapter_status,
      certified:Boolean(certified.includes(s)),portalFamily:portal.family,
      portalReadiness:portal.status,portalBlockers:portal.blockers.slice(0,3)}
-   })}
+   })
    const discovery=jobMap.get(item.id)
    return {id:item.id,name:item.name,state:item.state_code,level:item.level,
     inventorySourceUrl:item.source_url,observedAt:item.observed_at,sourceCount:rows.length,
