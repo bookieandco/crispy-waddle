@@ -78,7 +78,7 @@ export type ProcurementDocument={
  id:string;kind:'solicitation'|'addendum'|'buyer_contact'|'specifications'|'forms'|'secondary';
  version:string;publishedAt:string;sourceUrl:string;official:boolean;evidenceRef:string;
  deadlineAt?:string;buyerContacts?:Omit<ProcurementBuyerContact,'evidenceRef'|'sourceUrl'|'publishedAt'>[];
- requiredForms?:string[];
+ requiredForms?:string[];bodyText?:string;
  scopeRefs?:string[];
 }
 export type ProcurementNoticeReview={
@@ -90,6 +90,26 @@ export type ProcurementNoticeReview={
 }
 const validEmail=(value:string)=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 const validPhone=(value:string)=>/[0-9]/.test(value)&&value.replace(/\D/g,'').length>=7
+/** Parse only nearby procurement-labeled contact lines from a previously verified official document.
+ * This is a candidate extraction, not an independent verification of the speaker/agency.
+ */
+export function extractOfficialBuyerContacts(text:string):Array<Omit<ProcurementBuyerContact,'evidenceRef'|'sourceUrl'|'publishedAt'>>{
+ const lines=text.split(/\r?\n/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean).slice(0,2000)
+ const contacts:Array<Omit<ProcurementBuyerContact,'evidenceRef'|'sourceUrl'|'publishedAt'>>=[]
+ for(let i=0;i<lines.length&&contacts.length<12;i++){
+  const line=lines[i]!
+  const role=line.match(/^(?:point of contact|contracting officer|procurement contact|buyer|purchasing contact|purchasing officer)\s*[:\-]\s*(.*)$/i)
+  if(!role)continue
+  const block=lines.slice(i,Math.min(i+4,lines.length)).join(' ')
+  const email=block.match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i)?.[0]
+  const phone=block.match(/(?:\+1[ .-]?)?\(?\d{3}\)?[ .-]?\d{3}[ .-]?\d{4}(?:\s*(?:x|ext\.?|extension)\s*\d+)?/i)?.[0]
+  if(!email&&!phone)continue
+  const roleName=line.split(/\s*[:\-]\s*/)[0]?.trim()
+  const name=(role[1]??'').split(/\b(?:email|telephone|phone|tel)\s*:/i)[0]?.trim()
+  contacts.push({role:roleName,name:name||undefined,email,phone})
+ }
+ return contacts
+}
 /** .02: structured official document and addendum reconciliation; secondary listings never override an official deadline. */
 export function reconcileProcurementNotice(opportunityId:string,documents:ProcurementDocument[],now=new Date().toISOString()):ProcurementNoticeReview{
  if(!opportunityId.trim()||!validDate(now))throw new Error('Valid opportunity and clock required')
@@ -110,7 +130,7 @@ export function reconcileProcurementNotice(opportunityId:string,documents:Procur
  const buyerContacts:ProcurementBuyerContact[]=[]
  const contactKeys=new Set<string>()
  for(const doc of ordered){
-  for(const contact of doc.buyerContacts??[]){
+  for(const contact of doc.buyerContacts?.length?doc.buyerContacts:extractOfficialBuyerContacts(doc.bodyText??'')){
    const email=contact.email?.trim().toLowerCase()
    const phone=contact.phone?.trim()
    if(!((email&&validEmail(email))||(phone&&validPhone(phone))))continue
