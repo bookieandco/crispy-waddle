@@ -10,8 +10,8 @@ type PreviewResponse={ok?:boolean;revision?:number;durationSeconds?:number;segme
  * Native iPhone-compatible A/V playback of approved source clips.
  * This deliberately does not flatten effects, transitions, overlays or final QC.
  */
-export function WorkstationPlayback({projectId,revision,playheadSeconds,sliderDuration,onSeek}:{
-  projectId:string;revision:number;playheadSeconds:number;sliderDuration:number;onSeek:(time:number)=>void
+export function WorkstationPlayback({projectId,revision,playheadSeconds,sliderDuration,frameWidth,frameHeight,onSeek}:{
+  projectId:string;revision:number;playheadSeconds:number;sliderDuration:number;frameWidth:number;frameHeight:number;onSeek:(time:number)=>void
 }){
   const [segments,setSegments]=useState<MediaSegment[]>([])
   const [notices,setNotices]=useState<string[]>([])
@@ -104,7 +104,7 @@ export function WorkstationPlayback({projectId,revision,playheadSeconds,sliderDu
       <h3 className="font-semibold">Synchronized edit preview</h3>
       <span className="text-xs text-muted-foreground">Source playback only · not a final MP4</span>
     </div>
-    <div className="relative mx-auto aspect-video max-h-[55vh] w-full overflow-hidden rounded-lg bg-black">
+    <div className="relative mx-auto max-h-[55vh] max-w-full overflow-hidden rounded-lg bg-black" style={{aspectRatio:`${frameWidth} / ${frameHeight}`,width:`min(100%, ${(55*frameWidth/Math.max(1,frameHeight)).toFixed(2)}vh)`}}>
       {video?<video key={video.clipId} ref={videoRef} src={video.url} playsInline preload="auto" className="h-full w-full object-contain" onLoadedMetadata={event=>sync(event.currentTarget,video)}/>:<div className="flex h-full items-center justify-center text-sm text-white/80">No video at this position</div>}
     </div>
     {audio.map(clip=><audio key={clip.clipId} src={clip.url} preload="auto"
