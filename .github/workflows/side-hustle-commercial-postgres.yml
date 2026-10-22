@@ -21,6 +21,7 @@ on:
       - 'packages/commerce-adapters/src/affiliate-partnerize-payout*'
       - '.github/workflows/side-hustle-commercial-postgres.yml'
       - 'scripts/purse-commercial-*'
+      - 'scripts/purse-isolated-restore-ci.sh'
   push:
     paths:
       - 'supabase/migrations/*side_hustle*.sql'
@@ -829,3 +830,7 @@ jobs:
           node --test scripts/purse-commercial-migration-preflight.test.mjs
           PGPASSWORD=jhadina psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
             -f scripts/purse-commercial-isolated-rls-smoke.sql
+
+      - name: Synthetic backup and restore to separate disposable PostgreSQL cluster
+        shell: bash
+        run: bash scripts/purse-isolated-restore-ci.sh
