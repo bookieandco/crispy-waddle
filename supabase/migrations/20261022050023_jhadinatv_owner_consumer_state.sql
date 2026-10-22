@@ -1,5 +1,6 @@
--- JTV-PRIVATE.FINISH.11: owner-scoped resume/watchlist. NOT APPLIED by this PR.
--- Confirm schema, apply under reviewed deployment credentials, then run 2-user RLS canary.
+-- JTV-PRIVATE.FINISH.11: owner-scoped resume/watchlist.
+-- Applied to canonical SWLC on 2026-10-21/22 as migration version 20261022050023.
+-- Production migration history must match this filename; still requires live two-user RLS canary.
 create table if not exists public.jtv_playback_checkpoints (
   user_id uuid not null references auth.users(id) on delete cascade,
   media_id text not null check (char_length(media_id) between 1 and 220),

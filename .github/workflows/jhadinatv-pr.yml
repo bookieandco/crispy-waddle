@@ -47,9 +47,11 @@ jobs:
         run: |
           set -o pipefail
           pnpm --filter @jhadina/jhadina-web exec vitest run \
+            lib/jhadinatv/server-viewer.test.ts \
             lib/jhadinatv/stream-capability.test.ts \
             lib/jhadinatv/hls-proxy.test.ts \
             lib/jhadinatv/playback-recovery.test.ts \
+            lib/jhadinatv/jellyfin-provider.test.ts \
             lib/jhadinatv/jellyfin-provider-network.test.ts \
             lib/jhadinatv/google-cast-runtime.test.ts \
             lib/jhadinatv/jellyfin-access.test.ts \
@@ -62,7 +64,8 @@ jobs:
             pages/api/jhadinatv/state.test.ts \
             pages/api/jhadinatv/postmerge.test.ts \
             pages/api/jhadinatv/jellyfin/stream.test.ts \
-            pages/api/jhadinatv/world/channels.test.ts 2>&1 | tee /tmp/jhadinatv-web-security-test.log
+            pages/api/jhadinatv/world/channels.test.ts \
+            lib/jhadinatv/tv-home-iphone.test.tsx 2>&1 | tee /tmp/jhadinatv-web-security-test.log
       - name: Type-check JhadinaTV web integration
         run: |
           set -o pipefail

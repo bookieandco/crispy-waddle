@@ -3,10 +3,13 @@ import { JHADINA_TV_ROUTES, buildPrivateNowGuide, importOwnerApprovedM3u, safePr
   type PrivateChannel, type PrivateProgram, type UnifiedGuideRow } from '@jhadina/tv-core';
 
 const STORAGE_KEY = 'jtv-private-live-v1';
+// Apple provides this sample to test HLS playback. It is VOD, NOT licensed Live TV.
+// Only load on an owner gesture; never save as a channel or proxy through Jellyfin.
+const APPLE_HLS_DEVICE_TEST = 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8';
 interface SavedChannels { version: 1; channels: PrivateChannel[]; guideXml: string; }
 interface WorldChannel { id: string; name: string; country: string; categories: string[]; website?: string; access: 'discovery-only'; }
 const panel = { border: '1px solid #303745', borderRadius: 16, background: '#141923', padding: 16 } as const;
-const button = { background: '#f5f5f5', color: '#101216', border: 0, borderRadius: 12, padding: '10px 14px', fontWeight: 700 as const, cursor: 'pointer' };
+const button = { background: '#f5f5f5', color: '#101216', border: 0, borderRadius: 12, padding: '10px 14px', minHeight: 44, fontWeight: 700 as const, cursor: 'pointer' };
 const darkButton = { ...button, color: '#f7f7f7', background: '#272f3e' };
 const inputStyle = { background: '#0b111c', color: '#fff', border: '1px solid #465065', borderRadius: 10, padding: 10, maxWidth: '100%' };
 
@@ -54,6 +57,7 @@ export default function JhadinaTVLivePage() {
   const [category, setCategory] = useState('');
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState('');
+  const [demoMode, setDemoMode] = useState(false);
   const [playbackMessage, setPlaybackMessage] = useState('');
   const [playerStatus, setPlayerStatus] = useState('');
   const [world, setWorld] = useState<WorldChannel[]>([]);
@@ -110,6 +114,9 @@ export default function JhadinaTVLivePage() {
     (!query || `${c.name} ${c.country ?? ''} ${c.group ?? ''} ${programs.get(c.id)?.title ?? ''}`.toLowerCase().includes(query.toLowerCase())),
   ), [channels, country, language, category, query, programs]);
   const selected = channels.find(channel => channel.id === selectedId) ?? null;
+  const playable = demoMode
+    ? { id: 'apple-hls-device-test', name: 'Apple HLS device test · VOD sample', country: 'TEST', url: APPLE_HLS_DEVICE_TEST }
+    : selected;
 
   function importChannels() {
     try {
@@ -141,6 +148,7 @@ export default function JhadinaTVLivePage() {
   }
   function selectChannel(channel: PrivateChannel) {
     if (!safePrivateStreamUrl(channel.url)) return;
+    setDemoMode(false);
     setSelectedId(channel.id);
     setPlaybackMessage('Tap Play to start with audio. On iPhone, playback requires a user gesture.');
     setPlayerStatus('Source selected. Availability not yet verified.');
@@ -197,9 +205,18 @@ export default function JhadinaTVLivePage() {
           {providerMessage && <p style={{ color: '#f3da95' }}>{providerMessage}</p>}
         </section>
         <section aria-label="Live player" style={{ ...panel, marginBottom: 18 }}>
-          {selected ? <>
-            <h2 style={{ marginTop: 0 }}>{selected.name} <small style={{ color: '#91a6c5', fontSize: 13 }}> · {selected.country || 'Private playlist'}</small></h2>
-            <video key={selected.id} ref={videoRef} src={selected.url} controls playsInline preload="none"
+          <div style={{ marginBottom: 14 }}>
+            <button type="button" style={darkButton} onClick={() => {
+              setDemoMode(true);
+              setSelectedId('');
+              setPlaybackMessage('Developer VOD sample only. Tap Play with sound to test Safari/HLS; this does not certify a live channel.');
+              setPlayerStatus('Device test selected; availability unverified.');
+            }}>Test my player with Apple HLS sample</button>
+            <small style={{ display: 'block', marginTop: 6, color: '#99aac6' }}>Optional playback diagnostic from Apple Developer examples. Not a broadcaster, not a saved TV channel, not proof of third-party viewing rights.</small>
+          </div>
+          {playable ? <>
+            <h2 style={{ marginTop: 0 }}>{playable.name} <small style={{ color: '#91a6c5', fontSize: 13 }}> · {playable.country || 'Private playlist'}</small></h2>
+            <video key={playable.id} ref={videoRef} src={playable.url} controls playsInline preload="none"
 
               onCanPlay={() => setPlayerStatus('Ready to play.')}
               onPlaying={() => setPlayerStatus('Playing.')}
@@ -214,7 +231,15 @@ export default function JhadinaTVLivePage() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 12, alignItems: 'center' }}>
               <button style={button} onClick={() => void startPlayback()}>▶ Play with sound</button>
               <button style={darkButton} onClick={() => { videoRef.current?.load(); setPlaybackMessage('Reloaded stream. Tap Play.'); }}>↻ Retry</button>
-              <button style={darkButton} onClick={() => { const v = videoRef.current; if (v && v.requestFullscreen) void v.requestFullscreen().catch(() => setPlaybackMessage('Fullscreen unavailable on this device.')); }}>⛶ Full screen</button>
+              <button style={darkButton} onClick={() => {
+                const video = videoRef.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
+                if (!video) return;
+                try {
+                  if (typeof video.webkitEnterFullscreen === 'function') video.webkitEnterFullscreen();
+                  else if (typeof video.requestFullscreen === 'function') void video.requestFullscreen().catch(() => setPlaybackMessage('Fullscreen unavailable on this device.'));
+                  else setPlaybackMessage('Use the native fullscreen control on your iPhone.');
+                } catch { setPlaybackMessage('Fullscreen unavailable; use the native video controls.'); }
+              }}>⛶ Full screen</button>
               <span role="status" style={{ color: '#a7b9d2', fontSize: 13 }}>{playerStatus}</span>
             </div>
             {playbackMessage && <p role="alert" style={{ color: '#f4cf9f' }}>{playbackMessage}</p>}
