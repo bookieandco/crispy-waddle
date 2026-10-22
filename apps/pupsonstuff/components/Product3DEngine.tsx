@@ -30,7 +30,7 @@ import type { ArtworkTransform } from "@/types/creative";
 import { clampArtworkCenter, getDecalPlacement } from "@/lib/product3d/placement";
 import { normalizeArtworkTransform } from "@/types/creative";
 import { toneProductMaterial } from "@/lib/product3d/material";
-import { fitProductCamera, modelBoundingRadius } from "@/lib/product3d/framing";
+import { fitProductCamera, modelBoundingRadius, inspectionCameraDirection, type ProductInspectionView } from "@/lib/product3d/framing";
 
 interface AreaDecalProps {
   url: string;
@@ -103,9 +103,11 @@ function CurvedFrontDecal({ url, area, transform }: AreaDecalProps) {
 function ProductCameraFit({
   radius,
   config,
+  view,
 }: {
   radius: number | null;
   config: Product3DCamera;
+  view: ProductInspectionView;
 }) {
   const { camera, size } = useThree();
   useEffect(() => {
@@ -115,14 +117,13 @@ function ProductCameraFit({
       aspect: size.width / Math.max(1, size.height),
     });
     if (!frame) return;
-    const direction = new THREE.Vector3(...config.position);
-    if (direction.lengthSq() === 0) direction.set(0, 0, 1);
+    const direction = new THREE.Vector3(...inspectionCameraDirection(config.position, view));
     camera.position.copy(direction.normalize().multiplyScalar(frame.distance));
     camera.near = Math.max(0.001, Math.min(0.1, frame.distance / 100));
     camera.far = Math.max(20, frame.distance * 20);
     camera.lookAt(0, 0, 0);
     camera.updateProjectionMatrix();
-  }, [camera, config, radius, size.width, size.height]);
+  }, [camera, config, radius, size.width, size.height, view]);
   return null;
 }
 
@@ -289,6 +290,7 @@ export default function Product3DEngine({
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
+  const [inspectionView, setInspectionView] = useState<ProductInspectionView>("front");
   const [modelRadius, setModelRadius] = useState<number | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const markReady = useCallback((radius: number) => {
@@ -299,6 +301,7 @@ export default function Product3DEngine({
     setFailed(false);
     setReady(false);
     setModelRadius(null);
+    setInspectionView("front");
     setRetryCount(0);
   }, [config.id, config.glbPath]);
   useEffect(() => {
@@ -385,7 +388,7 @@ export default function Product3DEngine({
               <ambientLight intensity={0.55} />
               <directionalLight position={[2, 2, 3]} intensity={0.9} castShadow />
               <directionalLight position={[-2, 1, -1.5]} intensity={0.35} />
-              <ProductCameraFit radius={modelRadius} config={config.camera} />
+              <ProductCameraFit radius={modelRadius} config={config.camera} view={inspectionView} />
               <Suspense fallback={null}>
                 <ProductMesh
                   config={config}
@@ -413,13 +416,33 @@ export default function Product3DEngine({
         {!failed && ready && (
           <button
             type="button"
-            onClick={() => reloadViewer(false)}
+            onClick={() => { setInspectionView("front"); reloadViewer(false); }}
             className="absolute right-3 top-3 rounded-full border border-greige/40 bg-cream/85 px-3 py-2 text-xs font-medium text-ink shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-bronze"
             aria-label="Reset 3D camera"
           >Reset view</button>
         )}
+        {!failed && ready && (
+          <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center gap-2" role="group" aria-label="Product inspection angles">
+            {(["front", "side", "back"] as const).map((view) => (
+              <button
+                key={view}
+                type="button"
+                aria-label={`View ${view} of product`}
+                aria-pressed={inspectionView === view}
+                className={`min-h-9 min-w-14 rounded-full border px-3 py-2 text-xs font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-bronze ${
+                  inspectionView === view
+                    ? "border-bronze bg-bronze text-cream"
+                    : "border-greige/60 bg-cream/90 text-ink"
+                }`}
+                onClick={() => setInspectionView(view)}
+              >
+                {view[0].toUpperCase() + view.slice(1)}
+              </button>
+            ))}
+          </div>
+        )}
         {!anyDecal && !failed && ready && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs text-ink/50">
+          <div className="pointer-events-none absolute inset-x-0 bottom-14 text-center text-xs text-ink/50">
             Generate a preview to see it on the {config.displayName.toLowerCase()}
           </div>
         )}
