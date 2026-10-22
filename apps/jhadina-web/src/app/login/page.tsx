@@ -20,12 +20,15 @@ export default function LoginPage({ searchParams = {} }: LoginPageProps) {
   const settingUpPasskey = next === "/settings/security";
 
   return (
-    <main style={{ maxWidth: 460, margin: "48px auto", padding: "24px 20px 72px" }}>
+    <main className="jh-page"><div className="jh-auth-card">
+      <p className="jh-eyebrow">Your private workspace</p>
       <h1>{settingUpPasskey ? "Sign in to set up a passkey" : "Sign in to Jhadina"}</h1>
-      <p>Only {JHADINA_PERSONAL_OWNER_EMAIL} can unlock this private workspace. Face ID passkey is the normal sign-in after a one-time email verification.</p>
+      <p>Welcome back. Unlock with your owner passkey. First visit? Verify your email once to set up Face ID.</p>
       {error && <p role="alert" style={{ color: "#a12c2c" }}>{authPageErrorMessage(error)}</p>}
       {message && <p role="status">{message === "check_email" ? "Check your email for the confirmation link." : message === "password_changed" ? "Password updated. Sign in with your new password." : "Your request has been received."}</p>}
 
+      <PasskeyAction next={next} />
+      <details open={settingUpPasskey}><summary>First visit · Set up Face ID</summary>
       <section style={{ display: "grid", gap: 14, marginTop: 24, padding: 16, border: "1px solid #54765d", borderRadius: 16 }}>
         <h2 style={{ margin: 0, fontSize: 20 }}>First-time access</h2>
         <p style={{ margin: 0 }}>Use one verified email link to enter, then add Face ID in Security Settings. If Supabase has temporarily reached its email quota, wait before requesting another; existing password sign-in remains available below.</p>
@@ -37,6 +40,7 @@ export default function LoginPage({ searchParams = {} }: LoginPageProps) {
           <button type="submit" style={{ padding: "12px 20px", minHeight: 50, borderRadius: 12, fontWeight: 700 }}>Email my one-time sign-in link</button>
         </form>
       </section>
+      </details>
       <details style={{ marginTop: 22 }}>
         <summary style={{ cursor: "pointer", padding: "8px 0" }}>Use an existing password (optional recovery)</summary>
       <form action={login} style={{ display: "grid", gap: 14, marginTop: 24 }}>
@@ -53,10 +57,6 @@ export default function LoginPage({ searchParams = {} }: LoginPageProps) {
       </form>
       </details>
 
-      <details style={{ marginTop: 24 }}>
-        <summary style={{ cursor: "pointer", padding: "8px 0" }}>Use a passkey instead (optional)</summary>
-        <PasskeyAction next={next} />
-      </details>
 
       {!settingUpPasskey && <p style={{ marginTop: 18 }}>
         Already signed in? <Link href="/settings/security">Set up a passkey on your device</Link> after email sign-in.
@@ -69,6 +69,6 @@ export default function LoginPage({ searchParams = {} }: LoginPageProps) {
         Prefer a password? <Link href="/auth/signup">Create the verified owner account using email and a password</Link>.
       </p>
       <p style={{ marginTop: 24 }}>If this page is behind a Vercel sign-in screen, use your Vercel project account first. That is separate from Jhadina.</p>
-    </main>
+    </div></main>
   );
 }

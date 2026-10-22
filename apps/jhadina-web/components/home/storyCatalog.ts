@@ -39,7 +39,7 @@ export const baseStories: Story[] = [
     title: 'Sports Intelligence',
     body: 'Game perception, simulations, model disagreement, clips, and evidence-backed win paths live in this world.',
     age: 'World',
-    action: { label: 'Open Sports', href: '/worlds/sports' },
+    action: { label: 'Open Sports', href: '/sports-lab' },
   },
   {
     id: 'pupsonstuff-commerce',

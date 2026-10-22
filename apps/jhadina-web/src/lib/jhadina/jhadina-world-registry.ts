@@ -48,7 +48,7 @@ const worldRows: WorldRow[] = [
   { id:"wallet", label:"Wallet / SHARK", description:"Wallet and market intelligence surfaces", capabilities:["wallet","intelligence"], inputs:["market","wallet"], href:"/wallet", group:"intelligence" },
   { id:"spatial", label:"Spatial / God’s Eye View", description:"Evidence-backed live world context", capabilities:["observe","inspect","compare","replay"], inputs:["location","evidence","source-health"], href:"/spatial", group:"intelligence" },
   { id:"knowledge", label:"Knowledge", description:"Research, evidence, provenance and governed knowledge admission", capabilities:["search","research","provenance"], inputs:["evidence","memory"], group:"intelligence" },
-  { id:"sports", label:"Sports Intelligence", description:"Perception, simulation and coach-facing win-path intelligence", capabilities:["observe","simulate","explain"], inputs:["games","evidence"], group:"intelligence" },
+  { id:"sports", label:"Sports Intelligence", description:"Perception, simulation and coach-facing win-path intelligence", capabilities:["observe","simulate","explain"], inputs:["games","evidence"], href:"/sports-lab", group:"intelligence" },
   { id:"safety", label:"SafetyOS", description:"Personal safety runtime, drills and governed escalation evidence", capabilities:["monitor","drill","evidence"], inputs:["safety","spatial"], group:"intelligence" },
   { id:"homebase", label:"Homebase", description:"Connectivity, offline knowledge, mesh, storage and governed AI compute coordination", capabilities:["connectivity","offline","mesh","storage","compute"], inputs:["network","knowledge","devices","runtime","director","memory"], group:"intelligence" },
 
