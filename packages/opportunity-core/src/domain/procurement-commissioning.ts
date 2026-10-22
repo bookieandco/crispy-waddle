@@ -96,6 +96,14 @@ const validPhone=(value:string)=>/[0-9]/.test(value)&&value.replace(/\D/g,'').le
 export function extractOfficialBuyerContacts(text:string):Array<Omit<ProcurementBuyerContact,'evidenceRef'|'sourceUrl'|'publishedAt'>>{
  const lines=text.split(/\r?\n/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean).slice(0,2000)
  const contacts:Array<Omit<ProcurementBuyerContact,'evidenceRef'|'sourceUrl'|'publishedAt'>>=[]
+ // SAM notice text may be pipe-delimited rather than line-labeled. A contact record
+ // still requires the explicit CONTACT INFORMATION heading and an email or phone.
+ for(const match of text.matchAll(/CONTACT INFORMATION\\|[^\\r\\n]{0,350}/gi)){
+  const segment=match[0]
+  const email=segment.match(/\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b/i)?.[0]
+  const phone=segment.match(/(?:\\+1[ .-]?)?\\(?\\d{3}\\)?[ .-]?\\d{3}[ .-]?\\d{4}/)?.[0]
+  if(email||phone)contacts.push({role:'SAM contact information',email,phone})
+ }
  for(let i=0;i<lines.length&&contacts.length<12;i++){
   const line=lines[i]!
   const role=line.match(/^(?:point of contact|contracting officer|procurement contact|buyer|purchasing contact|purchasing officer)\s*[:\-]\s*(.*)$/i)
