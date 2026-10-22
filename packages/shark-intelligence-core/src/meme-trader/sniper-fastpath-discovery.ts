@@ -50,7 +50,7 @@ export class SniperFastpathDiscoveryIntake {
     if(!Number.isFinite(receivedMs)||!Number.isFinite(meta.startedMonotonicMs)||!Number.isFinite(meta.finishedMonotonicMs)||meta.finishedMonotonicMs<meta.startedMonotonicMs){
       return finish('INVALID',['CLOCK_INVALID'])
     }
-    if(!event.signature||!event.signature.trim()||!Number.isSafeInteger(event.slot)||event.slot!<=0||
+    if(!event.signature||!event.signature.trim()||!Number.isSafeInteger(event.slot)||event.slot===undefined||event.slot<=0||
       typeof event.timestamp!=='number'||!Number.isFinite(event.timestamp)||event.timestamp<=0){
       return finish('INVALID',['CHAIN_EVENT_PROVENANCE_INCOMPLETE'])
     }
