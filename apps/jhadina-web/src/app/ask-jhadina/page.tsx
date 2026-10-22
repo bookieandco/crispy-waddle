@@ -28,7 +28,8 @@ type GrowthWorkPlan={kind:"growth_intelligence";operation:string;authority:"READ
 type VideoJobSummary={id:string;projectId:string;status:string;mode?:string;aspectRatio?:string;providerId?:string;error?:string;previewAssetId?:string}
 type SpatialContextUsageReceipt={used:boolean;authority:"INTELLIGENCE_ONLY";observationCount:number;evidenceCount:number;claimCount:number;realityCount:number;provenanceCount:number;sources:string[];conflictCount:number;uncertaintyCount:number;limitationCount:number}
 type SpatialGeographicScope={lat:number;lon:number;radiusKm?:number}
-type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;sportsHistoryView?:SportsHistoryViewForUi;visualResponse?:unknown;feedbackEligible?:boolean}
+type ReasoningReceipt={provider:"anthropic"|"gemini"|"legacy-classifier";mode:"MODEL_RESPONSE"|"CLASSIFICATION_ONLY";externallyVerified:false;note:string}
+type CommandResult={reasoningReceipt?:ReasoningReceipt;proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;sportsHistoryView?:SportsHistoryViewForUi;visualResponse?:unknown;feedbackEligible?:boolean}
 
 function sessionPointerStorage():SessionPointerStorage|undefined{
  try{return typeof window!=="undefined"?window.localStorage:undefined}catch{return undefined}
@@ -690,9 +691,10 @@ function AskJhadina(){
   {error&&<div className="jh-error" role="alert">{error}</div>}
   {result?<section className="jh-section">
    <article className="jh-card jh-card--wide">
-    <div className="jh-between"><div><span className={result.verified?"jh-status jh-status--success":"jh-status jh-status--danger"}><span className="jh-dot"/>{result.verified?"Verified response":"Verification failed"}</span><p className="jh-eyebrow" style={{marginTop:14}}>{result.proposal.disposition} · {result.expression.presentation.mode}</p></div><span className="jh-meta">Reasoning {result.reasoningEventId.slice(0,10)}…</span></div>
+    <div className="jh-between"><div><span className={result.verified?"jh-status jh-status--success":"jh-status jh-status--danger"}><span className="jh-dot"/>{result.reasoningReceipt?.mode==="CLASSIFICATION_ONLY"?"Classifier-only · no LLM answer":result.verified?"Governed response":"Verification failed"}</span><p className="jh-eyebrow" style={{marginTop:14}}>{result.proposal.disposition} · {result.expression.presentation.mode}</p></div><span className="jh-meta">Reasoning {result.reasoningEventId.slice(0,10)}…</span></div>
     <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{void speakExpression(result.expression.segments,undefined,result.expression.presentation).finally(()=>setInteractivePhase(conversationActive?"listening":"idle"))}}>Speak response</button><button type="button" className="jh-button" onClick={()=>{stopSpeech();setInteractivePhase(conversationActive?"listening":"idle")}}>Stop speech</button></div>
     <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
+    {result.reasoningReceipt?<p className="jh-meta" role="status">Answer source: {result.reasoningReceipt.provider} · {result.reasoningReceipt.mode==="MODEL_RESPONSE"?"Model response (external facts not independently verified)":"Request classification only"}</p>:null}
     {result.visualResponse?<VisualResponseCard raw={result.visualResponse}/>:null}
     <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
     {result.spatialContext?.used?<SpatialContextCard receipt={result.spatialContext}/>:null}
