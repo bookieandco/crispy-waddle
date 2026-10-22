@@ -39,4 +39,5 @@ jobs:
             apps/jhadina-agent-runtime/src/skills/MuseSkillCandidate.test.ts \
             apps/jhadina-agent-runtime/src/governance/OutboundSentinel.test.ts \
             apps/jhadina-agent-runtime/src/governance/GovernedBrowserSkillOperator.test.ts \
-            apps/jhadina-agent-runtime/src/governance/BrowserReadOnlyWorker.test.ts
+            apps/jhadina-agent-runtime/src/governance/BrowserReadOnlyWorker.test.ts \
+            apps/jhadina-agent-runtime/src/governance/BrowserReadActionComposition.test.ts
