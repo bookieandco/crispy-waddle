@@ -4,6 +4,7 @@ import {createClient} from '@/lib/supabase/server'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
 import {requireDirectorProjectAuthority} from '@/lib/director-project-authority'
 import {requestSocialPublication} from '@/lib/social/governed-publication'
+import {directorProductionAssetBlockers} from '@jhadina/director-core/production-asset-admission'
 
 export async function POST(request:Request){
   try{
@@ -52,7 +53,7 @@ export async function POST(request:Request){
 
     const [{data:asset,error:assetError},{data:approval,error:approvalError}]=await Promise.all([
       privileged.from('director_generated_editing_assets')
-        .select('id,project_id,uri,media_type,mime_type,generation_job_id,metadata')
+        .select('id,project_id,uri,provider_id,media_type,mime_type,generation_job_id,metadata')
         .eq('id',assetId).eq('project_id',projectId).maybeSingle(),
       privileged.from('director_editing_asset_approvals')
         .select('asset_id,approval_id,approved_at,approved_by_user_id')
@@ -61,6 +62,7 @@ export async function POST(request:Request){
     if(assetError)throw new Error('DIRECTOR_SOCIAL_ASSET_READ_FAILED:'+assetError.message)
     if(approvalError)throw new Error('DIRECTOR_SOCIAL_ASSET_APPROVAL_READ_FAILED:'+approvalError.message)
     if(!asset)throw new Error('DIRECTOR_SOCIAL_ASSET_NOT_FOUND')
+    if(directorProductionAssetBlockers(asset).length)throw new Error('DIRECTOR_PRODUCTION_ASSET_NOT_ADMISSIBLE')
     if(!approval)throw new Error('DIRECTOR_SOCIAL_ASSET_EDIT_APPROVAL_REQUIRED')
     if(!String(asset.uri).trim())throw new Error('DIRECTOR_SOCIAL_ASSET_URI_REQUIRED')
 
@@ -99,7 +101,7 @@ export async function POST(request:Request){
     },{status:202})
   }catch(error){
     const message=error instanceof Error?error.message:'DIRECTOR_SOCIAL_PROPOSAL_FAILED'
-    const status=/ACCESS_DENIED|CAPABILITY_DENIED/.test(message)?403:/NOT_FOUND/.test(message)?404:/FINAL_QC_ADMISSION|FINAL_MASTER/.test(message)?409:/REQUIRED|SCHEDULE|TARGET/.test(message)?400:500
+    const status=/ACCESS_DENIED|CAPABILITY_DENIED/.test(message)?403:/NOT_FOUND/.test(message)?404:/FINAL_QC_ADMISSION|FINAL_MASTER|PRODUCTION_ASSET_NOT_ADMISSIBLE/.test(message)?409:/REQUIRED|SCHEDULE|TARGET/.test(message)?400:500
     return NextResponse.json({ok:false,error:message},{status})
   }
 }
