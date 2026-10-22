@@ -186,6 +186,15 @@ describe('SHARK-FILTER.LIVE.13 safety-first two-sided route quote review',()=>{
     expect(bad.reasons).toContain('original-pair-route-provenance-incomplete')
     expect(bad.reasons).toContain('exit_route_not_sellable')
     expect(bad.shadow.indicativeNetUsd).toBeUndefined()
+    const incomplete=reviewLiveFilterPaperRoute({
+      study:study(),candidate:candidate(),
+      entry:route('route-entry',100,'2026-10-21T19:01:06Z'),
+      exit:route('route-exit',130,'2026-10-22T20:01:00Z'),
+      evaluatedAt:'2026-10-22T20:03:00Z',
+    })
+    expect(incomplete.status).toBe('NO_FILL_OR_UNVERIFIED')
+    expect(incomplete.shadow.state).toBe('NO_FILL')
+    expect(incomplete.shadow.indicativeNetUsd).toBeUndefined()
   })
 })
 
