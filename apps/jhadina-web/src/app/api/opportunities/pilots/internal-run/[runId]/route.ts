@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { createSupabaseAgentRuntimeRepository } from '@/lib/supabase-agent-runtime-repository'
-import { assertOwnerScopedPilotRunId } from '@/lib/opportunities/autonomy-agent-runtime'
+import { assertOwnerScopedPilotRunId,readOwnerPilotRun } from '@/lib/opportunities/autonomy-agent-runtime'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -16,9 +16,14 @@ export async function GET(_request:Request,context:{params:{runId:string}}){
   }
   const service=createServiceRoleClient()
   if(!service)return NextResponse.json({ok:false,error:'Agent store unavailable'},{status:503})
-  const repo=createSupabaseAgentRuntimeRepository(service)
-  const run=await repo.getRun(context.params.runId)
-  if(!run)return NextResponse.json({ok:false,error:'Pilot run not found'},{status:404})
-  const checkpoint=await repo.getLatestCheckpoint(run.id)
-  return NextResponse.json({ok:true,run:{id:run.id,status:run.status,version:run.version,updatedAt:run.updatedAt},checkpoint:checkpoint?{reason:checkpoint.reason,createdAt:checkpoint.createdAt,planRevision:checkpoint.planRevision}:null,externalActionAuthorized:false},{headers:{'cache-control':'no-store'}})
+  try {
+    const result=await readOwnerPilotRun({
+      ownerId:user.id,runId:context.params.runId,
+      repository:createSupabaseAgentRuntimeRepository(service),
+    })
+    if(!result)return NextResponse.json({ok:false,error:'Pilot run not found'},{status:404})
+    return NextResponse.json({ok:true,run:result},{headers:{'cache-control':'no-store'}})
+  }catch {
+    return NextResponse.json({ok:false,error:'Pilot recovery evidence unavailable'},{status:503,headers:{'cache-control':'no-store'}})
+  }
 }
