@@ -25,6 +25,24 @@ export const PUPSON_3D_GENERATORS = Object.freeze({
     mode: 'operator-provisioned-local-gpu',
     requiresExternalDisclosureReview: false,
   }),
+  'tencent-hunyuan3d-2': Object.freeze({
+    reference: 'https://github.com/Tencent-Hunyuan/Hunyuan3D-2',
+    mode: 'operator-provisioned-local-gpu',
+    // Community license territory, MAU and usage restrictions require review.
+    requiresExternalDisclosureReview: true,
+  }),
+  'aiuniai-unique3d': Object.freeze({
+    reference: 'https://github.com/AiuniAI/Unique3D',
+    mode: 'operator-provisioned-local-gpu',
+    // MIT source code does NOT establish license to all downloaded checkpoints.
+    requiresExternalDisclosureReview: false,
+  }),
+  'ashawkey-stable-dreamfusion': Object.freeze({
+    reference: 'https://github.com/ashawkey/stable-dreamfusion',
+    mode: 'operator-provisioned-local-gpu',
+    // Apache source code does NOT grant rights in SD/Zero123 model checkpoints.
+    requiresExternalDisclosureReview: false,
+  }),
 } as const);
 
 export type Pupson3DGenerator = keyof typeof PUPSON_3D_GENERATORS;
