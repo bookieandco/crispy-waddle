@@ -48,7 +48,6 @@ export async function runSamWideScan(client:SupabaseClient,input:{postedFrom:str
     receipt.resourceLinks=notices.reduce((n,row)=>n+row.resourceLinks.length,0)
     for(let start=0;start<notices.length;start+=250){
       const chunk=notices.slice(start,start+250)
-      const ids=chunk.map(x=>x.noticeId)
       await persistSamNoticeChunk(client,chunk,receipt)
     }
   }catch(error){
