@@ -147,5 +147,8 @@ export function createSignedGovernedBrowserResearchExecutor(
     isolationVerifier: SignedBrowserIsolationVerifier;
   },
 ) {
+  if (!(options.isolationVerifier instanceof SignedBrowserIsolationVerifier)) {
+    throw new Error("BROWSER_SIGNED_ISOLATION_NOT_COMMISSIONED");
+  }
   return createGovernedBrowserResearchExecutor(options);
 }
