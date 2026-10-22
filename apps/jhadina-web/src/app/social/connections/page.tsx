@@ -105,10 +105,10 @@ export default function FeedConnectionsPage(){
   <p className="jh-copy">Choose which services Jhadina can read. A publishing account is not automatically a personal social feed. Each provider needs its own permission and a verifiable source. Read access never approves posting, spending or memory updates.</p>
   <section className="jh-section" aria-labelledby="jh-selected-social-heading">
    <h2 id="jh-selected-social-heading" className="jh-section-title">Your selected accounts</h2>
-   <p className="jh-card-copy">These are the profile links you provided for Jhadina. They're saved to your private account as pending connection requests. Profile links do not grant access to private feeds, conversations or account publishing.</p>
+   <p className="jh-card-copy">These are the profile links you provided for Jhadina. They are saved to your private account as pending connection requests. Profile links do not grant access to private feeds, conversations or account publishing.</p>
    {selectedStatus==="checking"?<p className="jh-meta" role="status">Checking your saved profiles…</p>:null}
    {selectedStatus==="signin"?<p className="jh-meta" role="status">Sign in to Jhadina to see your selected accounts.</p>:null}
-   {selectedStatus==="unavailable"?<p className="jh-meta" role="status">Selected profiles couldn't be verified right now; no accounts are shown as connected.</p>:null}
+   {selectedStatus==="unavailable"?<p className="jh-meta" role="status">Selected profiles could not be verified right now; no accounts are shown as connected.</p>:null}
    {selectedStatus==="ready"&&selectedProfiles.length===0?<p className="jh-meta" role="status">No selected accounts are saved for this signed-in user.</p>:null}
    {selectedStatus==="ready"&&selectedProfiles.length>0?<div className="jh-grid" style={{marginTop:14}}>
     {selectedProfiles.map(profile=>{
