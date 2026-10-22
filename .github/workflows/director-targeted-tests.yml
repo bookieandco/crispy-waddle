@@ -259,6 +259,7 @@ jobs:
           src/lib/director-reference-media.test.ts
           src/app/api/workstation/editing-assets/route.test.ts
           src/app/api/workstation/recovery-readiness/route.test.ts
+          src/app/api/workstation/social-proposal/route.test.ts
           src/lib/social/director-bridge.test.ts
           src/lib/growth/ugc-batch-experiment-bridge.test.ts
           src/lib/opportunities/director-local-ugc-canary-ledger.test.ts
