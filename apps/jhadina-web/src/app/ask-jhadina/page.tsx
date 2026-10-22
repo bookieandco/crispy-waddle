@@ -33,7 +33,7 @@ type SpatialGeographicScope={lat:number;lon:number;radiusKm?:number}
 type ReasoningReceipt={provider:"local"|"anthropic"|"gemini"|"legacy-classifier";mode:"MODEL_RESPONSE"|"CLASSIFICATION_ONLY";externallyVerified:false;note:string}
 type CommandResult={reasoningReceipt?:ReasoningReceipt;proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;sportsHistoryView?:SportsHistoryViewForUi;visualResponse?:unknown;feedbackEligible?:boolean}
 
-function sessionPointerStorage():SessionPointerStorage|undefined{
+function sessionPointerStorage():Storage|undefined{
  try{return typeof window!=="undefined"?window.localStorage:undefined}catch{return undefined}
 }
 
