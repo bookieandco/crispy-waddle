@@ -135,6 +135,15 @@ export default function OpportunityCommandCenter() {
         <h1 style={h1}>Opportunities, on your terms.</h1>
         <p style={sub}>Jhadina finds, verifies, and ranks opportunities for you to review. Research approval never applies for a job, spends money, contacts a claimant, submits a bid, or publishes a listing.</p>
 
+        <Link href="/opportunity/procurement" style={federalCard}>
+          <div>
+            <div style={eyebrowSmall}>Government &amp; school procurement</div>
+            <div style={federalTitle}>Contract buyers → companies → governed bid reviews</div>
+            <div style={federalCopy}>Inspect verified-source school and county opportunities, supplier candidates, recovery blockers and bid-package checklists.</div>
+          </div>
+          <span style={federalArrow}>→</span>
+        </Link>
+
         <Link href="/opportunity/sam" style={federalCard}>
           <div>
             <div style={eyebrowSmall}>Federal contracts</div>
