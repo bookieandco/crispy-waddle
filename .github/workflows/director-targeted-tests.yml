@@ -317,6 +317,11 @@ jobs:
         run: |
           python3 scripts/director-converge-schema-preflight.py > /tmp/director-commission-13-inventory.json
           python3 -c "import json; p=json.load(open('/tmp/director-commission-13-inventory.json')); print('DIRECTOR_MIGRATION_TIMESTAMP_COLLISIONS:',json.dumps(p['collidingVersions'],sort_keys=True)); assert p['safeForAutomaticReplay'] is False"
+      - name: Director LIVE.20 read-only migration collision and payload-identity gate
+        run: |
+          python3 scripts/director-live-migration-admission-test.py
+          python3 scripts/director-live-migration-admission.py --output /tmp/director-live-20.json
+          python3 -c "import json; x=json.load(open('/tmp/director-live-20.json')); assert x['automaticReplayAllowed'] is False; assert x['liveRestoreVerified'] is False; print('DIRECTOR_LIVE_20_SOURCE_AUDIT_PASS; PRODUCTION_DDL_BLOCKED')"
       - name: Director pilot technical QC adversarial smoke (synthetic only)
         run: python3 scripts/director-commission-18-media-qc-test.py
       - name: Director migration collision, RLS, grants and timeline RPC source preflight
