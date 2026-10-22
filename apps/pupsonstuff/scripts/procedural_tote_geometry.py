@@ -183,6 +183,14 @@ def build_geometry(physical_mm, spec):
             # Double-sided one-material PBR permits front/back panel visibility.
             faces.extend(((base,base+1,base+2),(base,base+2,base+3)))
     return {"vertices":verts,"faces":faces,"uv":uv,"units":"meters",
+            "construction":{
+                "foldedInnerHem":True,
+                "separateRibbonHandles":2,
+                "reinforcementPanels":4,
+                "illustrativeDrapeNotManufacturerSimulation":True,
+                "supplierSilhouetteReviewRequired":True,
+                "physicalPrintZoneMappingVerified":False,
+            },
             "source":"supplier-metrics-required","storefrontApproved":False,
             "watertightApproved":False,"printifyPrintZoneCertified":False}
 
