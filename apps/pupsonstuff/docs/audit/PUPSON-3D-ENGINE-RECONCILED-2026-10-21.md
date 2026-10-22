@@ -66,3 +66,25 @@ When operator-owned credentials/host permissions are available: consented dog-ph
 - A view-only browser screenshot **does not** prove real photo uploads, production print quality or Safari on a physical iPhone.
 - A green build **does not** certify a deployed/private shopping experience.
 - No public launch, customer content, provider purchases, secrets, Supabase writes or production service modifications are implied by this audit.
+
+## Real CI browser screenshot review — 2026-10-21
+
+**Observed run:** [PupsonStuff Mobile Boutique Browser QA #39709403360](https://github.com/bookieandco/crispy-waddle/actions/runs/39709403360), exact head `d29dee9c2f6997c97b95d64b82b863283c4ca039`, **SUCCESS**. Actual screenshot artifact ID `12396745636`, SHA-256 `d2c0cfbfd7667125cae9e0b6e7612fec421df5ae66e88c12d894294c225e12eb`, expires October 29. 8 model variants (shirt, white/black hoodie, mug, pillow, bottle, tote, procedural canvas), plus iPhone-sized responsive and WebKit images.
+
+**Manual screenshot observations (not physical iPhone):**
+- The original photographic storefront reads convincingly in portrait immersive mode. The optional whole-room overview becomes a small inset intentionally; do not confuse that with a replacement main storefront.
+- Shirt silhouette and front artwork are visible; side looks plausible for a garment but requires production-vendor/reference validation.
+- Hoodie front and logo are visible in both colors, but side profile is noticeably thin/flattened and likely needs a higher-fidelity candidate GLB rather than a camera hack. Do not overwrite approved hoodie file automatically.
+- Mug front is a plain cylinder from dead-on angle; side reveals handle. Print projection is visible, not evidence of wrap placement.
+- Pillow front shape/print are visible; shape/projection still need real photograph/print-zone comparison.
+- Bottle artwork is visually small relative to height; increase only after matching vendor print zone and approved 2D master, not by guessing a larger UV band.
+- Tote is stiff/blocky with ring-like handles; this is a model-fidelity shortcoming, not simply missing lights.
+- Procedural canvas is serviceable for launch, though its reverse and print depth should be reviewed.
+
+**Found a QA evidence flaw:** Existing script used arbitrary cumulative drag distances and labeled resulting views `side` and `back` without verifying angle. The historical `back` screenshots were not reliable rear-view receipts. This branch adds explicit front/90° side/180° rear selection and asserts the print graphic is substantially hidden on the rear; actual new screenshot proof is CI-pending.
+
+**Additional texture lifecycle bug:** A bottle `CurvedFrontDecal` effect disposed its texture clone whenever rotation changed. Separate the rotation update from unmount cleanup and add an isolated synthetic double-rotation screenshot canary; this branch stages both.
+
+**Do not claim:** production sample verification, pet likeness, true iPhone WebGL behavior, faithful fabric volume, approved vendor print zone, live commerce, or private full-function deployment.
+
+**Review priorities:** preserve photo; verify named angle screenshots; hold weak models for candidate replacement review; reconcile 2D and 3D artwork; then physical iPhone pass. PR #1427 and PR #1441 remain drafts until their gates pass.
