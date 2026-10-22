@@ -185,6 +185,15 @@ test('canonical action fingerprints reject invalid, circular and nonserializable
   const circular: { self?: unknown } = {};
   circular.self = circular;
   assert.throws(() => bound({ ...base, action: circular }), /Circular approval action payload/);
+  const sparse = new Array(2);
+  sparse[1] = 'only-second';
+  assert.throws(() => bound({ ...base, action: sparse }), /Sparse approval action array/);
+  const symbolKey = { recipient: 'payee-a', [Symbol('hidden')]: 'secret' };
+  assert.throws(() => bound({ ...base, action: symbolKey }), /Unsupported approval action symbol key/);
+  const accessor = Object.defineProperty({}, 'amountMinor', {
+    enumerable: true, get() { return 500n; },
+  });
+  assert.throws(() => bound({ ...base, action: accessor }), /Unsupported approval action accessor/);
   assert.throws(() => createActionBoundFingerprint<Payload>(() => '')(base), /fingerprint invalid/);
 });
 
