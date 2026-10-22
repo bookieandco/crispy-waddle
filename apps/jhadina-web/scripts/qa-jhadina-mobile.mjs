@@ -171,6 +171,20 @@ try {
     assert.equal(await preview.getAttribute("aria-pressed"), "true")
     assert((await demo.innerText()).includes("Demo · sample only"))
 
+    // DIRECTOR-COMMISSION.17: a missing owner session must not manufacture
+    // an editable, durable Director project, even on the local smoke server.
+    // True signed-in Safari/Face ID and saved roundtrip require live schema.
+    await visit(page, "/workstation?projectId=director-unowned-mobile-canary")
+    const directorLoader = page.getByRole("heading", { name: "Preparing project" })
+    await directorLoader.waitFor({ state: "visible" })
+    await noHorizontalOverflow(page, size.name + " Director locked workstation")
+    assert.equal(await page.getByRole("navigation", { name: "Director production stages" }).count(), 0,
+      "Missing owner session exposed Director edit controls")
+    const directorText = await page.locator("main").innerText()
+    assert(!directorText.includes("Approved editing assets"), "Unauthenticated Director shelf surfaced")
+    await page.screenshot({ path: new URL(size.name + "-director-locked.png", out).pathname })
+    console.log("PASS", size.name, "Director controls stay locked without an authenticated owner")
+    
     await visit(page, "/login")
     assert.equal(await page.getByRole("navigation", { name: "Primary navigation" }).count(), 0,
       "Private login must not show OS navigation")
