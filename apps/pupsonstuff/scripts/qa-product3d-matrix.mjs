@@ -44,17 +44,24 @@ try {
       if (red>145 && red>green*1.45 && green>35 && green<155 && blue<105) coloredMarkerPixels++;
     }
     assert.ok(coloredMarkerPixels>20,`${item.name}: colored synthetic artwork invisible on front (${coloredMarkerPixels} red pixels)`);
-    // OrbitControls rotates the real WebGL model. These are view receipts,
-    // not angle-calibrated manufacturing diagrams.
+    // Use exact named camera directions. The older freehand-mouse drag
+    // overshot 180°: its misleading 'back' screenshot often showed a side.
+    // This is a reliable inspection receipt, NOT print-back approval.
+    for (const view of ['side', 'back']) {
+      const button=page.getByRole('button',{name:`View ${view} of product`});
+      await button.click();
+      assert.equal(await button.getAttribute('aria-pressed'),'true',
+        item.name+' '+view+' inspection direction not activated');
+      await page.waitForTimeout(280);
+      await page.screenshot({path:`${output}/qa3d-${item.name}-${view}.png`});
+    }
+    // Verify orbit still accepts a real drag after selecting named angles.
     const x=box.x+box.width/2,y=box.y+box.height/2;
-    await page.mouse.move(x,y);await page.mouse.down();
-    await page.mouse.move(x+box.width*0.28,y,{steps:12});await page.mouse.up();
-    await page.waitForTimeout(150);
-    await page.screenshot({path:`${output}/qa3d-${item.name}-side.png`});
-    await page.mouse.move(x,y);await page.mouse.down();
-    await page.mouse.move(x+box.width*0.56,y,{steps:14});await page.mouse.up();
-    await page.waitForTimeout(150);
-    await page.screenshot({path:`${output}/qa3d-${item.name}-back.png`});
+    await page.mouse.move(x,y); await page.mouse.down();
+    await page.mouse.move(x+box.width*0.12,y,{steps:8}); await page.mouse.up();
+    await page.waitForTimeout(120);
+    await page.getByRole('button',{name:'View front of product'}).click();
+    assert.equal(await page.getByRole('button',{name:'View front of product'}).getAttribute('aria-pressed'),'true');
     assert.deepEqual(errors,[],item.name+' browser errors');
     console.log(JSON.stringify({model:item.name,pass:true,views:['front','side','back'],syntheticDecal:true,markerPixels:coloredMarkerPixels}));
     await page.close();
