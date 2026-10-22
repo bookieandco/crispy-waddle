@@ -9,6 +9,7 @@ function fixture(){
  return '<table><thead><tr><th>Specification #</th><th>Project Name</th><th>Link to PDF</th><th>Bids Due Date</th></tr></thead><tbody>'+
  '<tr><td>PW 25-96</td><td>Well 20 Rehabilitation Project Phase II</td><td><a href="/files/scope.pdf">View Details</a></td><td>11/16/26</td></tr>'+
  '<tr><td>PW 25-96</td><td>Well 20 Rehabilitation Project Phase II</td><td>duplicate</td><td>11/16/26</td></tr>'+
+ '<tr><td>FD 26-116</td><td>Fire Department Annex Fire and Security Systems Installation</td><td>View Details</td><td>11/03/26</td></tr>'+
  '<tr><td></td><td>Addendum 1</td><td>View Details</td><td></td></tr>'+
  '<tr><td>PW 24-109</td><td>John C. Zaragoza Transit Center Improvements</td><td>View Details</td><td>10/28/26</td></tr>'+
  '<tr><td>PW 25-70</td><td>Wastewater Plant Improvements</td><td>View Details</td><td>10/21/26</td></tr>'+
@@ -28,11 +29,11 @@ test('Oxnard extracts future announced bids with stable IDs and excludes expired
  const observed='2026-10-22T19:00:00Z'
  const p=parseOxnardPublicProjectBids(fixture(),descriptor,observed)
  expect(p.structureMatched).toBe(true)
- expect(p.signals.map(x=>x.externalId)).toEqual(['OXNARD:PW 25-96','OXNARD:PW 24-109'])
- expect(p.signals.map(x=>x.deadline)).toEqual(['2026-11-16','2026-10-28'])
+ expect(p.signals.map(x=>x.externalId)).toEqual(['OXNARD:PW 25-96','OXNARD:PW 24-109','OXNARD:FD 26-116'])
+ expect(p.signals.map(x=>x.deadline)).toEqual(['2026-11-16','2026-10-28','2026-11-03'])
  expect(p.skippedRows).toBe(5)
  expect(p.duplicateExternalIds).toBe(0)
- expect(p.stableExternalIdCount).toBe(2)
+ expect(p.stableExternalIdCount).toBe(3)
  expect(p.signals.every(x=>x.stage==='open_solicitation'&&x.evidenceRef.includes(candidate.id))).toBe(true)
 })
 test('expired rows and nonbid tables cannot masquerade as live bidding opportunities',()=>{
