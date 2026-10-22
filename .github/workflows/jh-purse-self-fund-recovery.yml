@@ -1,0 +1,22 @@
+name: JH Purse Self-Fund Recovery Proof
+on:
+  pull_request:
+    paths:
+      - 'scripts/purse-self-fund-*'
+      - 'packages/money-core/src/purse-*'
+      - 'packages/money-core/src/accountant-controls.ts'
+      - 'packages/money-core/src/index.ts'
+      - '.github/workflows/jh-purse-self-fund-recovery.yml'
+  workflow_dispatch:
+jobs:
+  read-only-gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fail-closed read-only recovery gate regressions
+        run: node --test scripts/purse-self-fund-recovery-gate.test.mjs

@@ -1,0 +1,25 @@
+name: JH Purse Commercial Migration Preflight
+on:
+  pull_request:
+    paths:
+      - 'scripts/purse-commercial-*'
+      - 'supabase/migrations/20261002190000_side_hustle_commercial_runtime.sql'
+      - 'supabase/migrations/20261003143000_side_hustle_commerce_runtime.sql'
+      - 'supabase/migrations/20261003181500_side_hustle_commissioning_evidence.sql'
+      - 'supabase/migrations/20261003221000_side_hustle_digital_product_studio_registry.sql'
+      - 'docs/architecture/JH-PURSE-COMMERCIAL-MIGRATION-PREFLIGHT.md'
+      - '.github/workflows/jh-purse-commercial-migration-preflight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-pinned-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate canonical source blob IDs and closed financial gates
+        run: node --test scripts/purse-commercial-migration-preflight.test.mjs
