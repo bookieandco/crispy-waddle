@@ -44,6 +44,21 @@ describe("local JLLM inference boundary",()=>{
   expect(remote).not.toHaveBeenCalled()
   await expect(t.generate({model:"qwen3:4b",system:"",prompt:"hi",maxOutputTokens:1024})).rejects.toThrow("UNAVAILABLE")
  })
+ it("rejects half-configured Cloudflare Access and attaches only server-side service credentials",async()=>{
+  const clientId="test-access-id",clientSecret="test-access-secret"
+  expect(()=>validateLocalModelEndpoint({...gateway,accessClientId:clientId})).toThrow(/ACCESS_CREDENTIAL_PAIR_REQUIRED/)
+  expect(()=>validateLocalModelEndpoint({...gateway,accessClientSecret:clientSecret})).toThrow(/ACCESS_CREDENTIAL_PAIR_REQUIRED/)
+  let headers:Record<string,string>|undefined
+  const fake=vi.fn(async (_:RequestInfo|URL, init?:RequestInit)=>{
+   headers=init?.headers as Record<string,string>
+   return new Response(JSON.stringify({message:{content:"{\"disposition\":\"DEFER\"}"}}))
+  })
+  await createOllamaLocalInferenceTransport({...gateway,accessClientId:clientId,accessClientSecret:clientSecret},
+   fake as typeof fetch).generate({model:gateway.model,system:"local",prompt:"hello",maxOutputTokens:512})
+  expect(headers?.["CF-Access-Client-Id"]).toBe(clientId)
+  expect(headers?.["CF-Access-Client-Secret"]).toBe(clientSecret)
+  expect(headers?.authorization).toBe("Bearer example-private-token")
+ })
  it("marks unconfigured local endpoint unavailable",()=>{
   expect(resolveLocalModelConnection({JHADINA_LOCAL_MODEL_URL:undefined,JHADINA_LOCAL_MODEL_NAME:"x"})).toBeNull()
  })
