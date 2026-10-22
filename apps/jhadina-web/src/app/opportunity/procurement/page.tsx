@@ -31,9 +31,12 @@ function Deadline({value,continuous}:{value?:string;continuous:boolean}){
  return <span style={pill}>{expired?"Past listed deadline · reverify":"Listed deadline"}: {new Date(value).toLocaleString("en-US",{timeZone:"America/Los_Angeles",month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"})}</span>
 }
 type PrimeMatch={providerId:string;providerName:string;role:string;score:number;disposition:string;matchingSignals:string[];blockers:string[];evidenceRefs:string[]}
+type FederalPrimeResearch={ok:boolean;report?:{observations:Array<{awardedPrimeName:string;awardId:string;historicalAwardAmount:number|null;sourceUrl:string}>;sampled:boolean;workPerformedInStateDoesNotProveSupplierIsLocal:boolean};error?:string}
 type PrimeReply={ok:boolean;historicalProfilesScanned?:number;matrix?:{results:PrimeMatch[];noSend:boolean};diligence?:{status:string;totalGates:number;missing:string[];failed:string[]};error?:string}
-function RegionalPrimePanel({pilotId,inboxId}:{pilotId?:string;inboxId?:string}){
+function RegionalPrimePanel({pilotId,inboxId,state='CA'}:{pilotId?:string;inboxId?:string;state?:string}){
  const [data,setData]=useState<PrimeReply|null>(null)
+ const [federal,setFederal]=useState<FederalPrimeResearch|null>(null)
+ const [federalBusy,setFederalBusy]=useState(false)
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState("")
  async function match(){
@@ -48,10 +51,32 @@ function RegionalPrimePanel({pilotId,inboxId}:{pilotId?:string;inboxId?:string})
   }catch(e){setError(e instanceof Error?e.message:"Regional prime research unavailable")}
   finally{setBusy(false)}
  }
+ async function federalResearch(){
+  setFederalBusy(true);setError("")
+  try{
+   const r=await fetch("/api/opportunities/procurement/primes?state="+encodeURIComponent(state)+"&history=manual",{cache:"no-store"})
+   const value=await r.json() as FederalPrimeResearch
+   if(!r.ok||!value.ok)throw Error(value.error??"Treasury research unavailable")
+   setFederal(value)
+  }catch(e){setError(e instanceof Error?e.message:"Treasury research unavailable")}
+  finally{setFederalBusy(false)}
+ }
  return <div style={{margin:"12px 0"}}>
   <button type="button" style={{...btn,padding:"8px 12px",fontSize:12}} disabled={busy} onClick={()=>void match()}>
    {busy?"Checking award evidence…":"Match regional prime contractors"}
   </button>
+  <button type="button" style={{...btn,padding:"8px 12px",fontSize:12,marginLeft:6,marginTop:4}} disabled={federalBusy} onClick={()=>void federalResearch()}>
+   {federalBusy?"Checking Treasury…":"Research federal awards ("+state+")"}
+  </button>
+  {federal?.report&&<div style={{...dim,fontSize:12,background:"#1d2a33",padding:12,marginTop:8,borderRadius:10}}>
+   <strong>Treasury USAspending sample ({federal.report.observations.length} historical federal awards)</strong>
+   <p>Performance in {state} does not mean these contractors are based there, have local licenses, can prime an RFQ, or agreed to team.</p>
+   {federal.report.observations.slice(0,12).map(x=><p key={x.awardId} style={{margin:"8px 0"}}>
+    {x.awardedPrimeName} · Award {x.awardId} · {typeof x.historicalAwardAmount==="number"?x.historicalAwardAmount.toLocaleString("en-US",{style:"currency",currency:"USD"}):"Value not available"}
+   </p>)}
+   <SourceLink href="https://api.usaspending.gov/docs/intro-tutorial">Official Treasury award research source</SourceLink>
+  </div>}
+
   {error&&<p role="alert" style={{color:"#ffd1c0"}}>{error}</p>}
   {data&&<div style={{border:"1px solid #465361",borderRadius:12,padding:12,marginTop:8}}>
    <p style={{...dim,fontSize:12}}>Reviewed {data.historicalProfilesScanned??0} state-awarded historical prime profiles. Matches are research leads only; current licensing, capacity, bonding, teaming consent, pricing and bid eligibility are unverified.</p>
@@ -160,7 +185,7 @@ function JurisdictionDirectory({state}:{state:string}){
      <div style={{...mini,fontSize:10}}>Recorded solicitation observations · not bid-certified</div>
      {x.inboxObservations.map(o=><div key={o.id} style={{padding:"7px 0",borderTop:"1px solid #34424f"}}>
       <SourceLink href={o.sourceUrl}>{o.title}</SourceLink>
-      <RegionalPrimePanel inboxId={o.id}/>
+      <RegionalPrimePanel inboxId={o.id} state={x.state}/>
       <div style={{...dim,fontSize:11}}>Last recorded: {new Date(o.lastSeenAt).toLocaleDateString()} · Recheck official deadline and addenda</div>
       <button disabled={reviewing!==null} type="button" onClick={()=>void reviewInbox(o.id)} style={{...btn,marginTop:6,padding:"7px 10px",fontSize:12}}>Prepare no-send review</button>
       {reviews[o.id]&&<div style={{...dim,fontSize:11,padding:7,marginTop:5,border:"1px solid #655039",borderRadius:8}}>
