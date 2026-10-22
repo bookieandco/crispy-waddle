@@ -28,6 +28,15 @@ describe("JHADINA-LIVE-CONTEXT runtime", () => {
     })
   })
 
+  it("restores only bounded public Wikipedia revision references from owner-scoped WorkSession", () => {
+    const restored=restoreWorkSessionContinuity({
+      goal:"Research Ada",
+      outputRefs:["wikipedia:123:456","wikipedia:321:unknown","https://bad.example","wikipedia:0:55","wikipedia:abc:12"],
+    })
+    expect(restored.researchSourceRefs).toEqual(["wikipedia:123:456","wikipedia:321:unknown"])
+    expect(restoreWorkSessionContinuity(null).researchSourceRefs).toEqual([])
+  })
+
   it("restores only admitted WorkSession artifacts and bounded subsystem context", () => {
     expect(restoreWorkSessionContinuity({
       goal:"Continue the campaign review",
@@ -40,6 +49,7 @@ describe("JHADINA-LIVE-CONTEXT runtime", () => {
       goal:"Continue the campaign review",
       activeSubsystems:["growth","social"],
       admittedArtifactIds:["artifact-clean"],
+      researchSourceRefs:[],
     })
   })
 
