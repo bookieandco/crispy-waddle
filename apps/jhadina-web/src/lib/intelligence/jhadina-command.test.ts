@@ -202,24 +202,27 @@ describe("Jhadina Command — the instantiated operating loop (Phase 1 Step 5)",
     expect(await memoryRepo.listPending("user-step5-2")).toHaveLength(0)
   })
 
-  it("3 & 4. a valid approval receipt is consumed exactly once — replaying it fails", async () => {
+  it("3 & 4. approval-gated Command requests stay pending until a real human decision", async () => {
     const identity: ActionRequestIdentity = { userId: "user-step5-3", sessionId: "s-3" }
     const router = new IntelligenceRouter({ primary: providerReturning(proposalFor("PROCEED")), fallback: providerThatFails() })
     const overrides = { ...freshOverrides(identity, router), policy: alwaysApprovalRequiredPolicy() }
 
     const result = await handleJhadinaCommand({ userId: identity.userId, activeTask: "note my preference" }, overrides)
     expect(result.approvalReceiptId).toBeDefined()
-    expect(result.candidate).toBeDefined()
+    expect(result.candidate).toBeUndefined()
+    const pending = await new MemoryRepository(getStorage()).listPending(identity.userId)
+    expect(pending).toHaveLength(0)
 
-    // Replaying the same receipt id against the same store must fail —
-    // it was already consumed by the ActionExecutor call above.
-    const replayed = await overrides.approvalStore!.consume(result.approvalReceiptId as string, {
+    // Even a forged consume attempt cannot turn a pending receipt into
+    // permission. Jhadina must use the separate human approval surface.
+    const forged = await overrides.approvalStore!.consume(result.approvalReceiptId as string, {
       actionId: "different-action-id",
       userId: identity.userId,
       type: MEMORY_PROPOSE_CAPABILITY,
-      fingerprint: `memory-propose:${result.reasoningEventId}:${result.candidate?.content}`,
+      fingerprint: "forged",
     })
-    expect(replayed).toBe(false)
+    expect(forged).toBe(false)
+    expect(overrides.rpc.rows.some((event) => event.status === "approval_required")).toBe(true)
   })
 
   it("5 & 6. a model proposal with forged capability/approval/execution fields cannot elevate authority — the audit record only ever shows the application-owned capability", async () => {
