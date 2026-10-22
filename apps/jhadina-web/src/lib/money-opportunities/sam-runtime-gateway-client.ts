@@ -31,7 +31,11 @@ async function gateway(body:Record<string,unknown>){
   })
   const payload=await response.json().catch(()=>({ok:false,error:'invalid_json'})) as Record<string,unknown>
   if(!response.ok||payload.ok!==true){
-    throw new Error(typeof payload.error==='string'?payload.error:`SAM runtime gateway HTTP ${response.status}`)
+    // Preserve a bounded machine-actionable gateway reason; never include tokens or request bodies.
+    const code=typeof payload.error==='string'?payload.error:`SAM_RUNTIME_HTTP_${response.status}`
+    const reason=typeof payload.reason==='string' && /^[a-zA-Z0-9_:-]{1,90}$/.test(payload.reason)
+      ?`:${payload.reason}`:''
+    throw new Error(code+reason)
   }
   return payload
 }
