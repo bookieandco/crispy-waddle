@@ -31,7 +31,7 @@ export function publicAuthorStories(raw:unknown, provider:PublicPreviewProvider)
   return [{
    id:"public-author:"+key,source,kind:"social",title:item.title,body:item.summary,
    occurredAt:new Date(timestamp).toISOString(),age:new Date(timestamp).toLocaleString(),
-   action:{label:"View original post",href:url.toString()},
+   action:{label:provider==="github"?"Open source repository":"View original post",href:url.toString()},
    details:[
     {label:"Author",value:item.sourceAccount},
     {label:"Connection",value:"Public author preview, not a linked account"},
