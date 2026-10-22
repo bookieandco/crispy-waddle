@@ -64,6 +64,7 @@ jobs:
           src/lib/opportunities/public-source-commissioning-runtime.test.ts
           src/lib/opportunities/public-generic-adapters.test.ts
           src/lib/opportunities/public-rusd-bids-adapter.test.ts
+          src/lib/opportunities/public-oxnard-bids-adapter.test.ts
           src/lib/opportunities/public-usaspending-regional-primes.test.ts
           src/lib/opportunities/public-usac-vertical-runtime.test.ts
       - name: Direct convergence runner compile probe
