@@ -4,7 +4,8 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { createSupabaseOpportunityRepository } from '@/lib/opportunities/supabase-opportunity-repository'
 import { createSupabaseAgentRuntimeRepository } from '@/lib/supabase-agent-runtime-repository'
 import { runSourceBoundOpportunityPilot } from '@/lib/opportunities/autonomy-agent-runtime'
-import type { ServicePilotInput,OpportunityPilotSourceCheck } from '@jhadina/opportunity-core'
+import { verifyCanonicalPublicExcerpts } from '@/lib/opportunities/public-source-verifier'
+import type { ServicePilotInput } from '@jhadina/opportunity-core'
 
 export const dynamic='force-dynamic'
 export const runtime='nodejs'
@@ -28,18 +29,21 @@ export async function POST(request:Request) {
     const stored=await createSupabaseOpportunityRepository().get(body.opportunityId)
     if(!stored||stored.userId!==user.id)return NextResponse.json({ok:false,error:'Opportunity not found'},{status:404})
     const now=new Date().toISOString()
-    const evidence=stored.opportunity.evidence.filter(row=>
-      ['official','secondary'].includes(row.sourceType)&&
-      Boolean(row.excerpt?.trim())&&
-      row.sourceUrl.startsWith('https://')&&
-      Number.isFinite(Date.parse(row.capturedAt))&&
-      Date.parse(row.capturedAt)<=Date.parse(now)
-    ).slice(0,50)
-    const observations:OpportunityPilotSourceCheck[]=evidence.map((row,index)=>({
-      id:'observed:'+index,opportunityId:stored.opportunity.id,
-      sourceUrl:row.sourceUrl,evidenceId:row.id,
-      excerpt:row.excerpt!,observedAt:row.capturedAt,reviewedByOwner:true,
-    }))
+    const verified=await verifyCanonicalPublicExcerpts({
+      opportunity:stored.opportunity,
+      allowedHosts:(process.env.OCE_RESEARCH_ALLOWED_HOSTS??'').split(','),
+      now,
+    })
+    if(verified.blockers.length || verified.observations.length<2) {
+      return NextResponse.json({
+        ok:false,
+        blockers:[...verified.blockers,
+          ...(verified.observations.length<2?['At least two actual attributable public source matches required']:[])],
+        externalActionAuthorized:false,
+      },{status:409,headers:{'cache-control':'no-store'}})
+    }
+    const observations=verified.observations
+    const evidence=stored.opportunity.evidence
     const pilot:ServicePilotInput={
       kind:body.kind as ServicePilotInput['kind'],
       subject:body.kind==='seo_audit'?stored.opportunity.sourceUrl:stored.opportunity.title,
@@ -54,7 +58,8 @@ export async function POST(request:Request) {
       ownerId:user.id,opportunity:stored.opportunity,pilot,observations,
       repository:createSupabaseAgentRuntimeRepository(service),
     })
-    return NextResponse.json({ok:result.accepted,...result,sourceRecordsConsidered:evidence.length,
+    return NextResponse.json({ok:result.accepted,...result,sourceRecordsConsidered:observations.length,
+      actualSourceMatchReceipts:verified.sourceReceipts,
       independentVerificationCompleted:false,externalActionAuthorized:false},{
       status:result.accepted?201:409,headers:{'cache-control':'no-store'},
     })
