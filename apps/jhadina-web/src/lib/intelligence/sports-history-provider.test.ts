@@ -137,6 +137,19 @@ describe("Sports history production provider",()=>{
     })).rejects.toThrow("SPORT_HISTORY_PROVIDER_BYPASS_TARGET_FORBIDDEN")
   })
 
+  it("does not show a successful history card when the provider returns zero stats",async()=>{
+    const provider=createProductionSportsHistoryProvider({
+      baseUrl:"https://history.internal/history/query",
+      fetchImpl:async()=>new Response(JSON.stringify({...responseBody,records:[]}),{status:200}),
+    })
+    await expect(provider.query({
+      rawQuery:"LeBron James NBA all-time points and 3 pointers",
+      league:"nba",scopes:[{kind:"ALL_TIME"}],
+      statKeys:["points","three_point_field_goals_made"],
+      asOf:"2026-09-27T20:00:00Z",
+    })).resolves.toBeNull()
+  })
+
   it("fails closed for unresolved/not-admissible provider responses",async()=>{
     const provider=createProductionSportsHistoryProvider({
       baseUrl:"https://history.internal/history/query",
