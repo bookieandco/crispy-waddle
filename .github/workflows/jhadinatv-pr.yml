@@ -65,7 +65,7 @@ jobs:
             pages/api/jhadinatv/postmerge.test.ts \
             pages/api/jhadinatv/jellyfin/stream.test.ts \
             pages/api/jhadinatv/world/channels.test.ts \
-            pages/jhadinatv/index.test.tsx 2>&1 | tee /tmp/jhadinatv-web-security-test.log
+            lib/jhadinatv/tv-home-iphone.test.tsx 2>&1 | tee /tmp/jhadinatv-web-security-test.log
       - name: Type-check JhadinaTV web integration
         run: |
           set -o pipefail
