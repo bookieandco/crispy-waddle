@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import styles from "./JhadinaShellNavigation.module.css"
+import { JHADINA_WORLDS, worldDirectHref } from "@/lib/jhadina/jhadina-world-registry"
 import { VpnShellControl } from "./VpnShellControl"
 
 type IconName="home"|"ask"|"work"|"activity"|"more"|"money"|"media"|"growth"|"opportunity"|"spatial"|"calendar"|"campaign"|"placement"|"wallet"|"privacy"|"studio"
@@ -15,23 +16,7 @@ const primary=[
  ["activity","Activity","/activity"],
 ] as const
 
-const worlds=[
- ["money","Money","/money/command-center"],
- ["wallet","Wallet","/wallet"],
- ["media","Music","/music"],
- ["media","JhadinaTV","/jhadinatv"],
- ["studio","Director Workstation","/workstation"],
- ["growth","Growth","/growth"],
- ["growth","Social","/social"],
- ["opportunity","Opportunities","/opportunity"],
- ["opportunity","Side Hustles","/opportunity/side-hustles"],
- ["opportunity","Relationships","/relationships"],
- ["spatial","Spatial","/spatial"],
- ["calendar","Calendar","/calendar"],
- ["campaign","Campaign Polls","/campaign/polls"],
- ["placement","Placement","/placement/worker/opportunities"],
- ["privacy","Privacy","/settings/privacy"],
-] as const
+const worlds = JHADINA_WORLDS.filter(world => !["home", "assistant", "work", "activity"].includes(world.id))
 
 function Icon({name}:{name:IconName}){
  const common={width:20,height:20,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.8,strokeLinecap:"round" as const,strokeLinejoin:"round" as const,"aria-hidden":true}
@@ -61,25 +46,26 @@ export function JhadinaShellNavigation(){
  const wrap=useRef<HTMLDivElement>(null)
  useEffect(()=>setOpen(false),[pathname])
  useEffect(()=>{
-  function close(event:MouseEvent){if(open&&wrap.current&&!wrap.current.contains(event.target as Node))setOpen(false)}
+  function close(event:MouseEvent){if(open&&wrap.current&&!wrap.current.contains(event.target as Node)&&!(event.target instanceof Element && event.target.closest('[aria-controls="jhadina-worlds-menu"]')))setOpen(false)}
   function escape(event:KeyboardEvent){if(event.key==="Escape")setOpen(false)}
   document.addEventListener("mousedown",close);document.addEventListener("keydown",escape)
   return()=>{document.removeEventListener("mousedown",close);document.removeEventListener("keydown",escape)}
  },[open])
+ if(pathname === "/login" || pathname.startsWith("/auth/")) return null
  return <>
   <div className={styles.brand}><Link href="/" aria-label="Jhadina home"><span className={styles.brandMark}><Icon name="ask"/></span><span className={styles.brandText}>Jhadina</span></Link></div>
   <div className={styles.vpnWrap}><VpnShellControl/></div>
   <div ref={wrap} className={styles.moreWrap}>
    <button type="button" className={styles.worldsButton} aria-label="Open Jhadina worlds" aria-expanded={open} aria-controls="jhadina-worlds-menu" onClick={()=>setOpen(v=>!v)}><Icon name="more"/><span>Worlds</span></button>
    {open&&<nav id="jhadina-worlds-menu" className={styles.menu} aria-label="Jhadina worlds">
-    <div className={styles.menuHead}><div><strong>Worlds</strong><span>Route-backed subsystems</span></div><Link href="/worlds">All worlds →</Link></div>
-    <div className={styles.grid}>{worlds.map(([icon,name,href])=><Link className={[styles.world,active(pathname,href)?styles.active:""].filter(Boolean).join(" ")} key={href} href={href}><Icon name={icon}/><span>{name}</span></Link>)}</div>
-    <div className={styles.menuFoot}><Link href="/approvals">Approvals</Link><Link href="/memory">Memory</Link><Link href="/health">System status</Link></div>
+    <div className={styles.menuHead}><div><strong>Worlds</strong><span>Your work, media and everyday tools</span></div><Link href="/worlds">All worlds →</Link></div>
+    <div className={styles.grid}>{worlds.map(world=><Link className={[styles.world,active(pathname,worldDirectHref(world))?styles.active:""].filter(Boolean).join(" ")} key={world.id} href={worldDirectHref(world)} aria-current={active(pathname,worldDirectHref(world))?"page":undefined} onClick={()=>setOpen(false)}><Icon name={world.group==="media"?"media":world.group==="intelligence"?"opportunity":world.group==="work"?"work":"studio"}/><span>{world.label}<small>{world.href?"Open workspace":"Demo preview"}</small></span></Link>)}</div>
+    <div className={styles.menuFoot}><Link href="/opportunity/side-hustles">Side Hustles</Link><Link href="/relationships">Relationships</Link><Link href="/settings/security">Face ID & security</Link><Link href="/settings/privacy">Privacy</Link><Link href="/approvals">Approvals</Link><Link href="/memory">Memory</Link><Link href="/health">System status</Link></div>
    </nav>}
   </div>
   <nav className={styles.primary} aria-label="Primary navigation">
    {primary.map(([icon,name,href])=><Link key={href} href={href} aria-current={active(pathname,href)?"page":undefined} className={[styles.navLink,active(pathname,href)?styles.active:""].filter(Boolean).join(" ")}><Icon name={icon}/><span>{name}</span></Link>)}
-   <button type="button" className={[styles.navLink,open?styles.active:""].filter(Boolean).join(" ")} aria-label="More Jhadina worlds" aria-expanded={open} onClick={()=>setOpen(v=>!v)}><Icon name="more"/><span>More</span></button>
+   <button type="button" className={[styles.navLink,open?styles.active:""].filter(Boolean).join(" ")} aria-label="More Jhadina worlds" aria-controls="jhadina-worlds-menu" aria-expanded={open} onClick={()=>setOpen(v=>!v)}><Icon name="more"/><span>More</span></button>
   </nav>
  </>
 }

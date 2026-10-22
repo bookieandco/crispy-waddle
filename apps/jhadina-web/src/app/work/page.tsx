@@ -1,6 +1,13 @@
 import Link from "next/link"
 
 const workspaces=[
+ {title:"Music Juggernaut",copy:"Catalog, experiments and promotion planning.",href:"/music/juggernaut",kind:"Music"},
+ {title:"Music Restoration",copy:"Prepare and review audio restoration work.",href:"/music/restoration",kind:"Audio"},
+ {title:"Social Studio",copy:"Prepare creative packages for your connected accounts.",href:"/social/studio",kind:"Create"},
+ {title:"Sports Lab",copy:"Read the paper-study results and source evidence.",href:"/sports-lab",kind:"Research"},
+ {title:"SHARK Intelligence",copy:"Explore market intelligence and research.",href:"/shark/alpha",kind:"Research"},
+ {title:"SAM",copy:"Open the existing opportunity and recovery workspace.",href:"/opportunity/sam",kind:"Work"},
+ {title:"Side Hustles",copy:"Explore the existing business opportunity workspaces.",href:"/opportunity/side-hustles",kind:"Business"},
  {title:"Director Workstation",copy:"Edit projects, review generated assets and continue creative work.",href:"/workstation",kind:"Create"},
  {title:"Growth",copy:"Review drafts, approvals and schedules before anything publishes.",href:"/growth",kind:"Publish"},
  {title:"Social",copy:"Connect exact accounts, prepare publication proposals and explicitly approve provider dispatch.",href:"/social",kind:"Publish"},

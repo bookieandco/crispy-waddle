@@ -41,6 +41,8 @@ describe("Supabase confirmation and PKCE callback on private Jhadina previews", 
     const res = await GET(req);
     expect(res.status).toBeGreaterThanOrEqual(300);
     expect(res.headers.get("location")).toBe("https://private.vercel.app/settings/security");
+    expect(res.headers.get("cache-control")).toContain("no-store");
+    expect(res.headers.get("referrer-policy")).toBe("no-referrer");
     expect(mocked.verifyOtp).toHaveBeenCalledWith({ type: "email", token_hash: "owner-safe-token" });
   });
 

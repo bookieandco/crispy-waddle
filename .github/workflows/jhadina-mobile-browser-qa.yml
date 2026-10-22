@@ -1,0 +1,73 @@
+name: Jhadina Private Mobile Browser QA
+
+on:
+  pull_request:
+    paths:
+      - "apps/jhadina-web/**"
+      - ".github/workflows/jhadina-mobile-browser-qa.yml"
+      - "pnpm-lock.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jhadina-mobile-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mobile-chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Frozen workspace install
+        run: pnpm install --frozen-lockfile
+      - name: Build genuine Jhadina web bundle (no deployment)
+        run: pnpm turbo run build --filter=@jhadina/jhadina-web
+      - name: Install temporary browser test driver on CI only
+        run: |
+          pnpm --filter @jhadina/jhadina-web add --save-dev --ignore-scripts playwright@1.56.1
+          pnpm --dir apps/jhadina-web exec playwright install --with-deps chromium
+      - name: Exercise responsive App and Pages Router UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --filter @jhadina/jhadina-web exec next start -p 3100 > "$RUNNER_TEMP/jhadina-mobile.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=no
+          for _ in $(seq 1 40); do
+            if curl -fsS --max-time 2 -H 'x-jhadina-e2e-smoke: local-production-bundle' http://127.0.0.1:3100/work > /dev/null 2>&1; then
+              ready=yes
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" != yes ]; then
+            tail -n 60 "$RUNNER_TEMP/jhadina-mobile.log"
+            exit 1
+          fi
+          node apps/jhadina-web/scripts/qa-jhadina-mobile.mjs
+      - name: Save mobile layout screenshots for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jhadina-mobile-browser-evidence
+          path: apps/jhadina-web/jhadina-mobile-qa/*.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Record proof boundary
+        if: always()
+        run: |
+          echo 'Local production-bundle Chromium viewport acceptance only, using the existing loopback-only smoke route. NOT Safari, real iPhone, Face ID, protected-preview, provider login, real session, merge, or deployment proof.' >> "$GITHUB_STEP_SUMMARY"
