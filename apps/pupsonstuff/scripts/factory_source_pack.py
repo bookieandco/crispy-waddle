@@ -73,6 +73,35 @@ def verify_pack(root, manifest, for_execution=False):
     sku = manifest.get("supplierSku")
     if supplier != "Printify" or not isinstance(sku, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_:\-]{3,99}", sku) or "placeholder" in sku.lower():
         blockers.append("REAL_PRINTIFY_VARIANT_REQUIRED")
+    # The Printify lookup is an *exact* blueprint / provider / variant
+    # read-only snapshot from our canonical client, not a placeholder SKU.
+    for key in ("blueprintId", "printProviderId", "variantId"):
+        v = manifest.get(key)
+        if type(v) is not int or v <= 0:
+            blockers.append("PRINTIFY_" + key.upper() + "_REQUIRED")
+    evidence_file = manifest.get("printifyCatalogEvidence")
+    evidence_digest = manifest.get("printifyCatalogEvidenceSha256")
+    if not isinstance(evidence_file, str) or not isinstance(evidence_digest, str) or not re.fullmatch(r"[a-f0-9]{64}", evidence_digest):
+        blockers.append("EXACT_PRINTIFY_CATALOG_SNAPSHOT_REQUIRED")
+    else:
+        try:
+            evidence_path = source_path(root, evidence_file)
+            if evidence_path.stat().st_size > 256 * 1024 or sha256_file(evidence_path) != evidence_digest:
+                blockers.append("PRINTIFY_CATALOG_SNAPSHOT_HASH_INVALID")
+            else:
+                catalog = json.loads(evidence_path.read_text("utf8"))
+                same_ids = all(catalog.get(k) == manifest.get(k) for k in (
+                    "blueprintId", "printProviderId", "variantId"
+                ))
+                if (not isinstance(catalog, dict) or
+                    catalog.get("authority") != "PRINTIFY_CATALOG_READ_ONLY" or
+                    catalog.get("product") != product or
+                    catalog.get("storefrontApproved") is not False or
+                    not same_ids or not isinstance(catalog.get("printAreasPx"), list) or
+                    len(catalog["printAreasPx"]) < 1):
+                    blockers.append("PRINTIFY_EXACT_VARIANT_OR_PRINT_ZONE_NOT_PROVED")
+        except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+            blockers.append("PRINTIFY_CATALOG_SNAPSHOT_INVALID:" + str(exc))
     dimensions = manifest.get("dimensionsMm")
     if not isinstance(dimensions, list) or len(dimensions) != 3 or any(
         type(x) not in (float, int) or not 0 < x <= 3000 for x in dimensions
