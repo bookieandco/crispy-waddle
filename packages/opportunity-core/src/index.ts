@@ -126,6 +126,8 @@ export * from './domain/public-award-prime.js'
 
 export * from './domain/public-prime-coverage.js'
 export * from './domain/prime-subcontractor-matching.js'
+export * from './domain/prime-finder-pursuit-readiness.js'
+export * from './domain/prime-finder-acceptance.js'
 
 export * from './domain/dotgov-registry.js'
 
