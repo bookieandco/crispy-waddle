@@ -24,7 +24,7 @@ const out=(phase,blockers,evidence)=>{
   evidenceRefs:Object.freeze([...new Set(evidence)]),
   authority:'EVIDENCE_INVENTORY_ONLY',
   independentlyCertified:false,canMigrate:false,canCharge:false,
-  canSendInvoice:false,canPayOwner:false,canMoveMoney:false,canTrade:false,
+  canSendInvoice:false,canPayOwner:false,canMoveMoney:false,canTrade:false,canExecute:false,
  })
 }
 
