@@ -49,6 +49,8 @@ function AskJhadina(){
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState("")
  const [worldFilter,setWorldFilter]=useState("")
+ const [localCanaryBusy,setLocalCanaryBusy]=useState(false)
+ const [localCanaryResult,setLocalCanaryResult]=useState("")
  const [modelReadiness,setModelReadiness]=useState<{selected:"local"|"anthropic"|"gemini";status:"CONFIGURED_UNVERIFIED"|"NOT_CONFIGURED";alternativeAvailable:"anthropic"|"gemini"|null;note:string}|null>(null)
  const [sessionWarning,setSessionWarning]=useState("")
  const [pendingSessionSave,setPendingSessionSave]=useState(false)
@@ -602,9 +604,31 @@ function AskJhadina(){
   <p className="jh-eyebrow">Ask Jhadina · {surface}</p>
   <h1 className="jh-title">Think across the whole OS.</h1>
   {modelReadiness?<p className={modelReadiness.status==="NOT_CONFIGURED"?"jh-error":"jh-meta"} role="status">
-   Reasoning model: {modelReadiness.selected} · {modelReadiness.status==="NOT_CONFIGURED"?"not configured":"credential configured; live answer unverified"}.
+   Reasoning model: {modelReadiness.selected} · {modelReadiness.status==="NOT_CONFIGURED"?"not configured":"configured; live answer unverified"}.
    {modelReadiness.alternativeAvailable?` An alternative (${modelReadiness.alternativeAvailable}) has a credential but is not automatically enabled.`:""}
   </p>:null}
+  {modelReadiness?.selected==="local"&&modelReadiness.status==="CONFIGURED_UNVERIFIED"?
+   <div className="jh-row" style={{marginTop:8,alignItems:"center"}}>
+    <button type="button" className="jh-button" disabled={localCanaryBusy}
+      onClick={()=>{void(async()=>{
+       setLocalCanaryBusy(true);setLocalCanaryResult("")
+       try{
+        const userId=await getCurrentUserId()
+        if(!userId)throw new Error("Sign in required")
+        const response=await fetch("/api/jhadina/model-canary",{
+         method:"POST",cache:"no-store",headers:{"x-jhadina-user-id":userId},
+        })
+        const json=await response.json()
+        setLocalCanaryResult(response.ok&&json?.success?
+         "Local inference and structured proposal passed. Factual accuracy and tools remain unverified.":
+         "Local model did not pass the private inference check.")
+       }catch{setLocalCanaryResult("Unable to check local reasoning")}
+       finally{setLocalCanaryBusy(false)}
+      })()}}>
+      {localCanaryBusy?"Checking local model…":"Test local reasoning"}
+    </button>
+    {localCanaryResult?<span className="jh-meta" role="status">{localCanaryResult}</span>:null}
+   </div>:null}
   <p className="jh-copy">Ask is Jhadina’s governed LLM surface. It can reason across approved context and subsystem intelligence, explain its evidence, and propose next steps. The model itself does not mutate policy, memory, values, money, or external systems.</p>
   <div className="jh-card jh-card--wide" style={{marginTop:28}}>
    <div className="jh-between" style={{gap:16,alignItems:"center"}}>
