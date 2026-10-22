@@ -92,7 +92,9 @@ export function mergeRoundOneLedgers(values: readonly unknown[]): RoundOneLedger
     for (const entry of ledger.entries) {
       const existing = byQuestion.get(entry.questionNumber)
       if (existing) {
-        if (existing.topic !== entry.topic || existing.answer !== entry.answer) {
+        if (existing.topic !== entry.topic || existing.answer !== entry.answer ||
+            existing.questionSummary !== entry.questionSummary ||
+            existing.questionSummarySource !== entry.questionSummarySource) {
           throw new Error("Conflicting private answers for " + entry.questionId + "; resolve them locally")
         }
         continue
