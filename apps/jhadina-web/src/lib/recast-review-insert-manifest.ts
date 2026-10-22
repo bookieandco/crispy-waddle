@@ -15,7 +15,7 @@ export type RecastUnpersistedReceipt=Readonly<{
   reviewed_by_user_id:string
   reviewed_at:string
   expires_at:string
-  status:'approved'
+  status:'approved'|'rejected'
   method:'trusted-media-probe'|'human-review'
   evidence:unknown
   evidence_sha256:string
