@@ -13,6 +13,7 @@ export interface MusicAutopilotWorkerReceipt{
   enabledProjects:number;
   processed:number;
   completed:number;
+  blocked:number;
   failed:number;
   receipts:readonly MusicAutopilotRunReceipt[];
   errors:readonly string[];
@@ -35,6 +36,7 @@ export async function runMusicAutopilotWorker(
   const receipts:MusicAutopilotRunReceipt[]=[];
   const errors:string[]=[];
   let completed=0;
+  let blocked=0;
 
   for(const row of rows){
     const userId=String(row.user_id??'').trim();
@@ -69,7 +71,15 @@ export async function runMusicAutopilotWorker(
         now:()=>now,
       });
       receipts.push(receipt);
-      completed+=1;
+      // A returned receipt is not proof that the campaign reached completion.
+      // Do not turn a blocked/approval-waiting run into a scheduler success.
+      const fullyCompleted = receipt.charterEnabled &&
+        receipt.stages.length > 0 &&
+        receipt.stages.every(stage => stage.status === 'complete' || stage.status === 'skipped') &&
+        receipt.blockers.length === 0 &&
+        !receipt.approvalRequired;
+      if (fullyCompleted) completed += 1;
+      else blocked += 1;
     }catch(cause){
       errors.push(projectId+':'+errorMessage(cause).slice(0,500));
     }
@@ -80,6 +90,7 @@ export async function runMusicAutopilotWorker(
     enabledProjects:rows.length,
     processed:rows.length,
     completed,
+    blocked,
     failed:errors.length,
     receipts:Object.freeze(receipts),
     errors:Object.freeze(errors),
