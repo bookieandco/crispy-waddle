@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabasePublicConfig } from "./public-config";
+import { allowIndependentLabRead } from "./independent-lab-policy";
 
 const SELF_AUTHENTICATED_MACHINE_ROUTES = new Set([
   "/api/health",
@@ -35,6 +36,18 @@ export async function updateSession(request: NextRequest) {
   // impossible and, when public auth env is absent, used to crash middleware
   // before the route could fail closed on its own secret.
   if (isSelfAuthenticatedMachineRoute(pathname)) {
+    return response;
+  }
+
+  // Only the exact non-mutating static lab file on its protected Vercel preview
+  // may render while SWLC Auth is unavailable. This does NOT grant any API access.
+  if (allowIndependentLabRead({
+    pathname, method: request.method,
+    vercelEnv: process.env.VERCEL_ENV,
+    gitRef: process.env.VERCEL_GIT_COMMIT_REF,
+  })) {
+    response.headers.set("Cache-Control", "private, no-store");
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
     return response;
   }
 
