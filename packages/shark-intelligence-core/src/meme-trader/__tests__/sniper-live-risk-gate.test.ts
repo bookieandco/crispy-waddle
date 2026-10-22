@@ -24,7 +24,8 @@ describe('SHARK live-wiring risk',()=>{
   expect(check({...e,confirmedSellRoute:false}).reasonCodes).toContain('SELL_ROUTE_NOT_PROVEN')
   expect(check({...e,proof:'UNVERIFIED'}).reasonCodes).toContain('ONCHAIN_ATTESTATION_REQUIRED')
   expect(check({...e,creatorClusterChecked:false}).disposition).toBe('BLOCK')
-  expect(check({...e,availableAt:'2026-10-21T19:00:00Z'}).disposition).toBe('BLOCK')
+  expect(check({...e,observedAt:'2026-10-21T18:59:59Z',availableAt:'2026-10-21T19:00:00Z'}).reasonCodes).toContain('EVIDENCE_FUTURE_OR_STALE')
+  expect(()=>check({...e,availableAt:'2026-10-21T19:00:00Z'})).toThrow('SNIPER_RISK_PROVENANCE_INVALID')
  })
  it('blocks repeat bad deployers before they reach the paper executor',()=>{
   expect(check(e,undefined,.8).reasonCodes).toContain('CREATOR_REPEATED_BAD_LAUNCHES')
