@@ -94,8 +94,10 @@ class UnslothCreativeProvider implements PupsonCreativeProvider {
   readonly submissionGuarantee = 'non-idempotent-remote' as const;
 
   supports(style: ArtStyle) {
-    return process.env.PUPSON_OPENAI_STYLE_BACKEND === 'local_worker' &&
-      style !== 'ascii-art' && style !== 'studio-ghibli' && style !== 'flux-dreamscape';
+    const localOnly = process.env.PUPSON_CREATIVE_COST_POLICY === 'local_only';
+    return (localOnly || process.env.PUPSON_OPENAI_STYLE_BACKEND === 'local_worker') &&
+      style !== 'ascii-art' &&
+      (localOnly || (style !== 'studio-ghibli' && style !== 'flux-dreamscape'));
   }
 
   async generate(request: PupsonCreativeGenerationRequest): Promise<PupsonCreativeGenerationResult> {
@@ -151,8 +153,8 @@ class OpenAICreativeProvider implements PupsonCreativeProvider {
 
 const PROVIDERS: readonly PupsonCreativeProvider[] = [
   new AsciiCreativeProvider(),
-  new MuapiCreativeProvider(),
   new UnslothCreativeProvider(),
+  new MuapiCreativeProvider(),
   new OpenAICreativeProvider(),
 ];
 
