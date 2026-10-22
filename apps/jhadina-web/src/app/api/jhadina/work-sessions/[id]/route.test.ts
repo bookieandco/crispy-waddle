@@ -2,9 +2,9 @@ import {beforeEach,describe,expect,it,vi} from "vitest"
 import {NextRequest} from "next/server"
 import type {JhadinaWorkSession} from "@jhadina/core-spine"
 
-const mocks=vi.hoisted(()=>({verify:vi.fn(),get:vi.fn(),save:vi.fn()}))
+const mocks=vi.hoisted(()=>({verify:vi.fn(),get:vi.fn(),save:vi.fn(),runtimeClient:vi.fn()}))
 vi.mock("@/lib/auth/request-identity",()=>({createRequestIdentityVerifier:async()=>({verify:mocks.verify})}))
-vi.mock("@/lib/supabase/service-role",()=>({createServiceRoleClient:()=>({})}))
+vi.mock("@/lib/supabase/service-role",()=>({createRuntimeServiceRoleClient:mocks.runtimeClient}))
 vi.mock("@/lib/work-session/supabase-work-session-repository",()=>({
  SupabaseWorkSessionRepository:class{get=mocks.get;save=mocks.save},
 }))
@@ -19,9 +19,22 @@ describe("WorkSession continuity writes",()=>{
  beforeEach(()=>{
   vi.resetAllMocks()
   mocks.verify.mockResolvedValue({userId:"owner-a"})
+  mocks.runtimeClient.mockResolvedValue({})
   let saved:JhadinaWorkSession|null=null
   mocks.get.mockImplementation(async()=>saved)
   mocks.save.mockImplementation(async(value:JhadinaWorkSession)=>{saved=value})
+ })
+ it("uses the request-aware privileged client for session writes",async()=>{
+  const response=await PUT(request({goal:"save this session"}),route)
+  expect(response.status).toBe(200)
+  expect(mocks.runtimeClient).toHaveBeenCalledTimes(1)
+ })
+ it("fails closed without an authorized privileged session client",async()=>{
+  mocks.runtimeClient.mockResolvedValue(null)
+  const response=await PUT(request({goal:"save this session"}),route)
+  expect(response.status).toBe(503)
+  expect((await response.json()).error).toBe("WORK_SESSION_STORAGE_NOT_CONFIGURED")
+  expect(mocks.save).not.toHaveBeenCalled()
  })
  it("retains the first turn's references and subsystems on creation",async()=>{
   const body={goal:"research contracts",activeSubsystems:["opportunity"],decisionRefs:["decision-1"],outputRefs:["result-1"],artifactRefs:[{id:"artifact-1",kind:"data",provenanceRef:"artifact:artifact-1",admitted:true}]}
