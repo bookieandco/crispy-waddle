@@ -41,6 +41,22 @@ try {
         "Missing primary " + name)
     }
     await noHorizontalOverflow(page, size.name + " work")
+    const toolbar = await page.evaluate(() => {
+      const worlds = document.querySelector('[aria-label="Open Jhadina worlds"]')
+      const vpn = document.querySelector('[aria-label="Open VPN settings"]') ??
+        document.querySelector('[aria-pressed][class*="vpnToggle"]')
+      if (!(worlds instanceof HTMLElement) || !(vpn instanceof HTMLElement)) return null
+      const a = worlds.getBoundingClientRect()
+      const b = vpn.getBoundingClientRect()
+      return { worlds: { left: a.left, right: a.right, height: a.height, width: a.width },
+        vpn: { left: b.left, right: b.right, height: b.height } }
+    })
+    assert(toolbar, "Top toolbar controls missing")
+    assert(toolbar.worlds.right + 4 <= toolbar.vpn.left,
+      "Top toolbar overlaps at " + size.name + ": " + JSON.stringify(toolbar))
+    assert(toolbar.worlds.height >= 44 && toolbar.worlds.width >= 44 &&
+      toolbar.vpn.height >= 44, "Top toolbar touch targets too small")
+
     await page.screenshot({ path: new URL(size.name + "-work.png", out).pathname })
 
     const more = primary.getByRole("button", { name: "More Jhadina worlds" })
