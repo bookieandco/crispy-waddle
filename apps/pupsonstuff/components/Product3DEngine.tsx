@@ -61,6 +61,30 @@ function AreaDecal({ url, area, transform }: AreaDecalProps) {
 }
 
 /**
+ * The procedural canvas is a rectangular front print, not a projected
+ * 3D decal: drei's Decal can intersect both faces of its thin box and
+ * make a supposedly front-only portrait visible on the BACK. A normal
+ * front-facing textured plane, offset 1 mm from the canvas face, avoids
+ * that misleading representation while keeping the transform in the
+ * same viewer/print-area coordinates.
+ */
+function CanvasFrontArtwork({ url, area, transform }: AreaDecalProps) {
+  const texture = useTexture(url);
+  useEffect(() => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+  }, [texture]);
+  const placement = useMemo(() => getDecalPlacement(area, transform), [area, transform]);
+  return (
+    <mesh position={placement.position} rotation={placement.rotation}>
+      <planeGeometry args={[placement.scale, placement.scale]} />
+      <meshBasicMaterial map={texture} transparent depthTest depthWrite={false}
+        side={THREE.FrontSide} toneMapped={false} />
+    </mesh>
+  );
+}
+
+/**
  * Bottle lathe has only two Y rings across the entire tall body. Drei's
  * triangle projector can produce no visible fragments for its thin front
  * print zone. Render a short, cylinder-conforming FRONT ONLY preview
@@ -155,7 +179,7 @@ function ProceduralCanvasMesh({
       {config.printAreas.map((area) => {
         const url = decals[area.name];
         return url ? (
-          <AreaDecal
+          <CanvasFrontArtwork
             key={area.name}
             url={url}
             area={area}
