@@ -78,7 +78,6 @@ function stage(id: RecoveryStageId, label: string, ok: boolean | null, evidence:
     authority: 'READ_ONLY_DIAGNOSTIC' as const,
   });
 }
-function title(row: Row): string { return String(row.title ?? row.song_key ?? row.id ?? '?'); }
 function hasOwnProof(rows: readonly Row[] | null): boolean | null {
   if (rows === null) return null;
   return rows.some(row => row.user_id && row.project_id && refs(row).length > 0);
