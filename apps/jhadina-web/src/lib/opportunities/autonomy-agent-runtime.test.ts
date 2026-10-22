@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { InMemoryAgentRuntimeRepository } from '@jhadina/agent-runtime-core'
 import type { Opportunity } from '@jhadina/opportunity-core'
-import { assertOwnerScopedPilotRunId, runSourceBoundOpportunityPilot } from './autonomy-agent-runtime'
+import { assertOwnerScopedPilotRunId, readOwnerPilotRun, runSourceBoundOpportunityPilot } from './autonomy-agent-runtime'
 const owner='123e4567-e89b-42d3-a456-426614174000'
 const now='2026-10-22T07:00:00.000Z'
 const canonical:Opportunity={
@@ -28,6 +28,37 @@ describe('OCE canonical durable agent integration',()=>{
     expect(result.externalActionAuthorized).toBe(false)
     expect(result.paidOutcomeVerified).toBe(false)
     expect(result.document).toContain('INTERNAL DRAFT')
+  })
+  it('recovers a hash-attested internal report after a simulated app restart',async()=>{
+    const repository=new InMemoryAgentRuntimeRepository()
+    const sourceReceipts=observations.map((o,i)=>({
+      evidenceId:o.evidenceId,sourceUrl:o.sourceUrl,confirmedExcerpt:o.excerpt,
+      contentSha256:String(i).repeat(64),observedAt:now,
+      sourceType:'PUBLIC_SOURCE_CONTENT' as const,externalActionAuthorized:false as const,
+    }))
+    const result=await runSourceBoundOpportunityPilot({
+      ownerId:owner,opportunity:canonical,pilot,observations,sourceReceipts,
+      repository,now:()=>now,
+    })
+    expect(result.accepted).toBe(true)
+    if(!result.runId)throw Error('missing run id')
+    const recovered=await readOwnerPilotRun({ownerId:owner,runId:result.runId,repository})
+    expect(recovered?.status).toBe('completed')
+    expect(recovered?.result?.document).toEqual(result.document)
+    expect(recovered?.result?.reportSha256).toEqual(result.reportSha256)
+    expect(recovered?.result?.sourceHashes).toHaveLength(2)
+    expect(recovered?.result?.customerDeliveryAuthorized).toBe(false)
+    await expect(readOwnerPilotRun({ownerId:'765e4544-9382-47c7-8dce-27ce09acdd70',runId:result.runId,repository})).rejects.toThrow(/OWNER_SCOPE/)
+  })
+  it('blocks forged or mismatched source receipts before an agent run starts',async()=>{
+    const repository=new InMemoryAgentRuntimeRepository()
+    await expect(runSourceBoundOpportunityPilot({
+      ownerId:owner,opportunity:canonical,pilot,observations,
+      sourceReceipts:[{evidenceId:'e:a',sourceUrl:'https://a.example/1',confirmedExcerpt:'A supported fact',
+        contentSha256:'not-a-hash',observedAt:now,sourceType:'PUBLIC_SOURCE_CONTENT',
+        externalActionAuthorized:false}],
+      repository,
+    })).rejects.toThrow(/Source hash receipts/)
   })
   it('rejects unaudited claims without constructing an agent run',async()=>{
     const repository=new InMemoryAgentRuntimeRepository()
