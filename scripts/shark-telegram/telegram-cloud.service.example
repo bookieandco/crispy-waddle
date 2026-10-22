@@ -1,0 +1,37 @@
+# TELEGRAM-CLOUD.03 — REVIEW ONLY; DO NOT INSTALL OR ENABLE
+# Requires a dedicated single-instance persistent Linux host and separate approval.
+# The cloud_personal_listener.py run action presently fails closed at the
+# independent personal release gate. No SSH server, VM, volume or secret is created.
+[Unit]
+Description=Jhadina owner Telegram personal account — private research-only listener
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=jhadina
+Group=jhadina
+WorkingDirectory=/opt/jhadina
+EnvironmentFile=/etc/jhadina/telegram-cloud.env
+UMask=0077
+ExecStartPre=/opt/jhadina/.venv/bin/python /opt/jhadina/scripts/shark-telegram/cloud_personal_listener.py preflight
+ExecStart=/opt/jhadina/.venv/bin/python /opt/jhadina/scripts/shark-telegram/cloud_personal_listener.py run
+Restart=on-failure
+RestartSec=30s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/jhadina-telegram
+RestrictSUIDSGID=true
+LockPersonality=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
