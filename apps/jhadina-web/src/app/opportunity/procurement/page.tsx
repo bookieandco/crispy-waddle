@@ -29,6 +29,46 @@ function Deadline({value,continuous}:{value?:string;continuous:boolean}){
  const expired=Date.parse(value)<Date.now()
  return <span style={pill}>{expired?"Past listed deadline · reverify":"Listed deadline"}: {new Date(value).toLocaleString("en-US",{timeZone:"America/Los_Angeles",month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"})}</span>
 }
+type PrimeMatch={providerId:string;providerName:string;role:string;score:number;disposition:string;matchingSignals:string[];blockers:string[];evidenceRefs:string[]}
+type PrimeReply={ok:boolean;historicalProfilesScanned?:number;matrix?:{results:PrimeMatch[];noSend:boolean};error?:string}
+function RegionalPrimePanel({pilotId,inboxId}:{pilotId?:string;inboxId?:string}){
+ const [data,setData]=useState<PrimeReply|null>(null)
+ const [busy,setBusy]=useState(false)
+ const [error,setError]=useState("")
+ async function match(){
+  setBusy(true);setError("")
+  try{
+   const r=await fetch("/api/opportunities/procurement/primes",{
+    method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify(pilotId?{pilotId}:{inboxId}),cache:"no-store"})
+   const value=await r.json() as PrimeReply
+   if(!r.ok||!value.ok)throw new Error(value.error??"Regional prime research unavailable")
+   setData(value)
+  }catch(e){setError(e instanceof Error?e.message:"Regional prime research unavailable")}
+  finally{setBusy(false)}
+ }
+ return <div style={{margin:"12px 0"}}>
+  <button type="button" style={{...btn,padding:"8px 12px",fontSize:12}} disabled={busy} onClick={()=>void match()}>
+   {busy?"Checking award evidence…":"Match regional prime contractors"}
+  </button>
+  {error&&<p role="alert" style={{color:"#ffd1c0"}}>{error}</p>}
+  {data&&<div style={{border:"1px solid #465361",borderRadius:12,padding:12,marginTop:8}}>
+   <p style={{...dim,fontSize:12}}>Reviewed {data.historicalProfilesScanned??0} state-awarded historical prime profiles. Matches are research leads only; current licensing, capacity, bonding, teaming consent, pricing and bid eligibility are unverified.</p>
+   {(!data.matrix?.results.length)?<p style={dim}>No evidence-backed regional prime profiles found in the current local-award store. Research award records or official subcontract listings before advancing.</p>:
+    <div style={{display:"grid",gap:8}}>
+     {data.matrix.results.slice(0,8).map((m,i)=><div key={m.providerId+":"+m.role+":"+i} style={{background:"#1a2633",borderRadius:10,padding:10}}>
+      <strong>{m.providerName}</strong> <span style={{...mini,fontSize:10}}>{m.role.replace(/_/g," ")} · {m.disposition.replace(/_/g," ")}</span>
+      <p style={{...dim,fontSize:12,margin:"4px 0"}}>Research fit score {m.score}/100 · {m.matchingSignals.join(" · ")||"Scope match unverified"}</p>
+      <details><summary style={{cursor:"pointer",fontSize:12}}>Evidence and blockers ({m.blockers.length})</summary>
+       <ul style={{...dim,fontSize:12}}>{m.blockers.slice(0,12).map(x=><li key={x}>{x}</li>)}</ul>
+       <p style={{...dim,fontSize:12}}>Source evidence refs: {m.evidenceRefs.slice(0,3).join(" | ")||"None"}</p>
+      </details>
+     </div>)}
+    </div>}
+   <p style={{...dim,fontSize:12}}>No outbound requests, prime commitments, bids, signatures or funds authorized.</p>
+  </div>}
+ </div>
+}
 type DirectoryRow={
  id:string;name:string;state:string;level:string;sourceCount:number;verifiedSourceCount:number
  certifiedSourceCount:number;inventorySourceUrl:string;discoveryStatus:string
@@ -114,6 +154,7 @@ function JurisdictionDirectory({state}:{state:string}){
      <div style={{...mini,fontSize:10}}>Recorded solicitation observations · not bid-certified</div>
      {x.inboxObservations.map(o=><div key={o.id} style={{padding:"7px 0",borderTop:"1px solid #34424f"}}>
       <SourceLink href={o.sourceUrl}>{o.title}</SourceLink>
+      <RegionalPrimePanel inboxId={o.id}/>
       <div style={{...dim,fontSize:11}}>Last recorded: {new Date(o.lastSeenAt).toLocaleDateString()} · Recheck official deadline and addenda</div>
       <button disabled={reviewing!==null} type="button" onClick={()=>void reviewInbox(o.id)} style={{...btn,marginTop:6,padding:"7px 10px",fontSize:12}}>Prepare no-send review</button>
       {reviews[o.id]&&<div style={{...dim,fontSize:11,padding:7,marginTop:5,border:"1px solid #655039",borderRadius:8}}>
@@ -263,6 +304,7 @@ export default function GovernmentProcurementWorkspace(){
        <ul style={{...dim,fontSize:13}}>{(pilotDrafts[c.id]?.packet?.blockers??[]).map(b=><li key={b}>{b}</li>)}</ul>
       </div>}
      </div>
+     <RegionalPrimePanel pilotId={c.id}/>
      <details style={{marginTop:16}} open={c.id==="RUSD-2026-27-11"}>
       <summary style={{cursor:"pointer",fontWeight:750}}>Missing evidence / blockers ({c.blockers.length})</summary>
       <ul style={dim}>{c.blockers.map(x=><li key={x}>{x}</li>)}</ul>
