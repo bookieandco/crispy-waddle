@@ -5,7 +5,7 @@
 -- No extension, secret key, GPU account, storage bucket or public API is created.
 
 create table if not exists public.director_recast_review_receipts (
-  id text primary key,
+  id uuid primary key,
   project_id text not null,
   owner_user_id uuid not null references auth.users(id) on delete restrict,
   kind text not null check(kind in ('media-probe','tracking','voice','rights')),
@@ -23,16 +23,17 @@ create table if not exists public.director_recast_review_receipts (
   evidence jsonb not null check(jsonb_typeof(evidence)='object'),
   evidence_sha256 text not null check(evidence_sha256 ~ '^[a-f0-9]{64}$'),
   created_at timestamptz not null default now(),
+  check (reviewed_at <= created_at),
   check ((kind='media-probe' and method='trusted-media-probe')
       or (kind<>'media-probe' and method='human-review'))
 );
 
 create index if not exists director_recast_review_by_selection_idx
   on public.director_recast_review_receipts
-  (project_id,owner_user_id,source_video_asset_id,character_image_asset_id,source_audio_asset_id);
+  (project_id,owner_user_id,source_video_asset_id,character_image_asset_id,source_audio_asset_id,created_at desc,id desc);
 
 alter table public.director_recast_review_receipts enable row level security;
-revoke all on public.director_recast_review_receipts from public,anon,authenticated;
+revoke all on public.director_recast_review_receipts from public,anon,authenticated,service_role;
 grant select,insert on public.director_recast_review_receipts to service_role;
 
 drop policy if exists director_recast_review_service_only
@@ -51,6 +52,7 @@ create policy director_recast_review_service_insert
   to service_role with check (true);
 
 -- SECURITY INVOKER trigger checks reviewer membership and project/source lineage;
+-- service_role may BYPASSRLS; rely on explicit grants and triggers, not RLS alone.
 -- it cannot itself prove consent, scanner output or human attentiveness.
 -- Do not deploy until those independently verified server capabilities exist.
 create or replace function public.assert_director_recast_review_receipt()
@@ -62,6 +64,16 @@ begin
   select role into reviewer_role
   from public.director_project_memberships
   where project_id=new.project_id and user_id=new.reviewed_by_user_id;
+  -- The DB append clock, not client-supplied reviewed_at, defines revocation
+  -- precedence. The insert cannot impersonate an earlier/latest append.
+  if new.created_at < transaction_timestamp() - interval '60 seconds'
+      or new.created_at > transaction_timestamp() + interval '60 seconds'
+      or new.reviewed_at > new.created_at
+      or new.reviewed_at < new.created_at - interval '10 minutes'
+      or new.expires_at <= new.created_at
+      or new.expires_at > new.created_at + interval '30 minutes' then
+    raise exception 'Director Recast immutable append/review clock invalid';
+  end if;
   if reviewer_role not in ('owner','editor') or reviewer_role is null then
     raise exception 'Director Recast authorized reviewer required';
   end if;
