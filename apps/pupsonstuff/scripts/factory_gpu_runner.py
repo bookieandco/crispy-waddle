@@ -16,6 +16,7 @@ import argparse
 import hashlib
 import json
 import os
+import tempfile
 from pathlib import Path
 import shutil
 import subprocess
@@ -141,6 +142,21 @@ def run_unique(front, repo_dir, dest):
         os.chdir(old)
 
 
+def validate_glb_header(path):
+    """Minimal container sanity only; deeper audit stays in candidate-intake."""
+    import struct
+    p = Path(path)
+    if not p.is_file() or not 256 <= p.stat().st_size <= 10 * 1024 * 1024:
+        raise ValueError("GENERATED_GLB_MISSING_OR_OVER_MOBILE_BUDGET")
+    with p.open("rb") as f:
+        first = f.read(12)
+    if len(first) != 12:
+        raise ValueError("GENERATED_GLB_INVALID_HEADER")
+    magic, version, length = struct.unpack("<4sII", first)
+    if (magic, version, length) != (b"glTF", 2, p.stat().st_size):
+        raise ValueError("GENERATED_GLB_INVALID_HEADER")
+
+
 def cli(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--pack", required=True)
@@ -170,14 +186,19 @@ def cli(args=None):
     if os.environ.get("PUPSON_FACTORY_OS_NETWORK_BLOCKED") != "true":
         raise SystemExit("OS egress deny not attested; refuse potentially networked model run.")
     output.parent.mkdir(parents=True, exist_ok=True)
-    if manifest["generator"] == "tencent-hunyuan3d-2":
-        run_hunyuan(front, Path(opts.weights).resolve(), output, Path(opts.repo).resolve())
-    elif manifest["generator"] == "aiuniai-unique3d":
-        run_unique(front, Path(opts.repo).resolve(), output)
-    if not output.is_file() or output.stat().st_size < 256 or output.stat().st_size > 10 * 1024 * 1024:
-        if output.exists():
-            output.unlink()
-        raise ValueError("GENERATED_GLB_MISSING_OR_OVER_MOBILE_BUDGET")
+    # Generate to a disposable non-public candidate first. A crash must never
+    # leave a half-written .glb that looks like a complete review candidate.
+    with tempfile.TemporaryDirectory(prefix="pupson-unapproved-", dir=str(output.parent)) as stage:
+        provisional = Path(stage) / "raw.glb"
+        if manifest["generator"] == "tencent-hunyuan3d-2":
+            run_hunyuan(front, Path(opts.weights).resolve(), provisional, Path(opts.repo).resolve())
+        elif manifest["generator"] == "aiuniai-unique3d":
+            run_unique(front, Path(opts.repo).resolve(), provisional)
+        validate_glb_header(provisional)
+        # Exclusive creation refuses a pre-existing output (including a race).
+        with output.open("xb") as target, provisional.open("rb") as origin:
+            shutil.copyfileobj(origin, target)
+    validate_glb_header(output)
     receipt = {"generator": manifest["generator"], "candidateId": manifest["candidateId"],
                "inputManifestSha256": sha256_file(mfile),
                "outputSha256": sha256_file(output),
