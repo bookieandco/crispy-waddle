@@ -1,0 +1,137 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185589",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "2054",
+    "name": "Katie Boulter"
+  },
+  "away": {
+    "id": "2458",
+    "name": "Viktorija Golubic"
+  },
+  "start_utc": "2026-10-21T05:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261020",
+  "fixture_source_observed_at": "2026-10-21T02:35:04.619Z",
+  "sealed_at_utc": "2026-10-21T02:35:05.471Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.51972,
+  "away_win_probability": 0.48028,
+  "draw_probability": 0,
+  "home_projected_points": 0.51984,
+  "away_projected_points": 0.48016,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261020",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016"
+  ],
+  "sample_size": {
+    "league": 252,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185570",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-20T04:50Z",
+      "home": {
+        "id": "2054",
+        "name": "Katie Boulter"
+      },
+      "away": {
+        "id": "11317",
+        "name": "Himeno Sakatsume"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261020",
+      "source_observed_at": "2026-10-21T02:35:04.619Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-21T02:35:04.619Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185324",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T06:30Z",
+      "home": {
+        "id": "2054",
+        "name": "Katie Boulter"
+      },
+      "away": {
+        "id": "8017",
+        "name": "Diana Shnaider"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-21T02:35:04.645Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-21T02:35:04.645Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185577",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-19T02:35Z",
+      "home": {
+        "id": "2458",
+        "name": "Viktorija Golubic"
+      },
+      "away": {
+        "id": "3153",
+        "name": "Mai Hontama"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261020",
+      "source_observed_at": "2026-10-21T02:35:04.619Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-21T02:35:04.619Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186368",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T03:05Z",
+      "home": {
+        "id": "2191",
+        "name": "Daria Kasatkina"
+      },
+      "away": {
+        "id": "2458",
+        "name": "Viktorija Golubic"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-21T02:35:04.645Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-21T02:35:04.645Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "d51ad8a33ee7c7bc7d841bcfa63632642acdfbe4aabc3869b2e615376ac4f543",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "c95cf4ce969a5d4edc35b3012cb8cbec0534d9796638b21b263a5e21cbe92064"
+}

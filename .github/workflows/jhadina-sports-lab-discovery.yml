@@ -1,29 +1,19 @@
-name: Jhadina Sports Lab unattended discovery
+name: Jhadina Sports Lab discovery — source-rights hold
+# Manual workflow is intentionally offline until permission and provenance are reviewed.
 on:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  discover:
-    if: github.repository == 'bookieandco/crispy-waddle'
+  offline-governance:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run immutable-governance tests
+      - name: Offline governance checks only (no ESPN polling)
         run: node --test training/sports/experiments/2026-10-13-week-001/*.test.mjs
-      - name: Discover schedules (no predictions or bets)
-        run: node training/sports/experiments/2026-10-13-week-001/discover.mjs
-      - name: Audit discovery evidence
-        run: node training/sports/experiments/2026-10-13-week-001/audit.mjs sports-lab-output/discovery.json
-      - name: Retain discovery evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sports-lab-discovery-${{ github.run_id }}-${{ github.run_attempt }}
-          path: sports-lab-output/discovery.json
-          retention-days: 14
-          if-no-files-found: warn

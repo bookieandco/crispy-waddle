@@ -1,4 +1,5 @@
-name: Jhadina Sports Lab tennis structure probe
+name: Jhadina Sports Lab tennis probe — source-rights hold
+# Online tennis endpoint probes are intentionally disabled, including manual runs.
 on:
   push:
     paths:
@@ -7,15 +8,15 @@ on:
 permissions:
   contents: read
 jobs:
-  probe:
+  offline-governance:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Print only feed shape without storing raw participant data
-        run: node training/sports/experiments/2026-10-13-week-001/probe-tennis-shape.mjs
-      - name: Inspect final-score field types
-        run: node training/sports/experiments/2026-10-13-week-001/probe-tennis-scores.mjs
+      - name: Validate tennis parsing using existing fixtures only
+        run: node --test training/sports/experiments/2026-10-13-week-001/core.test.mjs
