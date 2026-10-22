@@ -25,8 +25,8 @@ export async function GET(request:NextRequest) {
       repo.listSideHustleCommercialReceipts({workOrderId,kind:'acceptance'}),
       repo.listOutcomes(workOrder.opportunityId),
     ])
-    const delivery=deliveryRows.at(-1)?.payload as CommercialDeliveryReceipt|undefined
-    const acceptance=acceptanceRows.at(-1)?.payload as CommercialAcceptanceReceipt|undefined
+    const delivery=deliveryRows[deliveryRows.length-1]?.payload as CommercialDeliveryReceipt|undefined
+    const acceptance=acceptanceRows[acceptanceRows.length-1]?.payload as CommercialAcceptanceReceipt|undefined
     const outcome=outcomes.find(o=>o.sourceOwner==='money_core' && o.result==='won')
     const review=reviewPaidPilotEvidence({
       workOrder,delivery,acceptance,outcome,
