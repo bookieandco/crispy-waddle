@@ -39,6 +39,8 @@ export default function SocialStudioPage() {
   const [ownerId, setOwnerId] = useState("");
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [authMessage, setAuthMessage] = useState("Checking your Social account…");
+  const [acceptanceMessage, setAcceptanceMessage] = useState("Sign-in and database checks have not run on this device.");
+  const [acceptanceBusy, setAcceptanceBusy] = useState(false);
   const [workspaceRevision, setWorkspaceRevision] = useState<number | null>(null);
   const [storageMessage, setStorageMessage] = useState("Saving is optional and must be commissioned.");
   const [storageBusy, setStorageBusy] = useState(false);
@@ -66,6 +68,33 @@ export default function SocialStudioPage() {
       .catch((e: unknown) => { if (active) setAuthMessage(e instanceof Error ? e.message : "Social sign-in unavailable."); });
     return () => { active = false; };
   }, []);
+
+  async function checkReadOnlyAcceptance() {
+    setAcceptanceBusy(true);
+    setAcceptanceMessage("Checking this browser session and owner-scoped database read…");
+    try {
+      const response = await fetch("/api/social/acceptance", {
+        method: "GET", credentials: "same-origin", cache: "no-store",
+      });
+      const result = await response.json();
+      if (!response.ok || result.success !== true) {
+        throw new Error(result.error || "Read-only acceptance unavailable.");
+      }
+      const checks = result.checks;
+      setAcceptanceMessage(
+        "Session and Jhadina database read verified. " +
+        String(checks.registeredAccountCount) + " registered account row(s). " +
+        "Privileged proxy, provider permission and publishing have NOT been tested. " +
+        (checks.rpcAuthority === "off"
+          ? "Social writes remain disabled in this build."
+          : "Configuration flag is on, but live SQL authority still needs separate approval."),
+      );
+    } catch (err) {
+      setAcceptanceMessage(err instanceof Error ? err.message : "Read-only acceptance unavailable.");
+    } finally {
+      setAcceptanceBusy(false);
+    }
+  }
 
   function clearDrafts() {
     setDrafts([]); setBrief(null); setTargets({}); setSlots([]); setError("");
@@ -188,6 +217,15 @@ export default function SocialStudioPage() {
         plan destinations. This is a local session preview, not AI-rendered videos or scheduled posts.
       </p>
       <div role="status" style={{ ...caption, padding: 12, background: "#e9eee7", borderRadius: 10 }}>{authMessage}</div>
+      <section style={panel} aria-label="Owner phone acceptance">
+        <div style={{ fontWeight: 700, marginBottom: 7 }}>Device sign-in check</div>
+        <p role="status" style={caption}>{acceptanceMessage}</p>
+        <button type="button" style={secondary} onClick={() => void checkReadOnlyAcceptance()}
+          disabled={acceptanceBusy}>
+          {acceptanceBusy ? "Checking session…" : "Test sign-in and database read"}
+        </button>
+        <p style={caption}>Read-only. This check cannot authorize, schedule, publish, message, spend, or connect a platform.</p>
+      </section>
       {error && <div role="alert" style={{ ...panel, background: "#feeae6", color: "#8b3b30" }}>{error}</div>}
       <section style={panel} aria-label="Optional durable drafts">
         <div style={{ fontWeight: 700, marginBottom: 7 }}>Draft storage — owner only</div>
