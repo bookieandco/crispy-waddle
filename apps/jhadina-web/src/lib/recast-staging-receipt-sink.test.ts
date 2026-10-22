@@ -26,7 +26,8 @@ const authorization={
 describe('non-production Recast review receipt persistence adapter',()=>{
   it('rejects default uncommissioned, production-target and forged digest without contacting sink',async()=>{
     const insertReviewReceipt=vi.fn().mockResolvedValue({id})
-    const sink={insertReviewReceipt}
+    const readReviewReceipt=vi.fn().mockResolvedValue(receipt)
+    const sink={insertReviewReceipt,readReviewReceipt}
     await expect(persistRecastReceiptInIsolatedStaging(receipt,{...authorization,explicitlyCommissioned:false},sink)).rejects.toThrow()
     await expect(persistRecastReceiptInIsolatedStaging(receipt,{...authorization,branchProjectRef:'production-ref'},sink)).rejects.toThrow()
     await expect(persistRecastReceiptInIsolatedStaging(receipt,{...authorization,schemaAndRlsAudited:false},sink)).rejects.toThrow()
@@ -35,16 +36,28 @@ describe('non-production Recast review receipt persistence adapter',()=>{
   })
   it('only calls explicitly injected isolated-staging sink after all review and operator gates',async()=>{
     const insertReviewReceipt=vi.fn().mockResolvedValue({id})
-    const result=await persistRecastReceiptInIsolatedStaging(receipt,authorization,{insertReviewReceipt})
+    const readReviewReceipt=vi.fn().mockResolvedValue(receipt)
+    const result=await persistRecastReceiptInIsolatedStaging(receipt,authorization,{insertReviewReceipt,readReviewReceipt})
     expect(result).toMatchObject({stagedReceiptId:id,persistedTo:'ISOLATED_STAGING_ONLY',
       rendered:false,spent:false,published:false})
     expect(insertReviewReceipt).toHaveBeenCalledTimes(1)
+    expect(readReviewReceipt).toHaveBeenCalledTimes(1)
     expect(insertReviewReceipt.mock.calls[0][0]).toBe('director_recast_review_receipts')
     expect(insertReviewReceipt.mock.calls[0][1].disposition).toBeUndefined()
   })
   it('does not report a successful insert without matching persisted receipt identity',async()=>{
     await expect(persistRecastReceiptInIsolatedStaging(receipt,authorization,{
       insertReviewReceipt:async()=>({id:'foreign'}),
+      readReviewReceipt:async()=>receipt,
     })).rejects.toThrow('DIRECTOR_RECAST_STAGING_RECEIPT_INSERT_NOT_CONFIRMED')
+    it('fails closed when insert acknowledgement exists but readback is missing or changed',async()=>{
+    const insertReviewReceipt=vi.fn().mockResolvedValue({id})
+    await expect(persistRecastReceiptInIsolatedStaging(receipt,authorization,{
+      insertReviewReceipt,readReviewReceipt:async()=>null,
+    })).rejects.toThrow('DIRECTOR_RECAST_STAGING_RECEIPT_READBACK_MISMATCH')
+    await expect(persistRecastReceiptInIsolatedStaging(receipt,authorization,{
+      insertReviewReceipt,readReviewReceipt:async()=>({...receipt,evidence_sha256:'f'.repeat(64)}),
+    })).rejects.toThrow('DIRECTOR_RECAST_STAGING_RECEIPT_READBACK_MISMATCH')
   })
+})
 })
