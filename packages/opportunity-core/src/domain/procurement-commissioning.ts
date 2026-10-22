@@ -46,8 +46,8 @@ export function planProcurementSourceRecovery(sources:ProcurementSource[],now=ne
   const blockers:string[]=[],reasons:string[]=[]
   const key=sourceUrlKey(source.sourceUrl)
   const indexText=(source.name+' '+source.sourceUrl).toLowerCase()
-  const directListing=/(?:\\bbids?\\b|\\brfps?\\b|\\brfqs?\\b|solicitation|procurement|contract\\W+opportunit|planholdersregistration|openbidlist)/i.test(indexText)
-  const clearNonProcurement=/(?:tickets?\\/sales|service.credit|firefighters.wear.pink|breast.cancer.awareness|employee.benefit|restoring.service.credit|surplus.and.recovered.property)/i.test(indexText)
+  const directListing=/(?:\bbids?\b|\brfps?\b|\brfqs?\b|solicitation|procurement|contract\W+opportunit|planholdersregistration|openbidlist)/i.test(indexText)
+  const clearNonProcurement=/(?:tickets?\/sales|service.credit|firefighters.wear.pink|breast.cancer.awareness|employee.benefit|restoring.service.credit|surplus.and.recovered.property)/i.test(indexText)
   if(!directListing||clearNonProcurement)blockers.push('Not evidenced as a solicitation-bearing procurement feed; manually classify before retry.')
   if(!key)blockers.push('Invalid source URL.')
   else if(seen.has(key))blockers.push('Duplicate URL or sort/tracking variant; reconcile source identity.')
