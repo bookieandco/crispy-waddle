@@ -1,6 +1,6 @@
 import {verifyRecastEvidenceSeal} from './recast-review-digest'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {verifyRecastReviewLedger,reviewedEvidenceFromLedger,evaluateRecastReviewedEvidence,verifyRecastDuration,
+import {verifyRecastReviewLedger,resolveEffectiveRecastReviews,reviewedEvidenceFromLedger,evaluateRecastReviewedEvidence,verifyRecastDuration,
   type RecastReviewKind,type RecastReviewReceipt,type RecastCandidateSelection,type RecastBoundMedia,
   type RecastMediaProbeResult} from '@jhadina/director-core'
 
@@ -45,17 +45,21 @@ export async function readRecastReviewLedgerStatus(
       .eq('source_video_asset_id',selection.sourceVideoAssetId)
       .eq('character_image_asset_id',selection.characterImageAssetId)
       .eq('source_audio_asset_id',selection.sourceAudioAssetId)
-      .limit(32)
+      .order('created_at',{ascending:false})
+      .limit(129)
   }catch{return blocked('NOT_COMMISSIONED',['DIRECTOR_RECAST_REVIEW_STORE_NOT_COMMISSIONED'])}
   if(result.error)return blocked('NOT_COMMISSIONED',['DIRECTOR_RECAST_REVIEW_STORE_NOT_COMMISSIONED'])
-  const receipts:RecastReviewReceipt[]=(result.data??[]).flatMap(raw=>{
-    if(!kinds.has(raw.kind as RecastReviewKind))return []
-    if(raw.method!=='trusted-media-probe'&&raw.method!=='human-review')return []
-    if(!raw.evidence||typeof raw.evidence!=='object')return []
-    // The full JSONB payload must agree with the original server-sealed digest.
-    // Reject altered, stale-format, or self-asserted client review records.
-    if(!verifyRecastEvidenceSeal(raw.evidence,raw.evidence_sha256))return []
-    return [{
+  const rawRows=result.data??[]
+  if(rawRows.length>=129)
+    return blocked('INCOMPLETE',['DIRECTOR_RECAST_REVIEW_HISTORY_LIMIT_EXCEEDED'])
+  // Never silently filter an altered revocation: discarding it could resurrect
+  // an older approved receipt. One corrupt row blocks the full review set.
+  if(rawRows.some(raw=>!kinds.has(raw.kind as RecastReviewKind)||
+    (raw.method!=='trusted-media-probe'&&raw.method!=='human-review')||
+    !raw.evidence||typeof raw.evidence!=='object'||
+    !verifyRecastEvidenceSeal(raw.evidence,raw.evidence_sha256)))
+    return blocked('INCOMPLETE',['DIRECTOR_RECAST_REVIEW_EVIDENCE_TAMPERED_OR_UNKNOWN'])
+  const receipts:RecastReviewReceipt[]=rawRows.map(raw=>({
       id:String(raw.id??''),projectId:String(raw.project_id??''),
       ownerUserId:String(raw.owner_user_id??''),kind:raw.kind as RecastReviewKind,
       sourceVideoAssetId:String(raw.source_video_asset_id??''),
@@ -69,16 +73,18 @@ export async function readRecastReviewLedgerStatus(
       status:raw.status==='approved'?'approved':'rejected',
       method:raw.method==='trusted-media-probe'?'trusted-media-probe':'human-review',
       evidence:raw.evidence,
-    }]
-  })
+  }))
+  const effective=resolveEffectiveRecastReviews(receipts,now)
+  if(!effective.complete)return blocked('INCOMPLETE',effective.blockers)
+  const currentReceipts=effective.reviews
   const decision=verifyRecastReviewLedger(selection,{
     video:video.sha256,image:image.sha256,audio:audio.sha256,
-  },receipts,now)
+  },currentReceipts,now)
   if(!decision.receiptsComplete)return blocked('INCOMPLETE',decision.blockers)
   try {
-    const evidence=reviewedEvidenceFromLedger(selection,receipts,decision)
+    const evidence=reviewedEvidenceFromLedger(selection,currentReceipts,decision)
     const review=evaluateRecastReviewedEvidence(selection,evidence)
-    const mediaBundle=receipts.find(r=>r.kind==='media-probe')?.evidence as {probe?:RecastMediaProbeResult}|undefined
+    const mediaBundle=currentReceipts.find(r=>r.kind==='media-probe')?.evidence as {probe?:RecastMediaProbeResult}|undefined
     const rawProbe=mediaBundle?.probe
     const duration=verifyRecastDuration(rawProbe??null,{
       projectId:selection.projectId,sourceVideoAssetId:selection.sourceVideoAssetId,
