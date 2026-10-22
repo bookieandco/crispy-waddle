@@ -25,7 +25,7 @@ export default function MemoryPage(){
  const visible=useMemo(()=>{const q=query.trim().toLowerCase();return q?memories.filter(memory=>(memory.content+" "+memory.type).toLowerCase().includes(q)):memories},[memories,query])
  return <main className="jh-page"><div className="jh-wrap">
   <p className="jh-eyebrow">Memory</p>
-  <div className="jh-between"><div><h1 className="jh-title">What Jhadina is allowed to remember.</h1><p className="jh-copy">This surface lists approved memory only. Pending candidates stay in Approval Center so proposals cannot be mistaken for durable memory.</p></div><Link className="jh-button" href="/approvals">Pending approvals</Link></div>
+  <div className="jh-between"><div><h1 className="jh-title">What Jhadina is allowed to remember.</h1><p className="jh-copy">This surface lists approved memory only. Pending candidates stay in Approval Center so proposals cannot be mistaken for durable memory.</p></div><div className="jh-row"><Link className="jh-button" href="/memory/interview">Round 1 interview</Link><Link className="jh-button" href="/approvals">Pending approvals</Link></div></div>
   <div style={{marginTop:24,maxWidth:560}}><input className="jh-input" aria-label="Search approved memories" placeholder="Search approved memory…" value={query} onChange={event=>setQuery(event.target.value)}/></div>
   {error&&<div className="jh-error" role="alert">{error}</div>}
   {loading?<div className="jh-list"><div className="jh-skeleton"/><div className="jh-skeleton"/></div>:visible.length===0?<div className="jh-empty">{query?"No approved memories match this search.":"No approved memories yet."}</div>:<div className="jh-list">{visible.map(memory=><article className="jh-item" key={memory.id}>
