@@ -1,0 +1,20 @@
+name: JH Purse Independent Restore Catalog Gate
+on:
+  pull_request:
+    paths:
+      - 'scripts/purse-independent-restore-catalog*'
+      - 'docs/architecture/JH-PURSE-INDEPENDENT-RESTORE-CATALOG.md'
+      - '.github/workflows/jh-purse-independent-restore-catalog.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  metadata-only-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test scripts/purse-independent-restore-catalog.test.mjs
