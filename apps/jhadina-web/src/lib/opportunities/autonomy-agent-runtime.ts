@@ -35,7 +35,16 @@ export async function runSourceBoundOpportunityPilot(input: {
       runId:null, document:null, externalActionAuthorized:false as const,
     }
   }
-  const now=input.now ?? (()=>new Date().toISOString())
+  const wallClock=input.now ?? (()=>new Date().toISOString())
+  // The existing Agent Runtime retrieves its latest checkpoint by timestamp.
+  // Several same-millisecond writes would otherwise make terminal recovery ambiguous.
+  let lastTick=0
+  const now=()=>{
+    const observed=Date.parse(wallClock())
+    if(!Number.isFinite(observed))throw new Error('Invalid worker clock')
+    lastTick=Math.max(observed,lastTick+1)
+    return new Date(lastTick).toISOString()
+  }
   const runtime = new DurableAgentRuntime(
     input.repository,
     {
