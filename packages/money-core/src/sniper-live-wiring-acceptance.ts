@@ -50,6 +50,8 @@ export function acceptSniperLiveWiringPaper(input:{
  if(!input.routing.selectedForPaper)reasonCodes.push('LANDING_ROUTE_NOT_CALIBRATED')
  if(input.paper.status!=='CLOSED')reasonCodes.push('PAPER_POSITION_NOT_CLOSED')
  if(!input.paper.settlement||input.paper.settlement.kind!=='PAPER')reasonCodes.push('SIMULATED_SETTLEMENT_REQUIRED')
+ if(!input.purse||!input.purse.admitted)reasonCodes.push('PURSE_PAPER_OPPORTUNITY_NOT_ADMITTED')
+ if(!input.shadow)reasonCodes.push('SHADOW_DECISION_MISSING')
  const handoff=buildSniperShadowPurseHandoff({
   tradeId:input.tradeId,tokenAddress:input.tokenAddress,
   informationCutoff:input.informationCutoff,purse:input.purse,shadow:input.shadow,
