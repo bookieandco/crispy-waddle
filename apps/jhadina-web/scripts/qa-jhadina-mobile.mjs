@@ -176,7 +176,7 @@ try {
     await visit(page, "/money/agentpay")
     assert(await page.getByRole("heading", { name: "Devnet route quote" }).count() === 1,
       "AgentPay quote heading missing")
-    assert(await page.getByRole("status").innerText().then(x => x.includes("Simulation only.")),
+    assert(await page.getByRole("status").filter({ hasText: "Simulation only." }).count() === 1,
       "AgentPay must prominently disclose simulation mode")
     const atomicAmount = page.getByRole("textbox", { name: "Atomic token amount" })
     await atomicAmount.fill("250000000")
