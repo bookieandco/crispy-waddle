@@ -136,7 +136,7 @@ export function PhantomWalletCard({savedConnection}:{savedConnection?:SavedConne
    {saved&&<button type="button" onClick={disconnect} disabled={busy||initializing} style={secondaryButton}>Disconnect</button>}
    {!providerAvailable&&<button type="button" onClick={open} disabled={busy} style={secondaryButton}>Open in Phantom</button>}
   </div>
-  <small style={fine}>On iPhone, open Jhadina inside Phantom's in-app browser. Your seed phrase stays in Phantom. Money Core cannot sign, trade, or move funds from this connection.</small>
+  <small style={fine}>On iPhone, open Jhadina inside Phantom&apos;s in-app browser. Your seed phrase stays in Phantom. Money Core cannot sign, trade, or move funds from this connection.</small>
  </article>
 }
 const cardStyle={padding:20,borderRadius:24,background:'rgba(255,255,255,.72)',border:'1px solid #dce2dd',display:'grid',gap:12}
