@@ -131,13 +131,13 @@ SQL
 
 psql -X -v ON_ERROR_STOP=1 <<'SQL'
 do $check$
-declare n integer; head_count bigint; head_hash text;
+declare n integer; head_count bigint; v_head_hash text;
 begin
   select count(*) into n from public.jhadina_audit_ledger;
-  select event_count,head_hash into head_count,head_hash
+  select event_count,head_hash into head_count,v_head_hash
     from public.jhadina_audit_ledger_head where id=true;
-  if n!=2 or head_count!=2 or length(head_hash)!=64 then
-    raise exception 'SOCIAL_AUDIT_HASH_CHAIN_BROKEN:%:%:%',n,head_count,head_hash; end if;
+  if n!=2 or head_count!=2 or length(v_head_hash)!=64 then
+    raise exception 'SOCIAL_AUDIT_HASH_CHAIN_BROKEN:%:%:%',n,head_count,v_head_hash; end if;
   if (select count(*) from public.jhadina_audit_ledger where domain='social')!=1 then
     raise exception 'SOCIAL_AUDIT_FORGED_OR_MISSING'; end if;
   if (select count(*) from public.jhadina_audit_ledger where domain='growth')!=1 then
