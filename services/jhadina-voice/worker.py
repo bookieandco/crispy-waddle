@@ -7,7 +7,7 @@ import base64, json, math, os, re, subprocess, tempfile, urllib.request
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from typing import Iterator, Protocol
+from typing import Callable, Iterator, Protocol
 
 CANONICAL_VOICE_PROFILE_ID="jhadina:canonical"
 CANONICAL_VOICE_IDENTITY_ID="voice:jhadina:canonical:v1"
@@ -450,11 +450,15 @@ class VoiceRouter:
         delivery: dict | None = None,
         voice_identity_id: str=CANONICAL_VOICE_IDENTITY_ID,
         max_chars: int = 240,
+        should_stop: Callable[[], bool] | None = None,
     ) -> Iterator[dict]:
         chunks=split_speech_chunks(text,max_chars)
         if not chunks:
             raise ValueError("VOICE_TEXT_EMPTY")
         for index,chunk in enumerate(chunks):
+            # Cooperative between-chunk stop, not hard preemption of blocking TTS.
+            if should_stop is not None and should_stop():
+                return
             result=self.speak(chunk,language,voice_profile_id,delivery,voice_identity_id)
             yield {
                 "type":"audio",

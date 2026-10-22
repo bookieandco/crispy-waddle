@@ -126,6 +126,30 @@ class VoiceWorkerTest(unittest.TestCase):
         self.assertTrue(all(call[1]=={"style":"playful"} for call in engine.calls))
         self.assertTrue(all(call[2]=="voice:jhadina:canonical:v1" for call in engine.calls))
 
+    def test_cooperative_cancel_before_second_chunk(self):
+        engine=FakeTts("voxcpm2",True)
+        router=VoiceRouter([],[engine])
+        cancelled={"value":False}
+        stream=router.speak_stream(
+            "First sentence is complete. Second sentence should not be synthesized after cancellation.",
+            "en-US",max_chars=80,should_stop=lambda:cancelled["value"],
+        )
+        self.assertEqual(next(stream)["type"],"audio")
+        cancelled["value"]=True
+        self.assertEqual(list(stream),[])
+        self.assertEqual(len(engine.calls),1)
+
+    def test_closing_generator_prevents_next_chunk(self):
+        engine=FakeTts("voxcpm2",True)
+        router=VoiceRouter([],[engine])
+        stream=router.speak_stream(
+            "First sentence is complete. Second sentence must not be synthesized.",
+            "en-US",max_chars=80,
+        )
+        next(stream)
+        stream.close()
+        self.assertEqual(len(engine.calls),1)
+
     def test_chunker_is_bounded_and_nonempty(self):
         chunks=split_speech_chunks(
             "First sentence. Second sentence is much longer, because it should be split before progressive playback stalls.",
