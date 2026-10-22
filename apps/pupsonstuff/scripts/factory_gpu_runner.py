@@ -68,6 +68,21 @@ def preflight(pack, manifest, repo_dir, weights, output, approval=None):
         problems.append("UNIQUE3D_INFERENCE_MODULE_MISSING")
     if generator == "aiuniai-unique3d" and not (repo_dir / "ckpt").is_dir():
         problems.append("UNIQUE3D_CHECKPOINTS_MISSING")
+    if generator == "aiuniai-unique3d" and weights != (repo_dir / "ckpt").resolve():
+        problems.append("UNIQUE3D_WEIGHTS_MUST_MATCH_LOCAL_CKPT_DIR")
+    revision = manifest.get("generatorRevision")
+    if not isinstance(revision, str) or len(revision) != 40 or any(ch not in "0123456789abcdef" for ch in revision):
+        problems.append("EXACT_UPSTREAM_REVISION_SHA_REQUIRED")
+    elif repo_dir.is_dir():
+        try:
+            got = subprocess.run(
+                ["git", "-C", str(repo_dir), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True, timeout=4,
+            ).stdout.strip()
+            if got != revision:
+                problems.append("UPSTREAM_CHECKOUT_REVISION_MISMATCH")
+        except (OSError, subprocess.SubprocessError):
+            problems.append("CANNOT_VERIFY_OFFLINE_CHECKOUT_REVISION")
     if weights.is_dir() and not any(p.is_file() for p in weights.rglob("*")):
         problems.append("LOCAL_CHECKPOINT_FILES_MISSING")
     gpu = local_gpu_mb()
@@ -185,6 +200,12 @@ def cli(args=None):
     # Explicit non-auto network posture. Operator also required to firewall.
     if os.environ.get("PUPSON_FACTORY_OS_NETWORK_BLOCKED") != "true":
         raise SystemExit("OS egress deny not attested; refuse potentially networked model run.")
+    # Verify the front image truly decodes, not just its magic/header hash.
+    # Reject decompression bombs and invalid image data before loading a model.
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = 16_000_000
+    with Image.open(front) as image:
+        image.verify()
     output.parent.mkdir(parents=True, exist_ok=True)
     # Generate to a disposable non-public candidate first. A crash must never
     # leave a half-written .glb that looks like a complete review candidate.
@@ -198,7 +219,11 @@ def cli(args=None):
         # Exclusive creation refuses a pre-existing output (including a race).
         with output.open("xb") as target, provisional.open("rb") as origin:
             shutil.copyfileobj(origin, target)
-    validate_glb_header(output)
+    try:
+        validate_glb_header(output)
+    except Exception:
+        output.unlink(missing_ok=True)
+        raise
     receipt = {"generator": manifest["generator"], "candidateId": manifest["candidateId"],
                "inputManifestSha256": sha256_file(mfile),
                "outputSha256": sha256_file(output),
