@@ -19,6 +19,7 @@ try{
     await workbench.waitFor({state:'visible'})
     await workbench.getByRole('button',{name:'Preview public listings'}).waitFor({state:'visible'})
     await workbench.getByRole('button',{name:'Check owner commissioning readiness'}).waitFor({state:'visible'})
+    await workbench.locator('summary').filter({hasText:'Run a source-bound internal pilot'}).click()
     await workbench.getByRole('button',{name:'Reload saved run and report'}).waitFor({state:'visible'})
     const importButton=workbench.getByRole('button',{name:'Import published jobs'})
     assert(await importButton.isDisabled(),'No default import without board token')
