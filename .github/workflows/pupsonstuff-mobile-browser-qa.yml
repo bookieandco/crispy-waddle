@@ -7,6 +7,10 @@ on:
       - 'apps/pupsonstuff/app/globals.css'
       - 'apps/pupsonstuff/scripts/qa-boutique-responsive.mjs'
       - 'apps/pupsonstuff/scripts/qa-boutique-webkit-iphone.mjs'
+      - 'apps/pupsonstuff/scripts/qa-product3d-matrix.mjs'
+      - 'apps/pupsonstuff/scripts/prepare-3d-qa.mjs'
+      - 'apps/pupsonstuff/lib/product3d/**'
+      - 'apps/pupsonstuff/__tests__/product3d-*.test.ts'
       - 'apps/pupsonstuff/lib/commerce-safety.ts'
       - 'apps/pupsonstuff/lib/fulfillment-bridge.ts'
       - 'pnpm-lock.yaml'
@@ -48,7 +52,7 @@ jobs:
       - name: Check types and run scoped product 3D rendering contracts
         run: |
           pnpm --filter @jhadina/pupsonstuff type-check
-          pnpm --filter @jhadina/pupsonstuff exec vitest run __tests__/product3d-placement.test.ts __tests__/product3d-framing.test.ts
+          pnpm --filter @jhadina/pupsonstuff exec vitest run __tests__/product3d-placement.test.ts __tests__/product3d-framing.test.ts __tests__/product3d-candidate-intake.test.ts
       - name: Add synthetic model QA route only inside CI build
         env:
           PUPSON_CLOUDFLARE_PREVIEW_ONLY: 'true'
