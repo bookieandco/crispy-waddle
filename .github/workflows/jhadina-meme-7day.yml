@@ -21,6 +21,8 @@ on:
       - 'ops/meme/test_pool_vault_probe.py'
       - 'ops/meme/final_evaluation.py'
       - 'ops/meme/test_final_evaluation.py'
+      - 'ops/meme/cutoff_proof.py'
+      - 'ops/meme/test_cutoff_proof.py'
       - 'ops/meme/reverse_quote_probe.py'
       - 'ops/meme/test_reverse_quote_probe.py'
       - 'ops/meme/paper_admission_worker.py'
@@ -174,7 +176,16 @@ jobs:
           import datetime as dt
           print('expired=' + ('true' if dt.datetime.now(dt.timezone.utc) >= dt.datetime(2026,10,20,22,50,tzinfo=dt.timezone.utc) else 'false'))
           PY
-      - name: Disable this schedule after final ledger receipt
+      - name: Verify the persisted data-branch END and exact final report before disabling
+        if: steps.cutoff.outputs.expired == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "${DATA_BRANCH}:refs/remotes/origin/${DATA_BRANCH}"
+          git show "origin/${DATA_BRANCH}:${STATE_PATH}" > /tmp/shark-persisted-state.json
+          git show "origin/${DATA_BRANCH}:training/meme/experiments/2026-10-13-seven-day-001/final-evaluation.md" > /tmp/shark-persisted-final.md
+          python ops/meme/cutoff_proof.py --state /tmp/shark-persisted-state.json --final /tmp/shark-persisted-final.md
+      - name: Disable schedule only after persisted final proof
         if: steps.cutoff.outputs.expired == 'true'
         shell: bash
         env:
