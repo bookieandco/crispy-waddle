@@ -138,3 +138,55 @@ Still blocked pending **genuine external evidence**:
 6. CI exact-head review, user-authorized operational commissioning and separate Money authority.
 
 **Never** turn an imported video threshold into a universal score, price/time guarantee, or automatic trading order.
+
+## SHARK-FILTER.LIVE.10 → .14 — source implementation and acceptance boundaries
+
+Date: October 21, 2026 PDT. Same draft PR #1455 and branch `build/shark-filter-presets-20261021`. **These are reviewable code/test deliverables, not evidence of an always-on market listener or real-money sniper.** Do not merge until exact-head CI passes and the separate SHARK bot/Cloudflare branches are reconciled.
+
+### LIVE.10 — independently bounded public pair adapter
+
+`shark-filter-live-public.ts` normalizes the officially documented public DEX Screener `/token-pairs/v1/solana/{mint}` payload, pinned to an **explicit original pair**, into an evidence-only observation. Network errors, wrong token identity, wrong pair, duplicate pool record, oversized payload and invalid timestamp fail closed. Pair age is based on the provider's `pairCreatedAt` timestamp, **not** independently observed Pump bonding-curve age. The experimental volume field is named hourly (`h1`); this may not equal the time window implied by a video tutorial. DEX public responses have no authenticated `GLOBAL_FEES_PAID` field and do not verify token authority, social identity, pool ownership, sellability or organic volume.
+
+Provider docs: https://docs.dexscreener.com/api/reference. Solana transaction-fee documentation: https://solana.com/docs/rpc/http/gettransaction. These two fee families remain distinct.
+
+### LIVE.11 — one-shot, public-only research canary
+
+`readPublicDexPair` accepts only a base58 token and pair ID, issues **one fixed-provider, GET-only request**, refuses redirects and failures, and uses a strict time limit. No Telegram messages or arbitrary feed listener, credentials, private sessions, wallet addresses, signing, RPC write, cron schedule, purchases or broadcast routes. The caller provides an existing receipt ID; this alone is not tamper-proof or provider-authenticated. Actual cloud deployment and stable host credential/service availability are NOT asserted.
+
+`runPublicFilterCanary` requires separate canonical migration/launch-stage receipt, pair/mint binding, cutoff correctness and evidence IDs before a stage screen runs. Without it, the result is `STAGE_UNVERIFIED`; without terminal-defined fee evidence, the score is `REVIEW`. The output sets `prospectivePaperEntry=false`, `canSign=false` and `canBroadcast=false`, even for a `MATCH`.
+
+Existing real-world bounded research entrypoint to **retain, not duplicate**: `ops/meme/shark_ephemeral_once.py --confirm PUBLIC-SHARK-ONCE-NO-TRADES`, which exercises the existing public-market SHARK worker in disposable local SQLite state. That worker's counts do not establish quick fills, provider authenticity or a continuous service.
+
+### LIVE.12 — original-pair prospective observation cases
+
+`shark-filter-live-paper.ts` seals a snapshot within one minute of the recorded source observation and preserves token and original pair. Subsequent prices can only produce an explicitly **price-only/unverified** fraction after a matching 24–30-hour quote. Missing records, wrong pair or wrong horizon become censored. Future quotes and retroactive sealing fail; no high-watermark, migrated pool switch or later video screenshot can rewrite a historical prediction. No price-only case is a Money Core paper fill or realizable profit.
+
+This pure helper complements rather than replaces the existing `ops/meme/public_alpha_study.py` and `ops/meme/shark_live_intelligence.py` persistent prospective and censoring pathways. Integrating independently observed *live* receipts into their durable ledger, with recovery and off-host encrypted backups, remains an operational commissioning gate.
+
+### LIVE.13 — buy/sell shadow evidence gate
+
+`shark-filter-live-route-review.ts` requires the existing canonical assessed SHARK watch candidate, original-pair-bound entry and exit quote receipts, separately checked fee components (priority gas, Jito tip, swap charges, price impact, slippage, transfer taxes), extension checks and sellability assertions before even reporting an **indicative** shadow delta. Unknown or failed route = `NO_FILL_OR_UNVERIFIED`. That review still sets `moneyCorePaperFill=false`, `realFill=false` and `signerPermitted=false`. This wrapper has no Jupiter signing, wallet authorization or orders. Jupiter quote/read interfaces are rapidly evolving; do not assume an unverified API quote can execute a particular post-migration exit.
+
+### LIVE.14 — fail-closed external acceptance
+
+`shark-filter-live-acceptance.ts` summarizes screened public observations, original-pair price-only marks, censored cases, and indicative shadow reviews. It then uses existing `evaluateSharkFilterReviewGate` requirements; insufficient independently verified provider, fee, sellability, host, exit latency, paper outcomes, holdout, alert and Money Core approval evidence results in **blocked review**. Even a fully populated source fixture cannot activate deployments, keys, money or signing.
+
+### How to test and how not to misinterpret tests
+
+Run source tests through canonical CI:
+```sh
+pnpm --filter @jhadina/shark-intelligence-core type-check
+pnpm --filter @jhadina/shark-intelligence-core test
+```
+Existing GitHub workflow `SHARK Intelligence Core CI` additionally verifies SHARK integration and persistence contracts. The focused regression file is `packages/shark-intelligence-core/src/meme-trader/__tests__/shark-filter-live-10-14.test.ts`. All test market prices, wallets, pairs, fee records, stage receipts and route flags are explicitly **synthetic fixtures**, not witnessed outcomes or true latency benchmarks.
+
+No operational commissioning was attempted as part of this batch. Host activation, actual published fee definition proof, first mint/migration source, phone delivery, real sellability and prospective case readbacks are not fabricated; the release gate remains fail-closed until independently collected receipts exist.
+
+### Remaining external execution targets
+
+- Connect an **owner-approved** read-only public provider canary to a durable, separately provisioned runtime and establish actual provider/request receipt lineage; benchmark source event visibility separately from polling.
+- Prove Pump lifecycle stages, exact mint/pair bindings, creator control, LP authority, buy/sell route/extension checks, priority and Jito fees with independent, timestamped on-chain evidence.
+- Accumulate diverse *prospective* frozen cases, including rejected tokens and unavailable followups. Score observed rug subtypes, false rejections, missed sellable runners and matched route-executable net outcomes without censorship bias.
+- Test encrypted restore, alerts to the user's device, provider failure/429/timeout recovery, source provenance drift and exact-head CI; request independent Money Core review before any proposal for a live canary.
+
+**Release authority remains NONE. No new fee-bearing resources, deployment, signing, wallet connection, money movement or live trades.**
