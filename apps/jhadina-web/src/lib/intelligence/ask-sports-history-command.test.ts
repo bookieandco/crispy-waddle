@@ -100,6 +100,7 @@ describe("Ask Jhadina sports history shortcut",()=>{
     expect(result?.view?.financialAuthority).toBe("NONE")
     expect(result?.view?.canExecute).toBe(false)
     expect(result?.proposal.recommendation).toContain("Test Player")
+    expect(result?.proposal.recommendation).toContain("total 31")
     expect(result?.proposal.recommendation).toContain("Complete all-time coverage certified: yes")
   })
 })
