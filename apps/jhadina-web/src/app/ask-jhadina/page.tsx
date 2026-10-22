@@ -15,6 +15,7 @@ import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } f
 import { SportsHistoryCard, type SportsHistoryViewForUi } from "./sports-history-card"
 import { SportsWatchSubscriptionCard } from "./sports-watch-subscription-card"
 import { VisualResponseCard } from "./visual-response-card"
+import {WikipediaResearchExplorer} from "./wikipedia-research-explorer"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
@@ -720,6 +721,7 @@ function AskJhadina(){
     ].map(example=><button key={example} type="button" className="jh-button" disabled={busy} onClick={()=>setTask(example)}>{example}</button>)}
    </div>
   </div>
+  <WikipediaResearchExplorer/>
   <details className="jh-section" style={{marginTop:16}}>
    <summary style={{cursor:"pointer",fontWeight:600}}>Tools and workspaces</summary>
    <p className="jh-card-copy">Choose an existing Jhadina world, or open its workspace. A workspace link is not proof that its provider is connected or authorized to execute. No action runs when you browse this directory.</p>
