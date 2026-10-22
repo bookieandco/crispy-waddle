@@ -17,17 +17,17 @@ export function createSniperIntelArchiveStore(client:SupabaseClient):SniperArchi
   },
   async read(receiptId:string):Promise<SniperIntelArchiveRow|null>{
    const {data,error}=await client.from(table)
-    .select('receipt_id,trade_id,token_address,information_cutoff,payload_hash,payload_json')
+    .select('receipt_id,owner_id,trade_id,token_address,information_cutoff,payload_hash,payload_json')
     .eq('receipt_id',receiptId).maybeSingle()
    if(error)throw new Error('SHARK_INTEL_ARCHIVE_READ_FAILED:'+error.code)
    if(!data)return null
-   if(typeof data.receipt_id!=='string'||typeof data.trade_id!=='string'||
+   if(typeof data.receipt_id!=='string'||typeof data.owner_id!=='string'||typeof data.trade_id!=='string'||
      typeof data.token_address!=='string'||typeof data.information_cutoff!=='string'||
      typeof data.payload_hash!=='string'||!data.payload_json||typeof data.payload_json!=='object'){
     throw new Error('SHARK_INTEL_ARCHIVE_ROW_INVALID')
    }
    return Object.freeze({
-    receipt_id:data.receipt_id,trade_id:data.trade_id,token_address:data.token_address,
+    receipt_id:data.receipt_id,owner_id:data.owner_id,trade_id:data.trade_id,token_address:data.token_address,
     information_cutoff:new Date(data.information_cutoff).toISOString(),
     payload_hash:data.payload_hash,
     payload_json:data.payload_json as SniperIntelArchiveRow['payload_json'],
