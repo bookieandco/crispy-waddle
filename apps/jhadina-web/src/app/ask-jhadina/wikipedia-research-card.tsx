@@ -19,6 +19,7 @@ export type WikipediaResearchView = {
   limitations: string[]
 }
 
+type SourceReviewView = { status: "POTENTIAL_ALIGNMENT" | "NO_ALIGNMENT" | "UNAVAILABLE" | "NOT_ALLOWED"; sourceUrl?: string; sourceExcerpt?: string; overlappingTerms?: string[]; independentlyVerified: false; limitations: string[] }
 type CitationInspection = {
   pageId: number
   title: string
@@ -57,11 +58,14 @@ export function WikipediaResearchCard({ research }: { research: WikipediaResearc
   const [activePage, setActivePage] = useState<number | null>(null)
   const [inspectionError, setInspectionError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [sourceReview, setSourceReview] = useState<SourceReviewView | null>(null)
+  const [reviewing, setReviewing] = useState(false)
   async function inspect(pageId: number) {
     if (loading) return
     setLoading(true)
     setActivePage(pageId)
     setInspection(null)
+    setSourceReview(null)
     setInspectionError("")
     try {
       const userId = await getCurrentUserId()
@@ -78,6 +82,23 @@ export function WikipediaResearchCard({ research }: { research: WikipediaResearc
     } finally {
       setLoading(false)
     }
+  }
+  async function reviewCandidate(pageId: number, candidateIndex: number) {
+    if (reviewing) return
+    setReviewing(true)
+    setSourceReview(null)
+    try {
+      const userId = await getCurrentUserId()
+      if (!userId) throw new Error("Not signed in")
+      const response = await fetch("/api/jhadina/research/wikipedia/review", {
+        method: "POST", headers: { "Content-Type": "application/json", "x-jhadina-user-id": userId },
+        body: JSON.stringify({ pageId, candidateIndex }), cache: "no-store",
+      })
+      const result = await response.json()
+      if (!response.ok || !result?.success) throw new Error("Review unavailable")
+      setSourceReview(result.data)
+    } catch { setInspectionError("Independent-source comparison unavailable; no verification was performed.") }
+    finally { setReviewing(false) }
   }
   return <section className="jh-section" aria-label="Wikipedia research sources" style={{ marginTop: 18 }}>
     <h2 className="jh-card-title">Wikipedia research sources</h2>
@@ -100,7 +121,17 @@ export function WikipediaResearchCard({ research }: { research: WikipediaResearc
             {inspection?.pageId === article.id ? <>
               <p className="jh-meta">Citation candidates only; an article reference is not independent corroboration.</p>
               {inspection.referenceSnippets.map((s, i) => <p className="jh-card-copy" key={i}>{s}</p>)}
-              {inspection.externalLinkCandidates.map((u, i) => safeReferenceLink(u) ? <p key={i}><a href={safeReferenceLink(u)} target="_blank" rel="noopener noreferrer">Reference candidate {i + 1} ↗</a></p> : null)}
+              {inspection.externalLinkCandidates.map((u, i) => safeReferenceLink(u) ? <div className="jh-row" key={i} style={{marginTop:6}}>
+                <a href={safeReferenceLink(u)} target="_blank" rel="noopener noreferrer">Reference candidate {i + 1} ↗</a>
+                <button className="jh-button" type="button" disabled={reviewing} onClick={()=>void reviewCandidate(article.id,i)}>Compare public source</button>
+              </div> : null)}
+              {reviewing ? <p className="jh-meta" role="status">Comparing public source…</p> : null}
+              {sourceReview ? <div className="jh-item" role="status">
+                <strong>{sourceReview.status.replaceAll("_", " ")} · not independently verified</strong>
+                {sourceReview.sourceExcerpt ? <p className="jh-card-copy">{sourceReview.sourceExcerpt}</p> : null}
+                {sourceReview.overlappingTerms?.length ? <p className="jh-meta">Overlapping terms: {sourceReview.overlappingTerms.join(", ")}</p> : null}
+                <p className="jh-meta">{sourceReview.limitations.join(" ")}</p>
+              </div> : null}
               {inspection.referenceSnippets.length === 0 && inspection.externalLinkCandidates.length === 0 ? <p className="jh-meta">No reference candidates returned.</p> : null}
             </> : null}
           </div> : null}
