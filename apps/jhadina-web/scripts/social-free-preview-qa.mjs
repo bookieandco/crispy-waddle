@@ -40,7 +40,7 @@ try {
     page.on('pageerror', error => errors.push(error.message))
     await context.route('**/*', async route => {
       const req = route.request()
-      if (!['GET', 'HEAD'].includes(req.method())) {writes.push(req.url()); await route.abort(); return}
+      if (!['GET', 'HEAD'].includes(req.method())) {writes.push(req.url()); await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'SOCIAL_FREE_STORAGE_UNAVAILABLE'})}); return}
       if (new URL(req.url()).origin !== origin) {external.push(req.url()); await route.abort(); return}
       // No account/backend is connected. Do not fabricate a persistence success.
       if (new URL(req.url()).pathname.startsWith('/api/')) {
@@ -67,10 +67,12 @@ try {
     const saveButtons = page.getByRole('button', {name: /^Save /})
     assert.equal(await saveButtons.count(), 8)
     for (const button of await saveButtons.all()) {
-      assert.equal(await button.isDisabled(), true)
-      // Native disabled buttons must not dispatch their React click handlers.
-      await button.evaluate(element => element.click())
+      assert.equal(await button.isDisabled(), false)
     }
+    await page.getByRole('button', {name: 'Save creator', exact:true}).click()
+    await page.getByRole('status').filter({hasText:'SOCIAL_FREE_STORAGE_UNAVAILABLE'}).waitFor()
+    await page.getByRole('button', {name:'Save creator leads only', exact:true}).click()
+    await page.getByRole('status').filter({hasText:'SOCIAL_FREE_STORAGE_UNAVAILABLE'}).waitFor()
     await page.getByRole('button', {name: 'Reload saved records', exact: true}).click()
     await page.getByRole('status').filter({hasText: 'SOCIAL_FREE_STORAGE_UNAVAILABLE'}).waitFor()
     assert.equal(await page.getByRole('button', {name: /^Record /}).count(), 0)
@@ -80,9 +82,9 @@ try {
     await page.getByLabel('Creator identifier').waitFor()
     assert.equal(await page.getByLabel('Creator identifier').inputValue(), '')
     assert.equal(await page.getByRole('heading', {name: 'Creator assessment', exact: true}).count(), 0)
-    assert.deepEqual(writes, []); assert.deepEqual(external, []); assert.deepEqual(errors, [])
+    assert.equal(writes.length, 2); assert.deepEqual(external, []); assert.deepEqual(errors, [])
     receipts.push({width, engine: 'chromium', actualComponent: true, evaluation: 'PASS',
-      disabledSaveControls: 8, persistenceRequests: writes.length, externalRequests: external.length,
+      enabledOwnerDraftControls: 8, interceptedFailedMutations: writes.length, externalRequests: external.length,
       horizontalOverflow: false, reloadClearsPreview: true, realIphoneVerified: false, liveRlsVerified: false})
     await context.close()
   }
