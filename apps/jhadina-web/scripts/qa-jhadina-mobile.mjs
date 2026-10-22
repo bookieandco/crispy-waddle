@@ -126,6 +126,37 @@ try {
       console.log("PASS shell destination traversal", destinations.length)
     }
 
+    // Ask must remain interactive after its child effects and an unrelated
+    // parent state update, then allow navigation out without a full reload.
+    // This catches the artifact-reference callback render loop (#185).
+    const askErrors = []
+    const onAskError = error => askErrors.push(String(error))
+    const onAskConsole = message => {
+      if (message.type() === "error" && /maximum update depth|Minified React error #185/i.test(message.text()))
+        askErrors.push(message.text())
+    }
+    page.on("pageerror", onAskError)
+    page.on("console", onAskConsole)
+    await visit(page, "/")
+    await page.getByRole("navigation", { name: "Primary navigation" })
+      .getByRole("link", { name: "Ask", exact: true }).click()
+    await page.waitForURL(url => url.pathname === "/ask-jhadina")
+    const command = page.locator("#jhadina-command")
+    await command.fill("Navigation responsiveness check")
+    assert.equal(await command.inputValue(), "Navigation responsiveness check")
+    await page.getByRole("button", { name: "Which social accounts should I work on right now?", exact: true }).click()
+    assert.equal(await command.inputValue(), "Which social accounts should I work on right now?")
+    await page.getByRole("button", { name: "More Jhadina worlds" }).click()
+    await page.getByRole("navigation", { name: "Jhadina worlds" }).waitFor({ state: "visible" })
+    await page.keyboard.press("Escape")
+    await page.getByRole("navigation", { name: "Primary navigation" })
+      .getByRole("link", { name: "Home", exact: true }).click()
+    await page.waitForURL(url => url.pathname === "/")
+    assert.deepEqual(askErrors, [], "Ask runtime errors: " + askErrors.join("; "))
+    page.off("pageerror", onAskError)
+    page.off("console", onAskConsole)
+    console.log("PASS", size.name, "Home -> Ask typing/example/menu -> Home; no runtime loop")
+
     // Real Pages Router destination, which mounts the shell separately from App Router.
     await visit(page, "/jhadinatv")
     await page.getByRole("navigation", { name: "Primary navigation" }).waitFor({ state: "visible" })
