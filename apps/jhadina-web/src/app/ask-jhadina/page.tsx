@@ -69,6 +69,7 @@ function AskJhadina(){
  const [sessionReady,setSessionReady]=useState(false)
  const [sessionRestoreFailed,setSessionRestoreFailed]=useState(false)
  const [workSessionGoal,setWorkSessionGoal]=useState("")
+ const [workSessionResearchRefs,setWorkSessionResearchRefs]=useState<string[]>([])
  const [workSessionActiveSubsystems,setWorkSessionActiveSubsystems]=useState<string[]>([])
  const [interactivePhase,setInteractivePhase]=useState<JhadinaInteractivePhase>("idle")
  const [conversationActive,setConversationActive]=useState(false)
@@ -116,6 +117,7 @@ function AskJhadina(){
    setWorkSessionId(resumed.id)
    const restored=restoreWorkSessionContinuity(resumed.session)
    setWorkSessionGoal(restored.goal)
+   setWorkSessionResearchRefs(restored.researchSourceRefs)
    setArtifactRefs(current=>[...new Set([...restored.admittedArtifactIds,...current])].slice(0,8))
    setWorkSessionActiveSubsystems(restored.activeSubsystems)
    if(restored.goal)setTask(current=>current.trim()?current:restored.goal)
@@ -145,7 +147,8 @@ function AskJhadina(){
    ...(data.wikipediaResearch?.articles.length?["research"]:[]),
   ])]
   const decisionRefs=[data.proposal?.id,data.reasoningEventId].filter((value):value is string=>typeof value==="string"&&Boolean(value))
-  const outputRefs=[...(data.videoJob?.id?[data.videoJob.id]:[]),...(data.wikipediaResearch?.articles??[]).map(article=>`wikipedia:${article.id}:${article.revisionId??"unknown"}`)].slice(0,12)
+  const sourceRefs=[...new Set([...workSessionResearchRefs,...(data.wikipediaResearch?.articles??[]).map(article=>`wikipedia:${article.id}:${article.revisionId??"unknown"}`)])].slice(-8)
+  const outputRefs=[...(data.videoJob?.id?[data.videoJob.id]:[]),...sourceRefs].slice(0,12)
   const durableRefs=[...new Set(artifactRefs)].slice(0,8).map(id=>({id,kind:"data" as const,provenanceRef:`artifact:${id}`,admitted:true}))
   const response=await fetch(`/api/jhadina/work-sessions/${encodeURIComponent(id)}`,{
    method:"PUT",
@@ -156,6 +159,7 @@ function AskJhadina(){
   const json=await response.json()
   if(!json?.success||json?.session?.id!==id)throw new Error("WORK_SESSION_SAVE_UNVERIFIED")
   rememberWorkSession(sessionPointerStorage(),userId,id)
+  setWorkSessionResearchRefs(sourceRefs)
   if(typeof json?.session?.goal==="string")setWorkSessionGoal(json.session.goal)
   if(Array.isArray(json?.session?.activeSubsystems)){
    setWorkSessionActiveSubsystems(json.session.activeSubsystems.filter((item:unknown):item is string=>typeof item==="string"&&Boolean(item.trim())).slice(0,16))
@@ -638,6 +642,17 @@ function AskJhadina(){
     {referenceFile?<label className="jh-row" style={{marginTop:10,alignItems:"center"}}><input type="checkbox" checked={referenceRightsConfirmed} onChange={event=>setReferenceRightsConfirmed(event.target.checked)} disabled={busy}/><span className="jh-card-copy">{referenceKind==="character"?"I own or have permission to use this image and the depicted likeness/character for this production.":"I own or have permission to use this product image, packaging, and brand assets for this production."}</span></label>:null}
     {referenceStage?<p className="jh-meta" style={{marginTop:8}}>{referenceStage}</p>:null}
    </div>
+   {workSessionResearchRefs.length?<div className="jh-row" style={{marginTop:8}}>
+    <span className="jh-meta">Previous research sources:</span>
+    {workSessionResearchRefs.map(ref=>{
+     const match=ref.match(/^wikipedia:([1-9]\\d{0,9}):([1-9]\\d{0,15}|unknown)$/)
+     if(!match)return null
+     const href=match[2]==="unknown"
+      ? `https://en.wikipedia.org/w/index.php?curid=${match[1]}`
+      : `https://en.wikipedia.org/w/index.php?oldid=${match[2]}`
+     return <a key={ref} href={href} target="_blank" rel="noopener noreferrer" className="jh-meta">Wikipedia page {match[1]} ↗</a>
+    })}
+   </div>:null}
    <p className="jh-meta">Context surface: {surface} · route: {route} · work session: {workSessionId?workSessionId.slice(0,12):"initializing"}{workSessionGoal?` · resumed goal: ${workSessionGoal.slice(0,80)}`:""} · ⌘/Ctrl + Enter to send · screen frames stay ephemeral · attached files use private quarantine and only clean files enter reasoning; identity-reference uploads persist only through the explicit governed Director flow above</p>
    <div className="jh-row" style={{marginTop:10}}>
     {[
