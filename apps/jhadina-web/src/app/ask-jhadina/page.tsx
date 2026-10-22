@@ -10,6 +10,7 @@ import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemera
 import { chunkSpeechText, isAbortLike, planGovernedSpeech, projectNativeSpeechDelivery, type JhadinaConversationLine, type JhadinaInteractivePhase, type PlannedSpeechSegment } from "./interactive-runtime"
 import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-runtime"
 import { rememberWorkSession, resumeOwnerWorkSession, type SessionPointerStorage } from "./work-session-resume"
+import {loadLocalConversation,saveLocalConversation,clearLocalConversation,searchLocalConversation} from "./local-conversation-history"
 import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
 import { SportsHistoryCard, type SportsHistoryViewForUi } from "./sports-history-card"
 import { SportsWatchSubscriptionCard } from "./sports-watch-subscription-card"
@@ -79,9 +80,11 @@ function AskJhadina(){
  const [interactivePhase,setInteractivePhase]=useState<JhadinaInteractivePhase>("idle")
  const [conversationActive,setConversationActive]=useState(false)
  const [conversationLines,setConversationLines]=useState<JhadinaConversationLine[]>([])
+ const [historyFilter,setHistoryFilter]=useState("")
  const nativeAudioRef=useRef<HTMLAudioElement|null>(null)
  const busyRef=useRef(false)
  const activeTurnRef=useRef("")
+ const historyOwnerRef=useRef("")
  const pendingSessionSaveRef=useRef<{userId:string;command:string;data:CommandResult}|null>(null)
  const commandAbortRef=useRef<AbortController|null>(null)
  const speechAbortRef=useRef<AbortController|null>(null)
@@ -133,6 +136,8 @@ function AskJhadina(){
     },
    })
    if(cancelled)return
+   historyOwnerRef.current=userId
+   setConversationLines(loadLocalConversation(sessionPointerStorage(),userId,resumed.id))
    setWorkSessionId(resumed.id)
    const restored=restoreWorkSessionContinuity(resumed.session)
    setWorkSessionGoal(restored.goal)
@@ -148,6 +153,13 @@ function AskJhadina(){
   })
   return()=>{cancelled=true;controller.abort()}
  },[requestedSessionId])
+
+ // Free browser-local recovery is a cache, not cross-device durable history.
+ // Save only after the canonical owner/session has been restored.
+ useEffect(()=>{
+  if(!sessionReady||!historyOwnerRef.current||!workSessionId)return
+  saveLocalConversation(sessionPointerStorage(),historyOwnerRef.current,workSessionId,conversationLines)
+ },[conversationLines,sessionReady,workSessionId])
 
  useEffect(()=>()=>{commandAbortRef.current?.abort();stopSpeech()},[])
 
@@ -493,7 +505,7 @@ function AskJhadina(){
   setError("")
   setResult(null)
   setFeedbackRecorded(null)
-  setConversationLines(current=>[...current,{id:`user:${turnId}`,speaker:"user" as const,text:command,createdAt:new Date().toISOString(),turnId}].slice(-16))
+  setConversationLines(current=>[...current,{id:`user:${turnId}`,speaker:"user" as const,text:command,createdAt:new Date().toISOString(),turnId}].slice(-40))
   let failed=false
 
   try{
@@ -556,7 +568,7 @@ function AskJhadina(){
      text:speechPlan.conversationText,
      createdAt:new Date().toISOString(),
      turnId,
-    }].slice(-16))
+    }].slice(-40))
    }
 
    if(source==="voice"&&speechPlan.segments.length){
@@ -644,7 +656,19 @@ function AskJhadina(){
     {(busy||interactivePhase==="speaking")?<button type="button" className="jh-button" onClick={interruptCurrentTurn}>Interrupt</button>:null}
    </div>
    {conversationLines.length?<div className="jh-list" aria-label="Recent live conversation" style={{marginTop:14}}>
-    {conversationLines.slice(-6).map(line=><div key={line.id} className="jh-item">
+    <div className="jh-row" style={{alignItems:"center",marginBottom:8}}>
+     <label htmlFor="jhadina-chat-search" className="jh-eyebrow">Search this chat</label>
+     <input id="jhadina-chat-search" className="jh-input" value={historyFilter}
+       placeholder="Find a previous turn" onChange={event=>setHistoryFilter(event.target.value)}
+       style={{flex:"1 1 160px"}}/>
+     <button type="button" className="jh-button" onClick={()=>{
+      clearLocalConversation(sessionPointerStorage(),historyOwnerRef.current,workSessionId)
+      setConversationLines([])
+      setHistoryFilter("")
+     }}>Clear local chat</button>
+    </div>
+    <p className="jh-meta">Recent turns are stored on this device only; they are not synchronized or encrypted as a server transcript. Keep private keys out of chats.</p>
+    {(historyFilter?searchLocalConversation(conversationLines,historyFilter):conversationLines.slice(-8)).map(line=><div key={line.id} className="jh-item">
      <p className="jh-eyebrow">{line.speaker==="jhadina"?"Jhadina":"You"}</p>
      <p className="jh-card-copy">{line.text}</p>
     </div>)}
