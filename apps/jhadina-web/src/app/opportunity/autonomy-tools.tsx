@@ -158,7 +158,11 @@ export default function AutonomyTools({ onImported }: { onImported: () => void }
           I reviewed the canonical source excerpts for this draft.
         </label>
         <button style={btn} disabled={busy||!pilotOpportunityId.trim()||!pilotSourceReviewed} onClick={()=>void runCanonicalPilot()}>Create governed internal report</button>
-        {pilotRunId&&<button style={{...btn,background:"#3b5748"}} disabled={busy} onClick={()=>void recoverPilot()}>Reload saved run and report</button>}
+        <label>Saved internal report run ID (paste after iPhone/browser restart)
+          <input style={field} autoCapitalize="none" spellCheck={false} value={pilotRunId}
+            onChange={e=>setPilotRunId(e.target.value.trim())} placeholder="agent-run:oce:..."/>
+        </label>
+        <button style={{...btn,background:"#3b5748"}} disabled={busy||!pilotRunId.trim()} onClick={()=>void recoverPilot()}>Reload saved run and report</button>
         {pilotStatus&&<p role="status" style={{fontSize:13}}>{pilotStatus}</p>}
         {pilotDocument&&<details><summary>Read internal report</summary><pre style={{whiteSpace:"pre-wrap",wordBreak:"break-word",fontSize:12}}>{pilotDocument}</pre></details>}
       </div>
