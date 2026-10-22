@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseRoundOneEntry, parseRoundOneLedger, roundOneMemoryContent } from "./round-one-interview"
+import { mergeRoundOneLedgers, parseRoundOneEntry, parseRoundOneLedger, roundOneMemoryContent } from "./round-one-interview"
 const valid = {
   schemaVersion: "jhadina.interview.round1.v1", round: 1, status: "closed",
   closedAfterQuestion: 120, source: "owner-chat-answers",
@@ -30,4 +30,24 @@ describe("Round 1 owner-controlled memory import", () => {
     expect(() => parseRoundOneLedger({ ...valid, status: "active" })).toThrow()
     expect(() => parseRoundOneEntry({ ...valid.entries[0], answer: "x".repeat(751) })).toThrow()
   })
+  it("combines separately recovered ranges into one sorted owner review", () => {
+    const early = { ...valid, entries: [
+      { ...valid.entries[0], questionNumber: 2, questionId: "R1-Q002", topic: "Communication" },
+      { ...valid.entries[0], questionNumber: 1, questionId: "R1-Q001", topic: "Conversation" },
+    ] }
+    const merged = mergeRoundOneLedgers([valid, early])
+    expect(merged.entries.map(entry => entry.questionNumber)).toEqual([1, 2, 120])
+    expect(mergeRoundOneLedgers([early, valid])).toEqual(merged)
+  })
+  it("deduplicates identical private answers and rejects conflicting duplicates", () => {
+    expect(mergeRoundOneLedgers([valid, valid]).entries).toHaveLength(1)
+    const conflict = { ...valid, entries: [{ ...valid.entries[0], answer: "No" }] }
+    expect(() => mergeRoundOneLedgers([valid, conflict])).toThrow(/Conflicting private answers/)
+  })
+  it("refuses invalid extra archives before merging", () => {
+    expect(() => mergeRoundOneLedgers([])).toThrow()
+    expect(() => mergeRoundOneLedgers(new Array(6).fill(valid))).toThrow()
+    expect(() => mergeRoundOneLedgers([valid, { ...valid, status: "active" }])).toThrow()
+  })
+
 })
