@@ -76,6 +76,37 @@ export function parseRoundOneLedger(value: unknown): RoundOneLedger {
     closedAfterQuestion: 120, source: "owner-chat-answers", entries,
   }
 }
+
+/**
+ * Combine separately recovered private interview ranges in one owner-local review.
+ * Each archive is validated independently; conflicting duplicates are rejected.
+ * Sorting is stable regardless of the order files are selected.
+ */
+export function mergeRoundOneLedgers(values: readonly unknown[]): RoundOneLedger {
+  if (values.length < 1 || values.length > 5) {
+    throw new Error("Choose between one and five private Round 1 archives")
+  }
+  const byQuestion = new Map<number, RoundOneEntry>()
+  for (const value of values) {
+    const ledger = parseRoundOneLedger(value)
+    for (const entry of ledger.entries) {
+      const existing = byQuestion.get(entry.questionNumber)
+      if (existing) {
+        if (existing.topic !== entry.topic || existing.answer !== entry.answer) {
+          throw new Error("Conflicting private answers for " + entry.questionId + "; resolve them locally")
+        }
+        continue
+      }
+      byQuestion.set(entry.questionNumber, entry)
+    }
+  }
+  return parseRoundOneLedger({
+    schemaVersion: ROUND_ONE_SCHEMA, round: 1, status: "closed",
+    closedAfterQuestion: 120, source: "owner-chat-answers",
+    entries: [...byQuestion.values()].sort((a, b) => a.questionNumber - b.questionNumber),
+  })
+}
+
 export function roundOneMemoryContent(entry: RoundOneEntry): string {
   const valid = parseRoundOneEntry(entry)
   const content = "Owner interview Round 1 " + valid.questionId + " (" + valid.topic + "). Question summary (not owner quote): " + valid.questionSummary + " Owner answer (verbatim): " + valid.answer
