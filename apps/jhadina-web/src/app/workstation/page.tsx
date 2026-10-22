@@ -6,6 +6,7 @@ import { LiveGeneratedEditingAssetShelf } from '../../../components/workstation/
 import { WorkstationTimeline } from '../../../components/workstation/WorkstationTimeline';
 import { ReferenceCharacterVideoPanel } from '../../../components/workstation/ReferenceCharacterVideoPanel';
 import { WorkstationProjectInputs } from '../../../components/workstation/WorkstationProjectInputs';
+import { WorkstationExplainerStudio } from '../../../components/workstation/WorkstationExplainerStudio';
 import { WorkstationBusinessContext } from '../../../components/workstation/WorkstationBusinessContext';
 import { WorkstationSocialScheduler } from '../../../components/workstation/WorkstationSocialScheduler';
 import { WorkstationScreenplayProposals } from '../../../components/workstation/WorkstationScreenplayProposals';
@@ -274,6 +275,7 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
       {stage==='direct'?<div className="space-y-4">
         <ReferenceCharacterVideoPanel projectId={projectId} />
         <WorkstationProductionGates projectId={projectId} />
+        <WorkstationExplainerStudio projectId={projectId} />
         <WorkstationWatchStudy />
         <WorkstationMediaStudy />
         <WorkstationWatchCommissioning />
