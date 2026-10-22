@@ -73,8 +73,14 @@ export type PublicSubcontractWorkPackage={
 }
 
 const uniq=(values:string[])=>[...new Set(values.map(v=>v.trim()).filter(Boolean))]
-const normalizedName=(value:string)=>value.toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9 ]/g,' ').replace(/(incorporated|inc|llc|ltd|limited|corp|corporation|co|company)/g,' ').replace(/s+/g,' ').trim()
+const normalizedName=(value:string)=>value.toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9 ]/g,' ').replace(/\b(incorporated|inc|llc|ltd|limited|corp|corporation|co|company)\b/g,' ').replace(/\s+/g,' ').trim()
 const slug=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80)
+
+// A single award line can list multiple awardees. Never silently construct
+// one fictional prime entity from a compound contractor name.
+export function hasAmbiguousAwardRecipient(name:string):boolean{
+  return /\b(?:LLC|L\.?P\.?|Inc\.?|Corp\.?)\s*,\s*(?!dba\b)[A-Z][^;]{2,}\b(?:LLC|L\.?P\.?|Inc\.?|Corp\.?)\b/i.test(name)
+}
 
 function keywords(value:string|undefined):string[]{
   if(!value)return[]
@@ -118,6 +124,8 @@ export function buildPublicAwardPrimeFingerprints(records:PublicAwardRecord[]):P
   const groups=new Map<string,PublicAwardRecord[]>()
   for(const record of records){
     if(!record.awardedPrimeName.trim()||record.evidenceRefs.length===0)continue
+    // Explicit stable awardee IDs take precedence over name-only ambiguity.
+    if(!record.awardedPrimeRef && hasAmbiguousAwardRecipient(record.awardedPrimeName))continue
     const key=record.awardedPrimeRef?.trim()||normalizedName(record.awardedPrimeName)
     const rows=groups.get(key)??[]
     rows.push(record)
