@@ -376,7 +376,14 @@ async def user_reader(args, root, secret):
     client = None
     try:
         client = TelegramClient(str(root / "owner"), int(api_id), api_hash)
-        await client.start()
+        if os.getenv("TELEGRAM_CLOUD_NONINTERACTIVE") == "1":
+            # A headless service must NEVER prompt for a phone/OTP/2FA or
+            # silently bootstrap a replacement owner account on restart.
+            await client.connect()
+            if not await client.is_user_authorized():
+                raise SystemExit("TELEGRAM_CLOUD_SESSION_REVOKED_OR_EXPIRED_STOP")
+        else:
+            await client.start()
         # Every personal-session read, including explicit chat backfill, must
         # prove this is the same owner's account as the verified bot pairing.
         user = await client.get_me()

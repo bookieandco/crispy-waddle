@@ -1,3 +1,18 @@
+# Cloud independence update — TELEGRAM-CLOUD.01–.05 (2026-10-22)
+
+**MacBook is no longer a design prerequisite.** The separately reviewed
+`cloud_personal_listener.py` implements a source-only personal-account
+Telethon path for an owner-controlled Linux host, with initial login performed
+from an iPhone via private authenticated SSH. See the
+[Cloud Independence runbook](../../docs/architecture/TELEGRAM-CLOUD-INDEPENDENCE-01-05-2026-10-22.md).
+
+This is **not deployed**: dedicated host, enrollment, Telegram data rights,
+live validation and the independent production release gate remain unapproved.
+The run action deliberately exits without monitoring until those gates are
+independently satisfied. `@R2dice2bot` remains the sole owner of the manual
+Bot API workflow. No model learning, continuous source ingestion, spending,
+wallet or trades are authorized by this change.
+
 # Recovery status — source only (RECOVER.01–.08)
 
 The previously drafted forward-to-bot persistent consumer and selected-chat storage are **code-held** in this recovery: they may not be started. The verified main-branch @R2dice2bot one-shot workflow remains the only Bot API getUpdates owner; it must not compete with a durable poller. The personal owner-account all-chat reader is local-only, transient non-AI observation and requires separate trusted-device certification. No Dockerfile or deployable worker is installed in this recovery. Historical deployment instructions below are architecture references, not an authorization to provision or launch services.

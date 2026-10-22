@@ -40,6 +40,33 @@ jobs:
             exit 1
           fi
           echo 'TELEGRAM_PERSONAL_PRODUCTION_GATE_HELD'
+      - name: Cloud independence hard stop and public-only SHARK separation
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          python3 scripts/shark-telegram/cloud_personal_listener.py run
+          code=$?
+          set -e
+          if [ "$code" -ne 1 ]; then
+            echo "::error::TELEGRAM_CLOUD_RUN_UNEXPECTEDLY_AUTHORIZED"
+            exit 1
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          personal = Path("scripts/shark-telegram/cloud_personal_listener.py").read_text()
+          handler = Path("scripts/shark-telegram/telegram_intake.py").read_text()
+          canary = Path("ops/meme/public_alpha_canary_once.py").read_text()
+          unit = Path("scripts/shark-telegram/telegram-cloud.service.example").read_text()
+          assert "production_release_held()" in personal
+          assert "TELEGRAM_CLOUD_NONINTERACTIVE" in handler
+          assert "is_user_authorized()" in handler
+          assert "TELEGRAM_PERSISTENT_BOT_CONSUMER_HELD_SINGLE_OWNER_REQUIRED" in handler
+          assert "TELEGRAM-CLOUD.03 — REVIEW ONLY" in unit
+          assert "telegram_intake" not in canary
+          assert "canTrade" in canary and "telegramDataUsed" in canary
+          print("TELEGRAM_CLOUD_HELD_PUBLIC_SHARK_SEPARATE")
+          PY
       - name: Preserve current manual Telegram owner
         shell: bash
         run: |

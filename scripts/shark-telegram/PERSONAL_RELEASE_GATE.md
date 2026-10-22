@@ -31,8 +31,10 @@ Telegram authentication or authorize automatic deployment.
 ## Independent production evidence still required
 
 All remain under [audit/repair issue #1238](https://github.com/bookieandco/crispy-waddle/issues/1238):
-1. The owner's trusted-Mac sign-in with API ID/hash and Telegram 2FA
-   handled exclusively on that Mac, without uploading a session or keys.
+1. The owner's authenticated sign-in on an approved trusted host, including
+   an iPhone-controlled SSH terminal to a private persistent Linux server,
+   with API ID/hash and Telegram OTP/2FA kept exclusively on that host.
+   A Mac remains an optional alternative, never a mandatory dependency.
 2. Verified personal account ID equals the independently verified
    `TELEGRAM_ALLOWED_USER_ID` from the bot-side owner challenge.
 3. Fresh new incoming crypto-format message received **while connected**.
@@ -62,8 +64,9 @@ or accidental PR merge should remove this hold.
 - CI does not receive the owner's API keys, 2FA, session, Telegram updates,
   account ID or a private data volume. There are no production secrets
   in `personal_release_evidence.json`.
-- Local client needs an awake/online trusted Mac and a freshly authorized
-  personal-account session. Real live operations are **not deployed**.
+- Local foreground mode requires an awake trusted device; the separate
+  cloud path requires approved dedicated persistent hosting, a securely enrolled
+  session, and real owner/device release evidence. Neither is **deployed**.
 - This gate protects the personal user reader; it does **not** greenlight
   other draft SHARK/Shadow bots, market-data rights, wallet features or
   funding requests.
