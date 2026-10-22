@@ -47,6 +47,19 @@ Implemented in source:
   cover fail-closed, actor mismatch, service-only writes, source/SQL guard
   parity and metadata redaction.
 
+Additional isolated audit acceptance is staged in
+`scripts/social-audit-postgres-accept.sh` and
+`.github/workflows/social-audit-disposable-postgres.yml`. It reconstructs
+the live inspected function on disposable PostgreSQL with synthetic ledger
+tables and roles, confirms the pre-cutover self-authored Social event path,
+applies the Social-only proposal in that disposable fixture, then asserts:
+authenticated Social forgery denied, unrelated Growth append retained,
+service_role Social append accepted, head hash length and event-count
+continuity, and no real network/provider calls. The script adjusts the
+checksum only in an ephemeral local SQL copy to account for PG function
+format differences; **the GitHub proposal retains the pinned real
+production checksum and is not executed on the live project**.
+
 The SQL privilege boundary is **not live** and audit ledger trust remains
 a blocking issue until the staging SQL is tested on isolated Postgres and
 the live exact project after approval. Never interpret existing,
