@@ -16,6 +16,8 @@ export interface RecastReviewReceipt {
   characterImageSha256:string
   sourceAudioSha256:string
   reviewerId:string
+  /** Server append timestamp, not a user-provided review clock. */
+  createdAt?:string
   reviewedAt:string
   expiresAt:string
   status:'approved'|'rejected'
