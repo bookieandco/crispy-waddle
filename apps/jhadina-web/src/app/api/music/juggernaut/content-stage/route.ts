@@ -12,9 +12,12 @@ export async function POST(req:NextRequest){
     const artistKey=body.artistKey?.trim()||'atwood-bookie';
     const projection=await loadMusicJuggernautProjection({userId:identity.userId,artistKey});
     if(!projection)return NextResponse.json({success:false,error:'Music Juggernaut project not found'},{status:404});
-    const brief=projection.creativePortfolio?.briefs.find((item)=>item.id===body.briefId)??projection.creativePortfolio?.briefs[0];
-    const song=projection.rankedSongs[0];
-    if(!brief||!song)return NextResponse.json({success:false,error:'No evidence-backed creative brief is ready'},{status:409});
+    const brief=body.briefId
+      ?projection.creativePortfolio?.briefs.find((item)=>item.id===body.briefId)
+      :projection.creativePortfolio?.briefs[0];
+    if(!brief)return NextResponse.json({success:false,error:'Requested creative brief not found'},{status:404});
+    const song=projection.rankedSongs.find(item=>item.id===brief.songId);
+    if(!song)return NextResponse.json({success:false,error:'Creative brief song lineage is invalid'},{status:409});
     const metadata=projection.project.metadata&&typeof projection.project.metadata==='object'&&!Array.isArray(projection.project.metadata)?projection.project.metadata as Record<string,unknown>:{};
     const stored=await stageMusicCreativePresence({
       userId:identity.userId,
