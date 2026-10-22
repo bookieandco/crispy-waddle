@@ -94,7 +94,7 @@ export function scoreEarnedRevenueOpportunity(x: RevenueScoreInput): RevenueScor
       !Number.isSafeInteger(x.saturationThreshold) || x.saturationThreshold < 1)
     throw new Error('REVENUE_SCORE_POLICY_INVALID')
   if (money(x.computeCostUsd) && x.computeCostUsd > x.maxComputeBudgetUsd) blocks.push('COMPUTE_BUDGET_EXCEEDED')
-  if (x.activeCompetitors === null || !Number.isSafeInteger(x.activeCompetitors) || x.activeCompetitors < 0)
+  if (typeof x.activeCompetitors !== 'number' || !Number.isSafeInteger(x.activeCompetitors) || x.activeCompetitors < 0)
     gaps.push('COMPETITOR_COUNT_UNKNOWN')
   else if (x.activeCompetitors >= x.saturationThreshold) gaps.push('SATURATED_COMPETITION')
   const reasons = [...new Set([...blocks,...gaps])]
