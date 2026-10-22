@@ -1,7 +1,7 @@
 import {NextRequest,NextResponse} from "next/server"
 import {createWorkSession,evolveWorkSession,type JhadinaWorkSession} from "@jhadina/core-spine"
 import {createRequestIdentityVerifier} from "@/lib/auth/request-identity"
-import {createServiceRoleClient} from "@/lib/supabase/service-role"
+import {createRuntimeServiceRoleClient} from "@/lib/supabase/service-role"
 import {SupabaseWorkSessionRepository} from "@/lib/work-session/supabase-work-session-repository"
 
 export const runtime="nodejs"
@@ -10,7 +10,7 @@ async function context(req:NextRequest,id:string){
  const claimed=req.headers.get("x-jhadina-user-id")||""
  if(!claimed)throw new Error("WORK_SESSION_IDENTITY_REQUIRED")
  const identity=await (await createRequestIdentityVerifier()).verify({userId:claimed})
- const client=createServiceRoleClient()
+ const client=await createRuntimeServiceRoleClient()
  if(!client)throw new Error("WORK_SESSION_STORAGE_NOT_CONFIGURED")
  return {identity,repo:new SupabaseWorkSessionRepository(client,identity.userId),id}
 }
