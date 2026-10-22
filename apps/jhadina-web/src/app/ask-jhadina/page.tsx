@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Suspense,useEffect,useRef,useState } from "react"
+import { Suspense,useCallback,useEffect,useRef,useState } from "react"
 import {JHADINA_CANONICAL_VOICE_IDENTITY_ID, type ExpressionProsodyGenome} from "@jhadina/core-spine"
 import { useSearchParams } from "next/navigation"
 import { getCurrentUserId } from "@/lib/auth/current-user"
@@ -75,6 +75,19 @@ function AskJhadina(){
  const activeTurnRef=useRef("")
  const commandAbortRef=useRef<AbortController|null>(null)
  const speechAbortRef=useRef<AbortController|null>(null)
+
+ // Keep child effect callbacks stable: changing their identity on every render
+ // re-admits an empty array and can trap the entire Ask page in an update loop.
+ const admitArtifactRefs=useCallback((refs:string[])=>{
+  setArtifactRefs(current=>{
+   const next=[...new Set([...current,...refs])].slice(0,8)
+   return next.length===current.length&&next.every((id,index)=>id===current[index])?current:next
+  })
+ },[])
+ const updateConversationActive=useCallback((active:boolean)=>{
+  setConversationActive(active)
+  if(!busyRef.current)setInteractivePhase(active?"listening":"idle")
+ },[])
 
  useEffect(()=>{
   let cancelled=false
@@ -573,11 +586,11 @@ function AskJhadina(){
    <JhadinaLiveInput
     busy={busy}
     onArtifactsChange={setArtifacts}
-    onArtifactRefsChange={(refs)=>setArtifactRefs(current=>[...new Set([...current,...refs])].slice(0,8))}
+    onArtifactRefsChange={admitArtifactRefs}
     onBargeIn={interruptCurrentTurn}
     onVoiceCommand={(command,signals)=>void ask(command,signals,"voice")}
     onLanguageChange={setVoiceLanguage}
-    onConversationActiveChange={(active)=>{setConversationActive(active);if(!busyRef.current)setInteractivePhase(active?"listening":"idle")}}
+    onConversationActiveChange={updateConversationActive}
     onStatus={setInputStatus}
    />
    {inputStatus?<p className="jh-meta" role="status" style={{marginTop:8}}>{inputStatus}</p>:null}
