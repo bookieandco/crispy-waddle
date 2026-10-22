@@ -22,7 +22,7 @@ export function EmailLinkInBrowser({ next }: { next: string }) {
       const proof = parseEmailedMagicLink(link, url);
       const supabase = createClient();
       const { data, error } = await supabase.auth.verifyOtp(proof);
-      if (error || !data.session || !isVerifiedPersonalOwner(data.user) ||
+      if (error || !data.session || !data.user || !isVerifiedPersonalOwner(data.user) ||
           data.session.user.id !== data.user.id) {
         await supabase.auth.signOut();
         throw new Error("EMAIL_MAGIC_LINK_VERIFICATION_FAILED");
