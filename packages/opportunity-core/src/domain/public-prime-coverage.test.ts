@@ -45,7 +45,8 @@ const full=assessPublicPrimeCoverage({
   totalDistinctPrimes:fullLevels.length*5,
   unhydratedLevels:[],
 })
-assert.equal(full.status,'FULL')
+assert.equal(full.status,'PARTIAL')
+assert.ok(full.coverageDebt.some(x=>x.includes('observed prime awardees')))
 assert.equal(full.sourceCoveragePct,100)
 assert.equal(full.activeAdapterCoveragePct,100)
 assert.equal(full.primeObservationCoveragePct,30)
@@ -63,3 +64,18 @@ const empty=assessPublicPrimeCoverage({
 assert.equal(empty.status,'BLOCKED')
 
 console.log('public prime coverage tests passed')
+
+const verifiedFull=assessPublicPrimeCoverage({
+  levels:PUBLIC_PRIME_REQUIRED_LEVELS.map(level=>({
+    level,jurisdictionCount:1,jurisdictionsWithVerifiedAwardSource:1,
+    jurisdictionsWithActiveAwardAdapter:1,jurisdictionsWithAwardObservation:1,
+    jurisdictionsWithPrimeObservation:1,distinctPrimeCount:1,
+  })),
+  totalJurisdictions:PUBLIC_PRIME_REQUIRED_LEVELS.length,
+  totalWithVerifiedAwardSource:PUBLIC_PRIME_REQUIRED_LEVELS.length,
+  totalWithActiveAwardAdapter:PUBLIC_PRIME_REQUIRED_LEVELS.length,
+  totalWithAwardObservation:PUBLIC_PRIME_REQUIRED_LEVELS.length,
+  totalWithPrimeObservation:PUBLIC_PRIME_REQUIRED_LEVELS.length,
+  totalDistinctPrimes:PUBLIC_PRIME_REQUIRED_LEVELS.length,unhydratedLevels:[],
+})
+assert.equal(verifiedFull.status,'FULL')
