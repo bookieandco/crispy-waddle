@@ -23,6 +23,7 @@ describe("JHADINA-KNOWLEDGE.WIKIPEDIA.01-.05", () => {
   it("only exports deliberate, non-private encyclopedia queries", () => {
     expect(extractWikipediaQuery("Search Wikipedia for Ada Lovelace")).toBe("Ada Lovelace")
     expect(extractWikipediaQuery("Who was Ada Lovelace?")).toBe("Ada Lovelace")
+    expect(extractWikipediaQuery("Tell me about Ada Lovelace")).toBe("Ada Lovelace")
     expect(extractWikipediaQuery("What is the history of jazz?")).toBe("the history of jazz")
     expect(extractWikipediaQuery("Tell me about my daughter")).toBeNull()
     expect(extractWikipediaQuery("Search Wikipedia for my medical record")).toBeNull()
