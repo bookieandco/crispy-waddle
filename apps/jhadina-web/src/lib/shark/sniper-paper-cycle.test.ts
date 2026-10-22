@@ -46,6 +46,8 @@ const standard={
  maxQuoteAgeMs:5000,minLandingSamples:1,notionalLamports:100000000n,minimumNetEdgeBps:10,maxFixedCostBps:10,
  entry,exit,exitRouteAttested:true,paperStartingCashMinor:3000000n,paperMarkPriceMinor:120000n,
  purse,shadow,evidenceIds:['study:1'],
+ intelObservations:[{tokenAddress,evidenceId:'chain:actor-cluster',source:'CHAIN' as const,claim:'BUNDLE_CLUSTER' as const,
+  independenceGroup:'actor:one',observedAt:'2026-10-21T20:00:03Z',availableAt:'2026-10-21T20:00:03Z',verification:'CHAIN_ATTESTED' as const}],
 }
 describe('SHARK->Money paper->Shadow/Purse coordination',()=>{
  it('produces non-executing accepted paper receipt after all independent checks',()=>{
@@ -54,6 +56,9 @@ describe('SHARK->Money paper->Shadow/Purse coordination',()=>{
   expect(result.acceptance?.status).toBe('PAPER_CLOSED_ACCEPTED')
   expect(result.paper?.realizedNetPnlMinor).toBe(178000n)
   expect(result.acceptance?.handoff.purseAccountingCandidate).toBe(false)
+  expect(result.intel.admittedEvidenceIds).toContain('chain:actor-cluster')
+  expect(result.intel.paperTrade?.classification).toBe('SIMULATED_NOT_SETTLED')
+  expect(result.intel.canAuthorizeLive).toBe(false)
   expect(result.canExecute).toBe(false)
  })
  it('hard rug veto short-circuits paper fills and cannot be overridden by positive quotes',()=>{
@@ -61,6 +66,8 @@ describe('SHARK->Money paper->Shadow/Purse coordination',()=>{
   expect(result.disposition).toBe('NO_TRADE')
   expect(result.risk.mechanisms.map(x=>x.mechanism)).toContain('SELL_RESTRICTION')
   expect(result.paper).toBeUndefined()
+  expect(result.intel.riskDisposition).toBe('BLOCK')
+  expect(result.intel.admittedEvidenceIds).toContain('chain:actor-cluster')
  })
  it('missing reverse route cannot be mistaken for a closed position',()=>{
   const result=runSniperPaperCycle({...standard,exitRouteAttested:false})
