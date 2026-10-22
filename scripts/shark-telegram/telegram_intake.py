@@ -435,9 +435,13 @@ async def user_reader(args, root, secret):
                     print("TELEGRAM_SCAN_EVENT_REJECTED")
                     return
                 if cloud_metrics is not None:
-                    receipt = cloud_metrics.add(started_ns, time.perf_counter_ns())
-                    if receipt:
-                        print(receipt)
+                    try:
+                        receipt = cloud_metrics.add(started_ns, time.perf_counter_ns())
+                    except ValueError:
+                        print("TELEGRAM_CLOUD_LOCAL_TIMING_SAMPLE_REJECTED")
+                    else:
+                        if receipt:
+                            print(receipt)
                 if count:
                     summary = ephemeral_crypto_observation(event.message.message) if args.all_chats else None
                     print(ephemeral_local_notice("NEW", summary) if summary else "NEW_TOKEN_MENTIONS " + str(count))
@@ -451,9 +455,13 @@ async def user_reader(args, root, secret):
                     print("TELEGRAM_SCAN_EVENT_REJECTED")
                     return
                 if cloud_metrics is not None:
-                    receipt = cloud_metrics.add(started_ns, time.perf_counter_ns())
-                    if receipt:
-                        print(receipt)
+                    try:
+                        receipt = cloud_metrics.add(started_ns, time.perf_counter_ns())
+                    except ValueError:
+                        print("TELEGRAM_CLOUD_LOCAL_TIMING_SAMPLE_REJECTED")
+                    else:
+                        if receipt:
+                            print(receipt)
                 if count:
                     summary = ephemeral_crypto_observation(event.message.message) if args.all_chats else None
                     print(ephemeral_local_notice("EDIT", summary) if summary else "EDITED_TOKEN_MENTIONS " + str(count))
