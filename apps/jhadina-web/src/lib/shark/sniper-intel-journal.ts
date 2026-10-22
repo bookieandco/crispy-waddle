@@ -96,8 +96,9 @@ export function buildSniperArchiveRow(input:{
  result:SniperPaperCycleResult
 }):SniperIntelArchiveRow{
  const {tradeId,informationCutoff,result}=input
- if(!uuid(input.ownerId)||!validId(tradeId)||!validId(result.tokenAddress)||!iso(informationCutoff)||
-    informationCutoff!==result.intel.informationCutoff||tradeId!==result.intel.decisionId||
+ const canonicalCutoff=iso(informationCutoff)?new Date(informationCutoff).toISOString():''
+ if(!uuid(input.ownerId)||!validId(tradeId)||!validId(result.tokenAddress)||!canonicalCutoff||
+    Date.parse(informationCutoff)!==Date.parse(result.intel.informationCutoff)||tradeId!==result.intel.decisionId||
     result.intel.tokenAddress!==result.tokenAddress||
     result.authority!=='SHARK_MONEY_PAPER_ONLY'||result.canExecute!==false||
     result.intel.authority!=='INTELLIGENCE_EVIDENCE_ONLY'||result.intel.canExecute!==false||
@@ -111,7 +112,7 @@ export function buildSniperArchiveRow(input:{
  }
  const payload:SniperIntelArchivePayload=Object.freeze({
   version:SNIPER_INTEL_ARCHIVE_VERSION,tradeId,tokenAddress:result.tokenAddress,
-  informationCutoff,disposition:result.disposition,
+  informationCutoff:canonicalCutoff,disposition:result.disposition,
   riskDisposition:result.risk.disposition,
   rugMechanisms:unique(result.risk.mechanisms.map(m=>m.mechanism+':'+m.evidenceClass+':'+m.trigger)),
   reasonCodes:unique(result.reasonCodes),
@@ -138,11 +139,11 @@ export function buildSniperArchiveRow(input:{
  // A trade can have distinct point-in-time observations but the same exact
  // decision+cutoff+stage may never mutate underneath a caller.
  const receiptId='shark-intel:'+sha256(stable([
-  SNIPER_INTEL_ARCHIVE_VERSION,input.ownerId,tradeId,result.tokenAddress,informationCutoff,
+  SNIPER_INTEL_ARCHIVE_VERSION,input.ownerId,tradeId,result.tokenAddress,canonicalCutoff,
  ]))
  return Object.freeze({
   receipt_id:receiptId,owner_id:input.ownerId,trade_id:tradeId,token_address:result.tokenAddress,
-  information_cutoff:informationCutoff,payload_hash:digest,payload_json:payload,
+  information_cutoff:canonicalCutoff,payload_hash:digest,payload_json:payload,
  })
 }
 function matches(a:SniperIntelArchiveRow,b:SniperIntelArchiveRow):boolean{
