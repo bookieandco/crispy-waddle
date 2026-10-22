@@ -45,6 +45,7 @@ export type SniperIntelArchivePayload=Readonly<{
 }>
 export type SniperIntelArchiveRow=Readonly<{
  receipt_id:string
+ owner_id:string
  trade_id:string
  token_address:string
  information_cutoff:string
@@ -71,6 +72,7 @@ export type SniperArchiveReceipt=Readonly<{
 const unique=(items:readonly string[])=>Object.freeze([...new Set(items)].sort())
 const sha256=(s:string)=>createHash('sha256').update(s).digest('hex')
 const validId=(s:string)=>typeof s==='string'&&s.length>=1&&s.length<=256
+const uuid=(s:string)=>typeof s==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)
 const iso=(s:string)=>!!s&&Number.isFinite(Date.parse(s))
 /** Sort keys recursively and encode BigInt safely; NO timestamp of import is
  * mixed into the digest. Replay is byte-identical after crashes/retries.
@@ -87,12 +89,14 @@ function stable(value:unknown):string{
  return JSON.stringify(transform(value))
 }
 export function buildSniperArchiveRow(input:{
+ /** Owner ID must come from a trusted server-side user/session assertion. */
+ ownerId:string
  tradeId:string
  informationCutoff:string
  result:SniperPaperCycleResult
 }):SniperIntelArchiveRow{
  const {tradeId,informationCutoff,result}=input
- if(!validId(tradeId)||!validId(result.tokenAddress)||!iso(informationCutoff)||
+ if(!uuid(input.ownerId)||!validId(tradeId)||!validId(result.tokenAddress)||!iso(informationCutoff)||
     informationCutoff!==result.intel.informationCutoff||tradeId!==result.intel.decisionId||
     result.intel.tokenAddress!==result.tokenAddress||
     result.authority!=='SHARK_MONEY_PAPER_ONLY'||result.canExecute!==false||
@@ -134,15 +138,15 @@ export function buildSniperArchiveRow(input:{
  // A trade can have distinct point-in-time observations but the same exact
  // decision+cutoff+stage may never mutate underneath a caller.
  const receiptId='shark-intel:'+sha256(stable([
-  SNIPER_INTEL_ARCHIVE_VERSION,tradeId,result.tokenAddress,informationCutoff,
+  SNIPER_INTEL_ARCHIVE_VERSION,input.ownerId,tradeId,result.tokenAddress,informationCutoff,
  ]))
  return Object.freeze({
-  receipt_id:receiptId,trade_id:tradeId,token_address:result.tokenAddress,
+  receipt_id:receiptId,owner_id:input.ownerId,trade_id:tradeId,token_address:result.tokenAddress,
   information_cutoff:informationCutoff,payload_hash:digest,payload_json:payload,
  })
 }
 function matches(a:SniperIntelArchiveRow,b:SniperIntelArchiveRow):boolean{
- return a.receipt_id===b.receipt_id&&a.trade_id===b.trade_id&&
+ return a.receipt_id===b.receipt_id&&a.owner_id===b.owner_id&&a.trade_id===b.trade_id&&
   a.token_address===b.token_address&&a.information_cutoff===b.information_cutoff&&
   a.payload_hash===b.payload_hash&&sha256(stable(a.payload_json))===b.payload_hash
 }
@@ -150,7 +154,7 @@ function matches(a:SniperIntelArchiveRow,b:SniperIntelArchiveRow):boolean{
  * Any conflicting source facts for the same decision/cutoff are quarantined.
  */
 export async function archiveSniperIntel(store:SniperArchiveStore,row:SniperIntelArchiveRow):Promise<SniperArchiveReceipt>{
- if(!row.receipt_id.startsWith('shark-intel:')||
+ if(!row.receipt_id.startsWith('shark-intel:')||!uuid(row.owner_id)||
   !/^[a-f0-9]{64}$/.test(row.payload_hash)||
   row.payload_hash!==sha256(stable(row.payload_json))||
   row.trade_id!==row.payload_json.tradeId||
