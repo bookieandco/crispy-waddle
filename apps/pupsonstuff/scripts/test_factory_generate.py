@@ -89,6 +89,17 @@ class GenerateContracts(unittest.TestCase):
         self.assertIn("PRINTIFY_BLUEPRINTID_REQUIRED",
                       verify_pack(self.pack,missing)["blockers"])
 
+    def test_own_cpu_tote_does_not_require_external_model_license(self):
+        source=dict(self.manifest, generator="pupson-procedural-tote-cpu",
+                    hunyuanTerritoryClearance=None)
+        source.pop("checkpointLicenseEvidence",None)
+        source.pop("dependencyLicenseEvidence",None)
+        source.pop("generatorRevision",None)
+        self.assertTrue(verify_pack(self.pack,source)["prepared"])
+        self.assertFalse(verify_pack(self.pack,{**source,"productId":"hoodie"})["prepared"])
+        self.assertIn("CPU_PROCEDURAL_SOURCE_TOTE_ONLY",
+                      verify_pack(self.pack,{**source,"productId":"hoodie"})["blockers"])
+
     def test_sha_mismatch_and_no_external_references(self):
         refs = {**self.manifest["references"], "front": {"file": "front.png", "sha256": "0"*64}}
         invalid = dict(self.manifest, references=refs)
