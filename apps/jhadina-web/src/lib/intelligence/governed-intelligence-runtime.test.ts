@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { SupabaseAuditLedger, type AuditRpcClient } from "@jhadina/action-core"
+import { SupabaseAuditLedger, InMemoryApprovalReceiptStore, type AuditRpcClient } from "@jhadina/action-core"
 import type { ContextPacket, DecisionProposal } from "@jhadina/core-spine"
 import { IntelligenceRouter, type ModelProvider } from "@jhadina/intelligence-core"
 import type { ActionRequestIdentity, JhadinaActionRequest, JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
@@ -103,12 +103,13 @@ function baseContext(id = "ctx-runtime-1"): ContextPacket {
 function freshOverrides(
   identity: ActionRequestIdentity,
   router: IntelligenceRouter,
-): Required<Pick<GovernedIntelligenceRuntimeOverrides, "identityVerifier" | "ledger" | "router">> & { rpc: FakeAuditRpcClient } {
+): Required<Pick<GovernedIntelligenceRuntimeOverrides, "identityVerifier" | "ledger" | "router" | "approvalStore">> & { rpc: FakeAuditRpcClient } {
   const rpc = new FakeAuditRpcClient()
   return {
     rpc,
     identityVerifier: staticIdentityVerifier(identity),
     ledger: new SupabaseAuditLedger({ client: rpc, domain: "intelligence" }),
+    approvalStore: new InMemoryApprovalReceiptStore(),
     router,
   }
 }
@@ -160,11 +161,13 @@ describe("Intelligence Router — production composition root (Phase 1 Step 3)",
     const aliceOverrides: GovernedIntelligenceRuntimeOverrides = {
       identityVerifier: staticIdentityVerifier(alice),
       ledger: new SupabaseAuditLedger({ client: rpc, domain: "intelligence" }),
+      approvalStore: new InMemoryApprovalReceiptStore(),
       router: fakeRouterReturning(proposalFor("PROCEED", "alice's recommendation")),
     }
     const bobOverrides: GovernedIntelligenceRuntimeOverrides = {
       identityVerifier: staticIdentityVerifier(bob),
       ledger: new SupabaseAuditLedger({ client: rpc, domain: "intelligence" }),
+      approvalStore: new InMemoryApprovalReceiptStore(),
       router: fakeRouterReturning(proposalFor("PROCEED", "bob's recommendation")),
     }
 
