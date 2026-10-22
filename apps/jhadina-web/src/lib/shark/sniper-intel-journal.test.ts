@@ -1,6 +1,6 @@
 import {describe,expect,it} from 'vitest'
 import {
- archiveSniperIntel,buildSniperArchiveRow,
+ archiveSniperIntel,buildSniperArchiveRow,buildSniperVetoArchiveRow,
  type SniperArchiveStore,type SniperIntelArchiveRow,
 } from './sniper-intel-journal'
 import type {SniperPaperCycleResult} from './sniper-paper-cycle'
@@ -62,6 +62,25 @@ describe('SHARK archived research: one-record atomic replay and failure quaranti
   const retry=await archiveSniperIntel(s.adapter,row)
   expect(retry.outcome).toBe('REPLAY_IDENTICAL')
   expect(s.rows.size).toBe(1)
+ })
+ it('archives a real rug veto with no quote and no invented paper trade',async()=>{
+  const row=buildSniperVetoArchiveRow({
+   ownerId:owner,tradeId:'trade:1',informationCutoff:now,
+   risk:noTrade.risk,intel:noTrade.intel,reasonCodes:['SHARK_SAFETY_VETO','RUG'],
+  })
+  expect(row.payload_json.disposition).toBe('NO_TRADE')
+  expect(row.payload_json.paper).toBeUndefined()
+  expect(row.payload_json.reasonCodes).toContain('SHARK_SAFETY_VETO')
+  const s=store()
+  const receipt=await archiveSniperIntel(s.adapter,row)
+  expect(receipt.outcome).toBe('INSERTED')
+  expect(s.rows.size).toBe(1)
+ })
+ it('rejects an alleged veto when independent risk actually permits a paper candidate',()=>{
+  expect(()=>buildSniperVetoArchiveRow({
+   ownerId:owner,tradeId:'trade:1',informationCutoff:now,
+   risk:paper.risk,intel:paper.intel,reasonCodes:['NOT_A_VETO'],
+  })).toThrow('SHARK_INTEL_VETO_PROVENANCE_INVALID')
  })
  it('stores closed paper returns as simulation, never an onchain P&L or purse credit',()=>{
   const row=archive(paper)
