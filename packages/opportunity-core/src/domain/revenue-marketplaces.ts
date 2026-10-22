@@ -66,7 +66,7 @@ export function normalizeMarketplaceBounties(
   for (const o of observations) {
     const issue = typeof o?.githubIssueUrl === 'string' ? issueKey(o.githubIssueUrl) : null
     const captured = validTime(o?.capturedAt)
-    if (!issue || !isOfficialMarketplace(o.platform, o.sourceUrl) ||
+    if (!issue || !['algora','opire'].includes(o.platform) || !isOfficialMarketplace(o.platform, o.sourceUrl) ||
       typeof o.title !== 'string' || !o.title.trim() || o.title.length > 240 ||
       o.status !== 'OPEN' || !Number.isFinite(captured) || captured > time ||
       time - captured > 24*60*60*1000) {
