@@ -90,9 +90,11 @@ def verify_pack(root, manifest, for_execution=False):
                 blockers.append("PRINTIFY_CATALOG_SNAPSHOT_HASH_INVALID")
             else:
                 catalog = json.loads(evidence_path.read_text("utf8"))
-                same_ids = all(catalog.get(k) == manifest.get(k) for k in (
-                    "blueprintId", "printProviderId", "variantId"
-                ))
+                same_ids = isinstance(catalog, dict) and all(
+                    catalog.get(k) == manifest.get(k) for k in (
+                        "blueprintId", "printProviderId", "variantId"
+                    )
+                )
                 if (not isinstance(catalog, dict) or
                     catalog.get("authority") != "PRINTIFY_CATALOG_READ_ONLY" or
                     catalog.get("product") != product or
