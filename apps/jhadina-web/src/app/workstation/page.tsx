@@ -97,7 +97,9 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
     ? searchParams.aspectRatio as '9:16'|'16:9'|'1:1'
     : undefined;
   const initialTracks = useMemo(() => createInitialTracks(), []);
-  const [projectId, setProjectId] = useState(requestedProjectId);
+  // Never mount project-scoped panels from an unverified URL identifier.
+  // Only a successful owner-authorized timeline read may unlock the workstation.
+  const [projectId, setProjectId] = useState('');
   const [stage,setStage] = useState<Stage>('project');
   const [projectError, setProjectError] = useState<string | null>(null);
   const [timelineTracks, setTimelineTracks] = useState<WorkstationTrack[]>(initialTracks);
@@ -110,6 +112,13 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
 
   useEffect(() => {
     let cancelled = false;
+    // A new query / project identity invalidates previously authorized panels.
+    // Failed or pending auth must leave the edit, asset and publish UI unmounted.
+    setProjectId('');
+    setProjectError(null);
+    setTimelineRevision(0);
+    setSelectedAsset(null);
+    setStage('project');
 
     async function hydrateTimeline(nextProjectId: string) {
       let response = await fetch('/api/workstation/timeline?projectId=' + encodeURIComponent(nextProjectId), { cache: 'no-store' });
