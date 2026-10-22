@@ -7,10 +7,8 @@ import {
 import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import { createIntelligenceAuditLedger, INTELLIGENCE_AUDIT_DOMAIN } from "../intelligence/durable-audit-ledger"
-import { MemoryRepository } from "../repositories/MemoryRepository"
-import { getCanonicalMemoryStorage } from "../storage/createMemoryStorage"
 
-export const KERNEL_CERT_CAPABILITY = "memory.read"
+export const KERNEL_CERT_CAPABILITY = "identity.read"
 
 export interface KernelCertReadAction {
   probe: "kernel-cert"
@@ -19,19 +17,19 @@ export interface KernelCertReadAction {
 export interface KernelCertResult {
   actionId: string
   userId: string
-  memoryStats: Awaited<ReturnType<MemoryRepository["getStats"]>>
+  capability: typeof KERNEL_CERT_CAPABILITY
   auditCompleted: boolean
   commitSha: string | null
 }
 
-function handler(memoryRepo: MemoryRepository): ActionHandler<KernelCertReadAction, KernelCertResult> {
+function handler(): ActionHandler<KernelCertReadAction, KernelCertResult> {
   return {
     supports: (type) => type === KERNEL_CERT_CAPABILITY,
     async execute(_action, request) {
       return {
         actionId: request.id,
         userId: request.userId,
-        memoryStats: await memoryRepo.getStats(request.userId),
+        capability: KERNEL_CERT_CAPABILITY,
         auditCompleted: false,
         commitSha: process.env.VERCEL_GIT_COMMIT_SHA?.trim() || null,
       }
@@ -49,21 +47,21 @@ function actionIdentity(identityVerifier: JhadinaIdentityVerifier) {
 /**
  * Side-effect-light live proof of the canonical kernel.
  *
- * This uses an existing read capability and the existing Intelligence durable
- * audit ledger. It creates no second policy/executor/ledger and performs no
- * publishing, spending, external communication, or durable business mutation.
+ * This uses an existing read-only capability and the existing Intelligence
+ * durable audit ledger. It creates no second policy/executor/ledger and
+ * performs no publishing, spending, external communication, or durable
+ * business mutation. The durable state under test is the audit event itself.
  */
 export async function runKernelLiveCertification(): Promise<KernelCertResult> {
   const identityVerifier = await createRequestIdentityVerifier()
   const identity = await identityVerifier.verify({})
   const ledger = await createIntelligenceAuditLedger()
-  const memoryRepo = new MemoryRepository(getCanonicalMemoryStorage())
   const policy = createBaseSecurityCoreActionPolicy<KernelCertReadAction>("kernel-cert")
   const executor = new VerifiedActionExecutor(
     actionIdentity(identityVerifier),
     policy,
     ledger,
-    [handler(memoryRepo)],
+    [handler()],
   )
   const actionId = `kernel-cert:${crypto.randomUUID()}`
   const request: ActionRequest<KernelCertReadAction> = {
