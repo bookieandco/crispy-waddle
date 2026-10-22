@@ -9,11 +9,13 @@ import {archiveSniperIntel,buildSniperArchiveRow,type SniperArchiveStore} from '
  */
 export async function runSniperPaperCycleWithArchive(input:{
  cycle:Parameters<typeof runSniperPaperCycle>[0]
+ /** Resolved on the server, never from Telegram, YouTube or a form field. */
+ verifiedOwnerId:string
  archive:SniperArchiveStore
 }){
  const result=runSniperPaperCycle(input.cycle)
  const row=buildSniperArchiveRow({
-  tradeId:input.cycle.tradeId,informationCutoff:input.cycle.now,result,
+  ownerId:input.verifiedOwnerId,tradeId:input.cycle.tradeId,informationCutoff:input.cycle.now,result,
  })
  const archive=await archiveSniperIntel(input.archive,row)
  return Object.freeze({
