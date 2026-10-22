@@ -1,0 +1,64 @@
+name: Shadow repair contract (hermetic)
+on:
+  pull_request:
+    paths:
+      - 'packages/money-core/src/shark-shadow-*'
+      - 'packages/money-core/migrations/033_shark_shadow_grade_review.sql'
+      - 'scripts/shark-shadow-runpod-bootstrap.sh'
+      - 'scripts/test-shark-shadow-bootstrap-admission.sh'
+      - 'scripts/shark-shadow-recovered-clone-admission.py'
+      - 'scripts/shark-shadow-fresh-ledger-genesis.py'
+      - 'scripts/test_shark_shadow_fresh_genesis.py'
+      - 'scripts/test-shark-shadow-persistent-storage-admission.sh'
+      - '.github/workflows/shadow-repair-contract.yml'
+  push:
+    branches: [main, 'feat/shadow-repair-*']
+    paths:
+      - 'packages/money-core/src/shark-shadow-*'
+      - 'packages/money-core/migrations/033_shark_shadow_grade_review.sql'
+      - 'scripts/shark-shadow-runpod-bootstrap.sh'
+      - 'scripts/test-shark-shadow-bootstrap-admission.sh'
+      - 'scripts/shark-shadow-recovered-clone-admission.py'
+      - 'scripts/shark-shadow-fresh-ledger-genesis.py'
+      - 'scripts/test_shark_shadow_fresh_genesis.py'
+      - 'scripts/test-shark-shadow-persistent-storage-admission.sh'
+      - '.github/workflows/shadow-repair-contract.yml'
+permissions:
+  contents: read
+concurrency:
+  group: shadow-repair-contract-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  hermetic-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Install source dependencies only
+        run: pnpm install --frozen-lockfile
+      - name: No-destruction Shadow ledger admission checks
+        shell: bash
+        run: |
+          bash -n scripts/shark-shadow-runpod-bootstrap.sh
+          python3 -m py_compile scripts/shark-shadow-recovered-clone-admission.py
+          python3 -m unittest discover -s scripts -p 'test_shark_shadow_fresh_genesis.py' -v
+          bash scripts/test-shark-shadow-bootstrap-admission.sh
+          bash scripts/test-shark-shadow-persistent-storage-admission.sh
+      - name: Money core TypeScript
+        run: pnpm --filter @jhadina/money-core type-check
+      - name: Shadow point-in-time and memory unit tests
+        run: pnpm --filter @jhadina/money-core exec tsx --test src/shark-shadow-pit-repair.test.ts src/shark-shadow-runpod-runtime.test.ts src/shark-shadow-runpod-replay.test.ts src/shark-shadow-service-readiness.test.ts src/shark-shadow-production-certification.test.ts
+      - name: Source-only authority assertion
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'canSign:false' packages/money-core/src/shark-shadow-runpod-runtime.ts
+          grep -Fq 'canBroadcast:false' packages/money-core/src/shark-shadow-runpod-runtime.ts
+          grep -Fq '033_shark_shadow_grade_review.sql' scripts/shark-shadow-runpod-bootstrap.sh

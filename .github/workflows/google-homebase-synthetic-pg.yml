@@ -7,6 +7,8 @@ on:
     paths:
       - 'infrastructure/homebase/google-drive/synthetic_postgres_restic_drill.py'
       - 'infrastructure/homebase/google-drive/test_synthetic_postgres_restic_drill.py'
+      - 'infrastructure/homebase/google-drive/restore_drill.py'
+      - 'infrastructure/homebase/google-drive/test_restore_drill.py'
       - '.github/workflows/google-homebase-synthetic-pg.yml'
   workflow_dispatch:
 
@@ -29,5 +31,7 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq restic
       - name: Pull public test PostgreSQL image
         run: docker pull postgres:17-alpine
+      - name: Validate fail-closed synthetic row recovery
+        run: python3 -m unittest discover -s infrastructure/homebase/google-drive -p 'test_*.py' -q
       - name: Real isolated synthetic dump/encrypt/decrypt/restore
         run: python3 infrastructure/homebase/google-drive/synthetic_postgres_restic_drill.py
