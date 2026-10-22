@@ -91,14 +91,15 @@ export const JHADINA_BASE_SECURITY_POLICY: SecurityPolicy = {
     'project.create', 'project.edit', 'project.export', 'asset.import',
     'timeline.edit', 'timeline.snapshot', 'take.generate', 'take.regenerate',
     'take.record', 'take.select', 'audio.edit', 'image.edit', 'storyboard.edit',
-    'research.run', 'memory.propose', 'memory.read', 'public.publish',
+    'research.run', 'memory.propose', 'memory.read', 'memory.commit',
+    'memory.reject', 'memory.correct', 'memory.forget', 'public.publish',
     'paid-ad.publish', 'consequential.outreach',
     'growth.draft.approve', 'overage.review',
   ],
   approvalCapabilities: [
     'public.publish', 'paid-ad.publish', 'affiliate.publish',
     'consequential.outreach', 'financial.execute', 'account.connect',
-    'credential.rotate', 'memory.commit', 'growth.draft.approve',
+    'credential.rotate', 'memory.commit', 'memory.reject', 'memory.forget', 'growth.draft.approve',
   ],
 };
 

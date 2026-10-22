@@ -78,13 +78,11 @@ describe("Growth draft approval — governed lifecycle (Jhadina OS Integration P
 
     await expect(approveGrowthDraftGoverned(deps, "someone-else", draft.id)).rejects.toThrow("Action identity mismatch")
 
-    // Nothing downstream happened: draft untouched, only a denied identity event recorded.
+    // Nothing downstream happened. A rejected claimed identity is not a
+    // trustworthy actor, so no user-scoped audit event is attributed to it.
     const [stored] = listGrowthDrafts(identity.userId)
     expect(stored.status).toBe("PENDING_APPROVAL")
-    const trail = deps.ledger.list()
-    expect(trail).toHaveLength(1)
-    expect(trail[0].status).toBe("denied")
-    expect(trail[0].metadata?.stage).toBe("identity")
+    expect(deps.ledger.list()).toHaveLength(0)
   })
 
   it("fails closed when policy denies the capability, before approval or execution", async () => {

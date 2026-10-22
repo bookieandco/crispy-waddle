@@ -142,21 +142,12 @@ describe("Growth product loop — UI-facing composition root (Jhadina OS Integra
     const [stored] = listGrowthDrafts(identity.userId)
     expect(stored.status).toBe("PENDING_APPROVAL")
 
-    // The denied event is recorded under the *claimed* (unverified,
-    // never-real) actor — "someone-else" — not the real user-loop-3.
-    // Inspecting the ledger directly (the write-side concern under
-    // test here) rather than through listGovernedGrowthActivity: a
-    // claim that failed identity verification correctly does NOT
-    // appear in the real user's own Activity read (test 8 covers that
-    // read-side isolation for the authorized case).
-    const trail = await overrides.ledger.list({ domain: "growth", actorId: "someone-else" })
-    const denied = trail.filter((e) => e.actionId.startsWith(`growth-draft-approve:${draft.id}:`))
-    expect(denied).toHaveLength(1)
-    expect(denied[0].status).toBe("denied")
-    expect(denied[0].metadata?.stage).toBe("identity")
+    // The claimed identity was never verified, so it is not a trustworthy
+    // user-scoped audit actor. The hardened durable ledger deliberately
+    // records nothing under either the spoofed claim or the verified user.
+    const spoofedTrail = await overrides.ledger.list({ domain: "growth", actorId: "someone-else" })
+    expect(spoofedTrail).toHaveLength(0)
 
-    // And it's real proof the mismatched claim never leaks into the
-    // verified user's own activity view.
     const ownActivity = await listGovernedGrowthActivity(identity.userId, overrides)
     expect(ownActivity.events.some((e) => e.actionId.startsWith(`growth-draft-approve:${draft.id}:`))).toBe(false)
   })

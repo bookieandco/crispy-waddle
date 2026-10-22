@@ -1,5 +1,5 @@
 import {
-  ActionExecutor,
+  VerifiedActionExecutor,
   createApprovalRequestService,
   createApprovalReceiptVerifier,
   createBaseSecurityCoreActionPolicy,
@@ -81,7 +81,7 @@ export interface GovernedGrowthApprovalResult {
  * 3. Explicit approval   — if policy requires it (it does, for this
  *    capability), a receipt is requested and approved before execution
  *    can proceed. A stale or mismatched receipt cannot be reused.
- * 4. ActionExecutor      — the hardened executor (JH-045) re-validates
+ * 4. VerifiedActionExecutor      — the hardened executor (JH-045) re-validates
  *    policy and the receipt, then and only then calls the handler.
  * 5. Audit receipt       — every stage above is append-only in `ledger`.
  *
@@ -103,15 +103,8 @@ export async function approveGrowthDraftGoverned(
   try {
     identity = await deps.identityVerifier.verify({ userId: claimedUserId })
   } catch (error) {
-    await deps.ledger.append({
-      id: `${actionId}:identity-rejected`,
-      actionId,
-      userId: claimedUserId,
-      type: GROWTH_DRAFT_APPROVE_CAPABILITY,
-      status: "denied",
-      timestamp: now(),
-      metadata: { stage: "identity", reason: error instanceof Error ? error.message : String(error) },
-    })
+    // The claimed user is not a verified audit actor. Do not attribute a
+    // durable user-scoped event to an identity the server just rejected.
     throw error
   }
 
@@ -151,7 +144,16 @@ export async function approveGrowthDraftGoverned(
   const approvalVerifier = createApprovalReceiptVerifier(deps.approvalStore, (r) =>
     fingerprintApproveAction(r.action as GrowthDraftApproveAction),
   )
-  const executor = new ActionExecutor(policy, deps.ledger, [createGrowthDraftApprovalHandler()], approvalVerifier)
+  const actionIdentity = {
+    verify: (r: ActionRequest<GrowthDraftApproveAction>) => deps.identityVerifier.verify({ userId: r.userId }),
+  }
+  const executor = new VerifiedActionExecutor(
+    actionIdentity,
+    policy,
+    deps.ledger,
+    [createGrowthDraftApprovalHandler()],
+    approvalVerifier,
+  )
 
   // 3. Explicit approval, only when policy requires it.
   let approvalReceiptId: string | undefined
@@ -164,7 +166,7 @@ export async function approveGrowthDraftGoverned(
     approvalReceiptId = approved.id
   }
 
-  // 4. ActionExecutor executes (re-validates policy + receipt independently).
+  // 4. VerifiedActionExecutor executes (re-validates policy + receipt independently).
   const draft = await executor.execute(approvalReceiptId ? { ...request, approvalReceiptId } : request)
 
   // 5. The ledger now holds an immutable, ordered record of every stage:

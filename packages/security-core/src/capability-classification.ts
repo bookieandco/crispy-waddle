@@ -33,7 +33,10 @@ const CLASSIFICATIONS: readonly CapabilityClassification[] = [
   // Memory / reasoning — the Ask Jhadina vertical (Steps 3-6).
   { capability: 'memory.read', categories: ['read_only'], reversible: true, description: 'Read approved memories.' },
   { capability: 'memory.propose', categories: ['read_only'], reversible: true, description: 'Propose a PENDING memory candidate — no durable effect without explicit human approval.' },
-  { capability: 'memory.commit', categories: ['reversible'], reversible: true, description: 'Turn an approved candidate into durable memory.' },
+  { capability: 'memory.commit', categories: ['reversible'], reversible: true, description: 'Turn an explicitly approved candidate into durable memory.' },
+  { capability: 'memory.reject', categories: ['destructive'], reversible: false, description: 'Reject and retire a pending memory candidate.' },
+  { capability: 'memory.correct', categories: ['reversible'], reversible: true, description: 'Retire an approved memory revision and append its explicit user correction.' },
+  { capability: 'memory.forget', categories: ['destructive'], reversible: false, description: 'Retire an approved memory from active recall while preserving its audit lineage.' },
   { capability: 'research.run', categories: ['read_only'], reversible: true, description: 'Run read-only research.' },
   { capability: 'identity.read', categories: ['read_only'], reversible: true, description: 'Read identity/session claims.' },
   { capability: 'audit.export', categories: ['read_only'], reversible: true, description: 'Export the audit trail.' },

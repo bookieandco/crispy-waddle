@@ -26,6 +26,9 @@ import { TimelineRepository } from "../repositories/TimelineRepository"
 import type { MemoryStorage } from "../storage/MemoryStorage"
 import { getCanonicalMemoryStorage } from "../storage/createMemoryStorage"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
+import { createIntelligenceAuditLedger } from "../intelligence/durable-audit-ledger"
+import { processLegacyMessageGoverned } from "../intelligence/governed-legacy-message"
+import { runMemoryMutationGoverned, type GovernedMemoryMutationDeps } from "../memory/governed-memory-mutations"
 
 // Janet is process-local, while Memory storage comes from the one canonical
 // runtime storage graph shared by every composition root.
@@ -51,6 +54,17 @@ async function extractUserId(req: NextRequest): Promise<string> {
   const verifier = await createRequestIdentityVerifier()
   const identity = await verifier.verify(claimedUserId ? { userId: claimedUserId } : {})
   return identity.userId
+}
+
+async function createGovernedMemoryDeps(): Promise<GovernedMemoryMutationDeps> {
+  const storage = getStorage()
+  return {
+    identityVerifier: await createRequestIdentityVerifier(),
+    ledger: await createIntelligenceAuditLedger(),
+    memoryRepo: new MemoryRepository(storage),
+    reasoningRepo: new ReasoningEventRepository(storage),
+    timelineRepo: new TimelineRepository(storage),
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -80,11 +94,18 @@ export async function handleMessage(req: NextRequest) {
       )
     }
 
-    const service = getJanetService()
-    const response = await service.processMessage({
+    const storage = getStorage()
+    const response = await processLegacyMessageGoverned(
+      {
+        identityVerifier: await createRequestIdentityVerifier(),
+        ledger: await createIntelligenceAuditLedger(),
+        memoryRepo: new MemoryRepository(storage),
+        reasoningRepo: new ReasoningEventRepository(storage),
+        timelineRepo: new TimelineRepository(storage),
+      },
       userId,
-      message: message.trim(),
-    })
+      message.trim(),
+    )
 
     return NextResponse.json({
       success: true,
@@ -125,8 +146,12 @@ export async function handleApproveMemory(req: NextRequest) {
       )
     }
 
-    const service = getJanetService()
-    const result = await service.approveMemory(userId, candidateId)
+    const { result } = await runMemoryMutationGoverned(
+      await createGovernedMemoryDeps(),
+      userId,
+      { kind: "approve", candidateId },
+    )
+    if (result.kind !== "approve") throw new Error("JHADINA_MEMORY_APPROVE_RESULT_MISMATCH")
 
     return NextResponse.json({
       success: true,
@@ -164,13 +189,17 @@ export async function handleRejectMemory(req: NextRequest) {
       )
     }
 
-    const service = getJanetService()
-    await service.rejectMemory(userId, candidateId)
+    const { result } = await runMemoryMutationGoverned(
+      await createGovernedMemoryDeps(),
+      userId,
+      { kind: "reject", candidateId },
+    )
+    if (result.kind !== "reject") throw new Error("JHADINA_MEMORY_REJECT_RESULT_MISMATCH")
 
     return NextResponse.json({
       success: true,
       data: {
-        status: "REJECTED",
+        status: result.status,
       },
     })
   } catch (error) {
@@ -197,48 +226,19 @@ export async function handleCorrectMemory(req: NextRequest) {
       return NextResponse.json({ error: "content is required" }, { status: 400 })
     }
 
-    const memoryRepo = new MemoryRepository(getStorage())
-    const reasoningRepo = new ReasoningEventRepository(getStorage())
-    const timelineRepo = new TimelineRepository(getStorage())
-    const current = await memoryRepo.getById(userId, memoryId)
-    if (!current || current.status !== "APPROVED") {
-      return NextResponse.json({ error: "Approved memory not found" }, { status: 404 })
-    }
-
-    const now = new Date().toISOString()
-    const reasoning = await reasoningRepo.create({
+    const { result } = await runMemoryMutationGoverned(
+      await createGovernedMemoryDeps(),
       userId,
-      userMessage: content.trim(),
-      observation: { raw: content.trim(), extracted: content.trim(), timestamp: now },
-      classification: { type: current.type, confidence: 1, reasoning: "explicit user memory correction" },
-      systemResponse: "Memory correction recorded.",
-      confidence: 1,
-      actor: "user",
-      outcome: "memory:corrected",
-      causationId: current.reasoningEventId,
-      metadata: { kind: "memory-correction", targetMemoryId: current.id, authority: "explicit-user" },
-    })
-    const corrected = await memoryRepo.correct({
-      memoryId: current.id,
-      userId,
-      content,
-      reasoningEventId: reasoning.id,
-      confidence: 1,
-    })
-    await timelineRepo.recordCorrection({
-      userId,
-      memoryId: corrected.replacement.id,
-      memoryType: corrected.replacement.type,
-      memoryContent: corrected.replacement.content,
-      reasoningEventId: reasoning.id,
-    })
+      { kind: "correct", memoryId, content },
+    )
+    if (result.kind !== "correct") throw new Error("JHADINA_MEMORY_CORRECT_RESULT_MISMATCH")
 
     return NextResponse.json({
       success: true,
       data: {
-        retiredMemoryId: corrected.retired.id,
-        memory: corrected.replacement,
-        reasoningEventId: reasoning.id,
+        retiredMemoryId: result.retiredMemoryId,
+        memory: result.memory,
+        reasoningEventId: result.reasoningEventId,
       },
     })
   } catch (error) {
@@ -262,37 +262,20 @@ export async function handleForgetMemory(req: NextRequest) {
       return NextResponse.json({ error: "memoryId is required" }, { status: 400 })
     }
 
-    const memoryRepo = new MemoryRepository(getStorage())
-    const reasoningRepo = new ReasoningEventRepository(getStorage())
-    const timelineRepo = new TimelineRepository(getStorage())
-    const current = await memoryRepo.getById(userId, memoryId)
-    if (!current || current.status !== "APPROVED") {
-      return NextResponse.json({ error: "Approved memory not found" }, { status: 404 })
-    }
-
-    const now = new Date().toISOString()
-    const reasoning = await reasoningRepo.create({
+    const { result } = await runMemoryMutationGoverned(
+      await createGovernedMemoryDeps(),
       userId,
-      userMessage: `Forget memory ${current.id}`,
-      observation: { raw: `Forget memory ${current.id}`, extracted: current.id, timestamp: now },
-      classification: { type: current.type, confidence: 1, reasoning: "explicit user memory forget request" },
-      systemResponse: "Memory retired from active recall.",
-      confidence: 1,
-      actor: "user",
-      outcome: "memory:forgotten",
-      causationId: current.reasoningEventId,
-      metadata: { kind: "memory-forget", targetMemoryId: current.id, authority: "explicit-user" },
-    })
-    const retired = await memoryRepo.forget(current.id, userId)
-    await timelineRepo.recordForget({
-      userId,
-      memoryId: retired.id,
-      memoryType: retired.type,
-    })
+      { kind: "forget", memoryId },
+    )
+    if (result.kind !== "forget") throw new Error("JHADINA_MEMORY_FORGET_RESULT_MISMATCH")
 
     return NextResponse.json({
       success: true,
-      data: { memoryId: retired.id, status: retired.status, reasoningEventId: reasoning.id },
+      data: {
+        memoryId: result.memoryId,
+        status: result.status,
+        reasoningEventId: result.reasoningEventId,
+      },
     })
   } catch (error) {
     console.error("Error forgetting memory:", error)

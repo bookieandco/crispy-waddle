@@ -1,5 +1,5 @@
 import {
-  ActionExecutor,
+  VerifiedActionExecutor,
   createApprovalRequestService,
   createApprovalReceiptVerifier,
   createBaseSecurityCoreActionPolicy,
@@ -94,15 +94,8 @@ export async function decideAndProposeMemoryGoverned(
   try {
     identity = await deps.identityVerifier.verify({ userId: claimedUserId })
   } catch (error) {
-    await deps.ledger.append({
-      id: `${actionId}:identity-rejected`,
-      actionId,
-      userId: claimedUserId,
-      type: MEMORY_PROPOSE_CAPABILITY,
-      status: "denied",
-      timestamp: now(),
-      metadata: { stage: "identity", reason: error instanceof Error ? error.message : String(error) },
-    })
+    // The claimed user is not a verified audit actor. The durable audit RPC
+    // intentionally refuses attribution under an identity that did not verify.
     throw error
   }
 
@@ -183,7 +176,7 @@ export async function decideAndProposeMemoryGoverned(
   }
 
   // 4. Policy evaluation — a distinct, visible, audited stage, evaluated
-  // before ActionExecutor exists (same shape as Growth's SP-1).
+  // before VerifiedActionExecutor exists (same shape as Growth's SP-1).
   const policy = deps.policy ?? createBaseSecurityCoreActionPolicy<MemoryProposeAction>()
   const decision = await policy.evaluate(request)
   await deps.ledger.append({
@@ -212,7 +205,10 @@ export async function decideAndProposeMemoryGoverned(
     fingerprintMemoryPropose(r.action as MemoryProposeAction),
   )
   const handler = createMemoryProposeHandler(deps.memoryRepo, deps.reasoningRepo)
-  const executor = new ActionExecutor(policy, deps.ledger, [handler], approvalVerifier)
+  const actionIdentity = {
+    verify: (r: ActionRequest<MemoryProposeAction>) => deps.identityVerifier.verify({ userId: r.userId }),
+  }
+  const executor = new VerifiedActionExecutor(actionIdentity, policy, deps.ledger, [handler], approvalVerifier)
 
   // 5. Explicit approval, only when policy requires it. The model's own
   // PROCEED disposition is never treated as an approval — a distinct,
@@ -228,7 +224,7 @@ export async function decideAndProposeMemoryGoverned(
     approvalReceiptId = approved.id
   }
 
-  // 6. ActionExecutor executes (re-validates policy + receipt independently) -> audit.
+  // 6. VerifiedActionExecutor executes (re-validates policy + receipt independently) -> audit.
   const candidate = await executor.execute(approvalReceiptId ? { ...request, approvalReceiptId } : request)
 
   return { proposal, verifiedUserId: identity.userId, reasoningEventId: experience.id, candidate, approvalReceiptId }
