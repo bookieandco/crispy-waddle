@@ -17,7 +17,7 @@ for field in ("source_video_asset_id","character_image_asset_id","source_audio_a
     demand(bool(re.search(rf"\b{field}\s+uuid\s+not null\s+references public\.jhadina_artifacts\(id\)",proposal,re.I)),
            f"Recast {field} must reference an immutable owner-scoped artifact")
 demand("enable row level security" in proposal.lower(),"RLS required")
-demand(bool(re.search(r"revoke all on public\\.director_recast_review_receipts from public,\\s*anon,\\s*authenticated,\\s*service_role;",proposal,re.I)),
+demand(bool(re.search(r"revoke all on public\.director_recast_review_receipts from public,\s*anon,\s*authenticated,\s*service_role;",proposal,re.I)),
        "Every API role including service_role must start with explicit grants")
 demand(bool(re.search(r"id uuid primary key",proposal,re.I)),
        "Receipt primary keys must be server-issued UUIDs")
