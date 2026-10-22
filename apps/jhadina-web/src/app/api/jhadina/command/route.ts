@@ -6,7 +6,7 @@ import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { CleanArtifactContextResolver } from "@/lib/artifacts/clean-artifact-context-resolver"
 import { createAndSubmitAskVideoJob, inspectAskVideoIntent } from "@/lib/director-video-job-service"
-import { detectAskImageIntent } from "@jhadina/director-core/ask-image-production"
+import { detectAskImageIntent } from "@jhadina/director-core"
 import { resolveJhadinaDirectorNarration, resolveJhadinaNarrationFromTask } from "@/lib/voice/canonical-jhadina-voice"
 import { advanceAskProcessReplicationJob, createAskProcessReplicationJob, inspectAskProcessReplication } from "@/lib/director-process-replication-service"
 import {
