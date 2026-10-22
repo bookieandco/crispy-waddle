@@ -442,19 +442,28 @@ async function runSourceTrial(input:{
 
 export async function runPublicAdapterShadowBatch(
   client:SupabaseClient,
-  input:{state?:UsStateOrDcCode;batchSize?:number;concurrency?:number;convergence?:boolean;fetchImpl?:typeof fetch;now?:string}={},
+  input:{state?:UsStateOrDcCode;batchSize?:number;concurrency?:number;convergence?:boolean;recoverySourceIds?:string[];fetchImpl?:typeof fetch;now?:string}={},
 ){
   const now=input.now??new Date().toISOString()
   const batchSize=Math.max(1,Math.min(input.batchSize??10,25))
   const concurrency=Math.max(1,Math.min(input.concurrency??5,8))
   const fetchImpl=input.fetchImpl??fetch
+  // Opt-in, bounded retrials for known degraded source IDs. Never sweep all degraded
+  // sources or bypass the official-owner + robots + certification checks in runSourceTrial.
+  if(input.recoverySourceIds){
+    if(!input.state||!input.convergence)throw new Error('Degraded recovery requires state and convergence mode')
+    if(input.recoverySourceIds.length<1||input.recoverySourceIds.length>20||new Set(input.recoverySourceIds).size!==input.recoverySourceIds.length)
+      throw new Error('Degraded recovery requires 1–20 unique source IDs')
+    if(input.recoverySourceIds.some(id=>!id.trim()||id.length>256))throw new Error('Invalid degraded recovery source ID')
+  }
   let sourceQuery=client
     .from('jhadina_public_procurement_sources')
     .select('id,jurisdiction_id,state_code,source_name,source_url,source_kinds,adapter_kind,discovery_provider,verification_status,official_owner_url,confidence,evidence_refs,blockers,adapter_status,adapter_key,adapter_version,access_review_status,last_adapter_trial_at')
     .in('verification_status',['official_owner_verified','official_portal_verified'])
-    .in('adapter_status',input.convergence?['adapter_required','deferred']:['adapter_required','active'])
+    .in('adapter_status',input.recoverySourceIds?['degraded']:input.convergence?['adapter_required','deferred']:['adapter_required','active'])
     .order('last_adapter_trial_at',{ascending:true,nullsFirst:true})
   if(input.state)sourceQuery=sourceQuery.eq('state_code',input.state)
+  if(input.recoverySourceIds)sourceQuery=sourceQuery.in('id',input.recoverySourceIds)
   const {data:sources,error}=await sourceQuery
     .limit(batchSize)
     .returns<SourceRow[]>()
