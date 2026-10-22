@@ -102,8 +102,17 @@ export async function GET(){
    .eq('user_id',userId).eq('provider','phantom').eq('network','SOLANA')
    .order('updated_at',{ascending:false}).limit(20)
   if(error)throw new Error('MONEY_WALLET_CONNECTION_READ_FAILED')
+  // A legacy address-only ACTIVE row cannot impersonate a cryptographically
+  // verified wallet; cross-check the canonical ownership record on every read.
+  const {data:verified,error:ownerError}=await db.from('jhadina_wallets')
+   .select('address').eq('owner_id',userId).eq('provider','phantom')
+   .eq('chain','solana').eq('ownership_verified',true).eq('observation_enabled',true)
+  if(ownerError)throw new Error('MONEY_WALLET_VERIFICATION_READ_FAILED')
+  const authorized=new Set((verified??[]).map(row=>row.address))
   return NextResponse.json({success:true,data:{connections:(data??[]).map(x=>({
-   connectionId:x.connection_id,address:x.address,status:x.status,updatedAt:x.updated_at,
+   connectionId:x.connection_id,address:x.address,
+   status:x.status==='ACTIVE'&&!authorized.has(x.address)?'DISCONNECTED':x.status,
+   updatedAt:x.updated_at,
   })),canSign:false,canMoveFunds:false}},{headers:{'Cache-Control':'no-store'}})
  }catch(error){return replyError(error)}
 }
