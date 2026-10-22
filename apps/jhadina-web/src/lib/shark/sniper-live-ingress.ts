@@ -51,6 +51,7 @@ export async function persistSniperHeliusBatch(input:{
   accepted.push({collection,receipt:result.receipt})
  }
  const launches:SniperIngressItem[]=[]
+ try{
  for(let offset=0;offset<accepted.length;offset+=concurrency){
   const chunk=accepted.slice(offset,offset+concurrency)
   const persisted=await Promise.all(chunk.map(async entry=>{
@@ -67,6 +68,14 @@ export async function persistSniperHeliusBatch(input:{
    })
   }))
   launches.push(...persisted)
+ }
+ }catch(error){
+  // A failed HTTP response must permit future webhook redelivery even if an
+  // earlier item in this batch happened to commit. Database upsert is safe.
+  for(const {collection,receipt} of accepted){
+   input.intake.releasePending(collection.observation.chainId,receipt.signature,receipt.mint)
+  }
+  throw error
  }
  return Object.freeze({
   received:input.events.length,accepted:accepted.length,ignored,duplicates,
