@@ -1,7 +1,8 @@
 'use client'
 
+/* eslint-disable @next/next/no-html-link-for-pages -- Native navigation is intentional: it must work without Next router hydration on iPhone. */
+
 import { useEffect, useRef, useState } from "react"
-import Link from "next/link"
 import { usePathname } from "next/navigation"
 import styles from "./JhadinaShellNavigation.module.css"
 import { VpnShellControl } from "./VpnShellControl"
@@ -67,19 +68,19 @@ export function JhadinaShellNavigation(){
   return()=>{document.removeEventListener("mousedown",close);document.removeEventListener("keydown",escape)}
  },[open])
  return <>
-  <div className={styles.brand}><Link href="/" aria-label="Jhadina home"><span className={styles.brandMark}><Icon name="ask"/></span><span className={styles.brandText}>Jhadina</span></Link></div>
+  <div className={styles.brand}><a href="/" aria-label="Jhadina home"><span className={styles.brandMark}><Icon name="ask"/></span><span className={styles.brandText}>Jhadina</span></a></div>
   <div className={styles.vpnWrap}><VpnShellControl/></div>
   <div ref={wrap} className={styles.moreWrap}>
    <button type="button" className={styles.worldsButton} aria-label="Open Jhadina worlds" aria-expanded={open} aria-controls="jhadina-worlds-menu" onClick={()=>setOpen(v=>!v)}><Icon name="more"/><span>Worlds</span></button>
    {open&&<nav id="jhadina-worlds-menu" className={styles.menu} aria-label="Jhadina worlds">
-    <div className={styles.menuHead}><div><strong>Worlds</strong><span>Route-backed subsystems</span></div><Link href="/worlds">All worlds →</Link></div>
-    <div className={styles.grid}>{worlds.map(([icon,name,href])=><Link className={[styles.world,active(pathname,href)?styles.active:""].filter(Boolean).join(" ")} key={href} href={href}><Icon name={icon}/><span>{name}</span></Link>)}</div>
-    <div className={styles.menuFoot}><Link href="/approvals">Approvals</Link><Link href="/memory">Memory</Link><Link href="/health">System status</Link></div>
+    <div className={styles.menuHead}><div><strong>Worlds</strong><span>Route-backed subsystems</span></div><a href="/worlds">All worlds →</a></div>
+    <div className={styles.grid}>{worlds.map(([icon,name,href])=><a className={[styles.world,active(pathname,href)?styles.active:""].filter(Boolean).join(" ")} key={href} href={href}><Icon name={icon}/><span>{name}</span></a>)}</div>
+    <div className={styles.menuFoot}><a href="/approvals">Approvals</a><a href="/memory">Memory</a><a href="/health">System status</a></div>
    </nav>}
   </div>
   <nav className={styles.primary} aria-label="Primary navigation">
-   {primary.map(([icon,name,href])=><Link key={href} href={href} aria-current={active(pathname,href)?"page":undefined} className={[styles.navLink,active(pathname,href)?styles.active:""].filter(Boolean).join(" ")}><Icon name={icon}/><span>{name}</span></Link>)}
-   <button type="button" className={[styles.navLink,open?styles.active:""].filter(Boolean).join(" ")} aria-label="More Jhadina worlds" aria-expanded={open} onClick={()=>setOpen(v=>!v)}><Icon name="more"/><span>More</span></button>
+   {primary.map(([icon,name,href])=><a key={href} href={href} aria-current={active(pathname,href)?"page":undefined} className={[styles.navLink,active(pathname,href)?styles.active:""].filter(Boolean).join(" ")}><Icon name={icon}/><span>{name}</span></a>)}
+   <a href="/worlds" className={[styles.navLink,active(pathname,"/worlds")?styles.active:""].filter(Boolean).join(" ")} aria-label="More Jhadina worlds"><Icon name="more"/><span>More</span></a>
   </nav>
  </>
 }
