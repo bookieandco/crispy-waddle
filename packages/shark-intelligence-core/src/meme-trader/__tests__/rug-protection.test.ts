@@ -53,6 +53,25 @@ describe('evaluateRugProtection', () => {
     expect(result.attackFingerprints?.find(x => x.mechanism === 'LIQUIDITY_WITHDRAWAL')?.evidenceClass).toBe('RISK_PATTERN')
   })
 
+  it('vetoes verified Token-2022 permanent delegate, frozen default and unsafe transfer hooks without declaring an actual rug', () => {
+    const result=evaluateRugProtection({
+      permanentDelegateLive:true,defaultAccountFrozen:true,transferHookUnverified:true,
+      maxTransferFeeBps:8500,evidence,
+    })
+    expect(result.disposition).toBe('BLOCK')
+    expect(result.attackFingerprints?.map(x=>x.mechanism)).toEqual([
+      'PERMANENT_DELEGATE_CONTROL','FREEZE_CONTROL','TRANSFER_HOOK_RESTRICTION','EXCESSIVE_TRANSFER_FEE',
+    ])
+    expect(result.attackFingerprints?.every(x=>x.evidenceClass==='CAPABILITY_PRESENT')).toBe(true)
+    expect(result.hardBlockers).toContain('permanent delegate can transfer or burn holder tokens')
+  })
+  it('distinguishes high fees requiring review from an arbitrary fee proof or a verified exploit',()=>{
+    const review=evaluateRugProtection({maxTransferFeeBps:3500,evidence})
+    expect(review.disposition).toBe('REVIEW')
+    expect(review.attackFingerprints?.[0]?.mechanism).toBe('EXCESSIVE_TRANSFER_FEE')
+    expect(()=>evaluateRugProtection({maxTransferFeeBps:12000,evidence})).toThrow('RUG_TRANSFER_FEE_BPS_INVALID')
+  })
+
   it('returns no invented rug mechanism from an incomplete or clean observation', () => {
     expect(evaluateRugProtection({evidence}).attackFingerprints).toEqual([])
     expect(evaluateRugProtection({top10HolderPct:20, evidence}).attackFingerprints).toEqual([])
