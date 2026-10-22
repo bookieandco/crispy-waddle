@@ -102,6 +102,41 @@ describe("Sports history production provider",()=>{
     expect(view?.warnings.join(" ")).toMatch(/unknown game phase/i)
   })
 
+  it("sends the protection bypass only to a configured HTTPS Vercel history host",async()=>{
+    let observed:RequestInit|undefined
+    const provider=createProductionSportsHistoryProvider({
+      baseUrl:"https://jhadina-sports-history-private.vercel.app/history/query",
+      token:"history-token",
+      vercelBypassSecret:"private-bypass",
+      fetchImpl:async(_url,init)=>{
+        observed=init
+        return new Response(JSON.stringify(responseBody),{status:200})
+      },
+    })
+    await provider.query({
+      rawQuery:"Test Player NBA all-time points",
+      league:"nba",scopes:[{kind:"ALL_TIME"}],statKeys:["points"],
+      asOf:"2026-09-27T20:00:00Z",
+    })
+    expect(observed?.headers).toMatchObject({
+      authorization:"Bearer history-token",
+      "x-vercel-protection-bypass":"private-bypass",
+    })
+  })
+
+  it("refuses to leak a Vercel bypass token to a non-Vercel host",async()=>{
+    const provider=createProductionSportsHistoryProvider({
+      baseUrl:"https://history.attacker.example/history/query",
+      vercelBypassSecret:"private-bypass",
+      fetchImpl:async()=>{throw new Error("must not contact unsafe destination")},
+    })
+    await expect(provider.query({
+      rawQuery:"Test Player NBA all-time points",
+      league:"nba",scopes:[{kind:"ALL_TIME"}],statKeys:["points"],
+      asOf:"2026-09-27T20:00:00Z",
+    })).rejects.toThrow("SPORT_HISTORY_PROVIDER_BYPASS_TARGET_FORBIDDEN")
+  })
+
   it("fails closed for unresolved/not-admissible provider responses",async()=>{
     const provider=createProductionSportsHistoryProvider({
       baseUrl:"https://history.internal/history/query",
