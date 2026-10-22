@@ -39,15 +39,25 @@ export function resolveEffectiveRecastReviews(
       blockers.push('DIRECTOR_RECAST_'+kind.toUpperCase().replace('-','_')+'_REVIEW_MISSING')
       continue
     }
-    // A future-dated review is not silently excluded: it may hide a forged
-    // approval or rejection and makes the entire kind untrustworthy.
+    // Creation time (from the database) defines append/revocation order when
+    // available. A user-stated review time cannot supersede a later veto.
+    // Mixed timestamp provenance is ambiguous, and must fail closed.
+    const stamped=matching.filter(r=>typeof r.createdAt==='string')
+    if(stamped.length&&stamped.length!==matching.length){
+      blockers.push('DIRECTOR_RECAST_'+kind.toUpperCase().replace('-','_')+'_APPEND_TIME_AMBIGUOUS')
+      continue
+    }
     if(matching.some(r=>!Number.isFinite(Date.parse(r.reviewedAt))||
-      !Number.isFinite(now)||Date.parse(r.reviewedAt)>now)){
+      !Number.isFinite(now)||Date.parse(r.reviewedAt)>now||
+      (stamped.length>0&&(!Number.isFinite(Date.parse(r.createdAt!))||
+        Date.parse(r.createdAt!)>now)))){
+
       blockers.push('DIRECTOR_RECAST_'+kind.toUpperCase().replace('-','_')+'_REVIEW_CLOCK_INVALID')
       continue
     }
-    const sorted=[...matching].sort((a,b)=>Date.parse(b.reviewedAt)-Date.parse(a.reviewedAt))
-    if(sorted.length>1&&Date.parse(sorted[0].reviewedAt)===Date.parse(sorted[1].reviewedAt)){
+    const order=(r:RecastReviewReceipt)=>Date.parse(stamped.length?r.createdAt!:r.reviewedAt)
+    const sorted=[...matching].sort((a,b)=>order(b)-order(a))
+    if(sorted.length>1&&order(sorted[0])===order(sorted[1])){
       blockers.push('DIRECTOR_RECAST_'+kind.toUpperCase().replace('-','_')+'_REVIEW_TIE')
       continue
     }
