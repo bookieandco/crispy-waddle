@@ -137,7 +137,9 @@ export function matchPrimeToSubcontractors(input:{
       ])
       const disposition:PrimeSubcontractorMatchDisposition=
         hardBlocked?'blocked':
-        assessment.status==='candidate'&&score>=65?'matched_candidate':
+        assessment.status==='candidate'&&score>=65&&
+        candidate.capacity==='available'&&geo.blockers.length===0&&
+        pkg.status==='candidate'&&pkg.blockers.length===0?'matched_candidate':
         'review_required'
       matches.push({
         id:'prime-sub-match:'+input.opportunityId+':'+input.prime.providerId+':'+candidate.provider.id+':'+pkg.id,
