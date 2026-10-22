@@ -13,12 +13,13 @@
 // done yet, so don't assume it "just works" for an arbitrary future asset.
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF, useTexture } from "@react-three/drei";
 import { Decal } from "@react-three/drei";
 import * as THREE from "three";
 import {
   Product3DConfig,
+  Product3DCamera,
   PrintArea,
   DecalMap,
   Product3DPlugin,
@@ -29,6 +30,7 @@ import type { ArtworkTransform } from "@/types/creative";
 import { clampArtworkCenter, getDecalPlacement } from "@/lib/product3d/placement";
 import { normalizeArtworkTransform } from "@/types/creative";
 import { toneProductMaterial } from "@/lib/product3d/material";
+import { fitProductCamera, modelBoundingRadius } from "@/lib/product3d/framing";
 
 interface AreaDecalProps {
   url: string;
@@ -96,12 +98,40 @@ function CurvedFrontDecal({ url, area, transform }: AreaDecalProps) {
   );
 }
 
+/** Keeps a cached GLB framed correctly even when source units differ.
+ * No camera geometry is used for print placement or production authority. */
+function ProductCameraFit({
+  radius,
+  config,
+}: {
+  radius: number | null;
+  config: Product3DCamera;
+}) {
+  const { camera, size } = useThree();
+  useEffect(() => {
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
+    const frame = fitProductCamera(radius, {
+      ...config,
+      aspect: size.width / Math.max(1, size.height),
+    });
+    if (!frame) return;
+    const direction = new THREE.Vector3(...config.position);
+    if (direction.lengthSq() === 0) direction.set(0, 0, 1);
+    camera.position.copy(direction.normalize().multiplyScalar(frame.distance));
+    camera.near = Math.max(0.001, Math.min(0.1, frame.distance / 100));
+    camera.far = Math.max(20, frame.distance * 20);
+    camera.lookAt(0, 0, 0);
+    camera.updateProjectionMatrix();
+  }, [camera, config, radius, size.width, size.height]);
+  return null;
+}
+
 interface ProductMeshProps {
   config: Product3DConfig;
   color: string;
   decals: DecalMap;
   decalTransforms?: Partial<Record<string, ArtworkTransform>>;
-  onReady: () => void;
+  onReady: (radius: number) => void;
 }
 
 function ProceduralCanvasMesh({
@@ -110,7 +140,10 @@ function ProceduralCanvasMesh({
   decalTransforms,
   onReady,
 }: Pick<ProductMeshProps, 'config' | 'decals' | 'decalTransforms' | 'onReady'>) {
-  useEffect(() => onReady(), [onReady]);
+  useEffect(() => {
+    const radius = modelBoundingRadius([0.75, 1, 0.08]);
+    if (radius !== null) onReady(radius);
+  }, [onReady]);
   return (
     <mesh castShadow receiveShadow>
       <boxGeometry args={[0.75, 1, 0.08]} />
@@ -163,14 +196,27 @@ function GlbProductMesh({
     return center ? [-center.x, -center.y, -center.z] : [0, 0, 0];
   }, [geometry]);
 
+  const meshRadius = useMemo(() => {
+    if (!geometry) return null;
+    geometry.computeBoundingBox();
+    const dimensions = geometry.boundingBox?.getSize(new THREE.Vector3());
+    return dimensions
+      ? modelBoundingRadius([dimensions.x, dimensions.y, dimensions.z], config.modelScale ?? 1)
+      : null;
+  }, [geometry, config.modelScale]);
+
   useEffect(() => {
-    if (geometry && material) onReady();
-  }, [geometry, material, onReady]);
+    if (geometry && material && meshRadius !== null) onReady(meshRadius);
+  }, [geometry, material, meshRadius, onReady]);
 
   if (!geometry || !material) {
     throw new Error(
       `3D model mismatch in ${config.glbPath}: expected mesh ${config.meshName}, material ${config.materialName}; available meshes: ${Object.keys(nodes).join(", ")}`
     );
+  }
+
+  if (meshRadius === null) {
+    throw new Error(`3D model geometry has invalid bounds in ${config.glbPath}`);
   }
 
   const rotation = config.modelRotation ?? [0, 0, 0];
@@ -243,11 +289,16 @@ export default function Product3DEngine({
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
+  const [modelRadius, setModelRadius] = useState<number | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const markReady = useCallback(() => setReady(true), []);
+  const markReady = useCallback((radius: number) => {
+    setModelRadius(radius);
+    setReady(true);
+  }, []);
   useEffect(() => {
     setFailed(false);
     setReady(false);
+    setModelRadius(null);
     setRetryCount(0);
   }, [config.id, config.glbPath]);
   useEffect(() => {
@@ -274,9 +325,15 @@ export default function Product3DEngine({
     canvasRef.current = null;
     setCanvasElement(null);
     setReady(false);
+    setModelRadius(null);
     setRetryCount((count) => count + 1);
     setFailed(false);
   };
+
+  const frame = fitProductCamera(modelRadius, {
+    ...config.camera,
+    aspect: 1, // viewer frame is square; ProductCameraFit uses exact Canvas size
+  });
 
   return (
     <div className="w-full">
@@ -328,6 +385,7 @@ export default function Product3DEngine({
               <ambientLight intensity={0.55} />
               <directionalLight position={[2, 2, 3]} intensity={0.9} castShadow />
               <directionalLight position={[-2, 1, -1.5]} intensity={0.35} />
+              <ProductCameraFit radius={modelRadius} config={config.camera} />
               <Suspense fallback={null}>
                 <ProductMesh
                   config={config}
@@ -339,8 +397,8 @@ export default function Product3DEngine({
               </Suspense>
               <OrbitControls
                 enablePan={false}
-                minDistance={config.camera.minDistance ?? 1.4}
-                maxDistance={config.camera.maxDistance ?? 3.5}
+                minDistance={frame?.minDistance ?? config.camera.minDistance ?? 1.4}
+                maxDistance={frame?.maxDistance ?? config.camera.maxDistance ?? 3.5}
                 autoRotate={!anyDecal}
                 autoRotateSpeed={0.7}
               />
