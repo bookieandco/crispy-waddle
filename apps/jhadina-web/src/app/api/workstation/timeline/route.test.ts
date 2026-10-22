@@ -11,7 +11,7 @@ vi.mock('@/lib/supabase/server',()=>({
 }));
 
 vi.mock('@/lib/supabase/service-role',()=>({
-  createServiceRoleClient:()=>({}),
+  createRuntimeServiceRoleClient:async()=>({}),
 }));
 
 vi.mock('@/lib/director-project-authority',()=>({

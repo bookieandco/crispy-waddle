@@ -87,7 +87,7 @@ describe('Workstation editing asset approval route', () => {
   });
 
   it('ignores client-supplied fake QC and requires a persisted Studio report', async () => {
-    mocks.asset = { id: 'asset-a', project_id: 'project-a', approval_policy: 'studio_qc' };
+    mocks.asset = { id: 'asset-a', project_id: 'project-a', provider_id: 'comfyui', metadata: {}, approval_policy: 'studio_qc' };
 
     const response = await POST(new Request('http://localhost/api/workstation/editing-assets', {
       method: 'POST',
@@ -104,8 +104,28 @@ describe('Workstation editing asset approval route', () => {
     expect(mocks.approvalUpsert).not.toHaveBeenCalled();
   });
 
+  it('rejects certification-smoke assets even when they claim standard policy', async () => {
+    mocks.asset = {
+      id: 'asset-a',
+      project_id: 'project-a',
+      provider_id: 'director-certification-smoke',
+      approval_policy: 'standard',
+      metadata: { liveCertification: true, qualityClaim: false },
+    };
+
+    const response = await POST(new Request('http://localhost/api/workstation/editing-assets', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ projectId: 'project-a', assetId: 'asset-a' }),
+    }));
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).error).toBe('DIRECTOR_PRODUCTION_ASSET_NOT_ADMISSIBLE');
+    expect(mocks.approvalUpsert).not.toHaveBeenCalled();
+  });
+
   it('binds approval to persisted QC and the authenticated approver', async () => {
-    mocks.asset = { id: 'asset-a', project_id: 'project-a', approval_policy: 'studio_qc' };
+    mocks.asset = { id: 'asset-a', project_id: 'project-a', provider_id: 'comfyui', metadata: {}, approval_policy: 'studio_qc' };
     mocks.report = {
       id: 'qc-real',
       minimum_observed_score: 0.95,

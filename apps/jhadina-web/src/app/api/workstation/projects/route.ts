@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createServiceRoleClient } from '@/lib/supabase/service-role';
+import { createRuntimeServiceRoleClient } from '@/lib/supabase/service-role';
 import { createDirectorProjectMembership } from '@/lib/director-project-authority';
 
 export async function GET() {
@@ -8,7 +8,7 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ ok: false, error: 'Authentication required' }, { status: 401 });
 
-  const privileged = createServiceRoleClient();
+  const privileged=await createRuntimeServiceRoleClient();
   if (!privileged) return NextResponse.json({ ok: false, error: 'Director project store is not configured' }, { status: 503 });
 
   const { data, error } = await privileged
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     // Empty body creates a new project; malformed JSON is not authority-bearing.
   }
 
-  const privileged = createServiceRoleClient();
+  const privileged=await createRuntimeServiceRoleClient();
   if (!privileged) return NextResponse.json({ ok: false, error: 'Director project store is not configured' }, { status: 503 });
 
   const projectId = body.defaultProject === true

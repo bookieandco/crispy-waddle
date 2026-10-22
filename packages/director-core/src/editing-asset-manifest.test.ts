@@ -43,6 +43,13 @@ describe('editing asset manifest', () => {
     expect(entry.mimeType).toBe('application/x-subrip');
   });
 
+  it('never projects an approved certification asset as production-usable', () => {
+    const smoke = { ...asset, providerId: 'director-certification-smoke', metadata: { liveCertification: true, qualityClaim: false } };
+    const [entry] = approvedEditingAssets([smoke], new Set([smoke.id]));
+    expect(entry.status).toBe('ready');
+    expect(entry.usable).toBe(false);
+  });
+
   it('leaves unapproved assets ready but unusable', () => {
     const [entry] = approvedEditingAssets([asset], new Set());
     expect(entry.status).toBe('ready');

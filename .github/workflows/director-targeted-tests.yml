@@ -44,6 +44,9 @@ on:
       - ".github/workflows/director-runpod-*.yml"
       - "scripts/director-runpod-replacement-contract.py"
       - "scripts/director-edge-watch-contract.py"
+      - "scripts/director-converge-*"
+      - "scripts/director-commission-*"
+      - "scripts/director-offline-final-render*"
       - "pnpm-lock.yaml"
   push:
     branches: [main]
@@ -88,6 +91,9 @@ on:
       - ".github/workflows/director-runpod-*.yml"
       - "scripts/director-runpod-replacement-contract.py"
       - "scripts/director-edge-watch-contract.py"
+      - "scripts/director-converge-*"
+      - "scripts/director-commission-*"
+      - "scripts/director-offline-final-render*"
       - "pnpm-lock.yaml"
 jobs:
   director-targeted:
@@ -252,6 +258,8 @@ jobs:
           src/lib/director-reference-asset-resolver.test.ts
           src/lib/director-reference-media.test.ts
           src/app/api/workstation/editing-assets/route.test.ts
+          src/app/api/workstation/recovery-readiness/route.test.ts
+          src/app/api/workstation/social-proposal/route.test.ts
           src/lib/social/director-bridge.test.ts
           src/lib/growth/ugc-batch-experiment-bridge.test.ts
           src/lib/opportunities/director-local-ugc-canary-ledger.test.ts
@@ -289,8 +297,40 @@ jobs:
         run: python scripts/director-edge-watch-contract.py
       - name: Director Colab notebook safety contract
         run: python -m unittest infrastructure/homebase/google-drive/test_director_colab_ai_plus.py -v
+      - name: Provision open-source FFmpeg for offline media acceptance
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg
+          fi
+          ffmpeg -hide_banner -version | head -n 1
+      - name: Director genuine offline FFmpeg output and media integrity acceptance
+        run: |
+          python3 scripts/director-offline-final-render-test.py
+          pnpm --filter @jhadina/director-core exec vitest run src/timeline-playback-plan.test.ts src/offline-final-render-plan.test.ts src/explainer-director.test.ts src/recast-preview.test.ts
       - name: Director background OIDC/storage readiness regressions
-        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/director-background-readiness.test.ts
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/director-background-readiness.test.ts src/lib/director-schema-recovery.test.ts
+      - name: Director project/timeline secure request-context OIDC tests
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/app/api/workstation/timeline/route.test.ts src/app/api/workstation/timeline/command/route.test.ts
+      - name: Director missing-schema isolated PostgreSQL 17 replay and tenant ACL/RPC proof
+        run: bash scripts/director-commission-13-staging.sh
+      - name: Director migration ledger collision inventory (never apply)
+        run: |
+          python3 scripts/director-converge-schema-preflight.py > /tmp/director-commission-13-inventory.json
+          python3 -c "import json; p=json.load(open('/tmp/director-commission-13-inventory.json')); print('DIRECTOR_MIGRATION_TIMESTAMP_COLLISIONS:',json.dumps(p['collidingVersions'],sort_keys=True)); assert p['safeForAutomaticReplay'] is False"
+      - name: Director LIVE.20 read-only migration collision and payload-identity gate
+        run: |
+          python3 scripts/director-live-migration-admission-test.py
+          python3 scripts/director-live-migration-admission.py --output /tmp/director-live-20.json
+          python3 -c "import json; x=json.load(open('/tmp/director-live-20.json')); assert x['automaticReplayAllowed'] is False; assert x['liveRestoreVerified'] is False; print('DIRECTOR_LIVE_20_SOURCE_AUDIT_PASS; PRODUCTION_DDL_BLOCKED')"
+      - name: Director pilot technical QC adversarial smoke (synthetic only)
+        run: python3 scripts/director-commission-18-media-qc-test.py
+      - name: Director migration collision, RLS, grants and timeline RPC source preflight
+        run: |
+          python3 scripts/director-converge-background-contract.py
+          python3 scripts/director-converge-schema-preflight-test.py
+          python3 scripts/director-converge-schema-preflight.py > /tmp/director-schema-preflight.json
+          python3 -c "import json; v=json.load(open('/tmp/director-schema-preflight.json')); assert not v['sourceCheckFailures'], v['sourceCheckFailures']; assert v['safeForAutomaticReplay'] is False; print('DIRECTOR_SCHEMA_SOURCE_PREFLIGHT_PASS; LIVE_MIGRATIONS_NOT_APPLIED')"
       - name: Director AUTO.FINAL source contract
         run: python scripts/director-auto-final-contract.py
       - name: Director local UGC canary ledger safety contract

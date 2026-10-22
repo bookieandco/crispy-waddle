@@ -273,6 +273,17 @@ export function inspectDirectorLocalUgcCanaryCommissioning(
   if(outcome.projectId!==state.projectId){
     outcomeReasons.push('DIRECTOR_LOCAL_UGC_CANARY_UGC_OUTCOME_PROJECT_MISMATCH');
   }
+  // A matching digest does not prove that the reviewed asset is the same asset.
+  if(outcome.artifactId!==state.qcInput.outputAssetId){
+    outcomeReasons.push('DIRECTOR_LOCAL_UGC_CANARY_UGC_OUTCOME_QC_ASSET_MISMATCH');
+  }
+  const outcomeSha=outcome.artifactSha256.trim().toLowerCase().replace(/^sha256:/,'');
+  const qcSha=state.qcInput.outputSha256.trim().toLowerCase().replace(/^sha256:/,'');
+  if(!/^(?:sha256:)?[a-f0-9]{64}$/i.test(outcome.artifactSha256)){
+    outcomeReasons.push('DIRECTOR_LOCAL_UGC_CANARY_UGC_OUTCOME_HASH_INVALID');
+  }else if(outcomeSha!==qcSha){
+    outcomeReasons.push('DIRECTOR_LOCAL_UGC_CANARY_UGC_OUTCOME_QC_HASH_MISMATCH');
+  }
   if(outcome.generationJobId!==state.executionReceipt.providerJobId&&outcome.generationJobId!==state.jobRequest.id){
     outcomeReasons.push('DIRECTOR_LOCAL_UGC_CANARY_UGC_OUTCOME_EXECUTION_MISMATCH');
   }
@@ -282,7 +293,8 @@ export function inspectDirectorLocalUgcCanaryCommissioning(
   if(!outcome.costEvidenceIds.includes(`human-media-attempt-economics:${economics.id}`)){
     outcomeReasons.push('DIRECTOR_LOCAL_UGC_CANARY_UGC_COST_LINK_REQUIRED');
   }
-  if(Math.abs(outcome.acceptedOutputCostUsd-realized)>.01){
+  if(!Number.isFinite(outcome.acceptedOutputCostUsd)||outcome.acceptedOutputCostUsd<0||
+    Math.abs(outcome.acceptedOutputCostUsd-realized)>.01){
     outcomeReasons.push('DIRECTOR_LOCAL_UGC_CANARY_REALIZED_COST_MISMATCH');
   }
   if(outcomeReasons.length){

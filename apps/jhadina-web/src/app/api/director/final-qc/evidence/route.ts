@@ -5,6 +5,7 @@ import type {
 } from '@jhadina/director-core'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
 import {DirectorWorkstationTimelineRepository} from '@/lib/director-workstation-timeline-repository'
+import {directorProductionAssetBlockers} from '@jhadina/director-core/production-asset-admission'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -69,12 +70,13 @@ export async function POST(request:Request){
     const finalMasterAssetId=body.finalMasterAssetId?.trim()??''
     if(finalMasterAssetId){
       const {data:asset,error:assetError}=await client.from('director_generated_editing_assets')
-        .select('id,project_id,uri,media_type,mime_type,generation_job_id')
+        .select('id,project_id,uri,provider_id,metadata,media_type,mime_type,generation_job_id')
         .eq('id',finalMasterAssetId)
         .eq('project_id',projectId)
         .maybeSingle()
       if(assetError)throw new Error('DIRECTOR_PROJECT_FINAL_QC_MASTER_READ_FAILED:'+assetError.message)
       if(!asset)return NextResponse.json({ok:false,error:'DIRECTOR_PROJECT_FINAL_QC_MASTER_NOT_PROJECT_ASSET'},{status:409})
+      if(directorProductionAssetBlockers(asset).length)return NextResponse.json({ok:false,error:'DIRECTOR_PRODUCTION_ASSET_NOT_ADMISSIBLE'},{status:409})
       if(String(asset.media_type)!=='video'||!String(asset.uri??'').trim()){
         return NextResponse.json({ok:false,error:'DIRECTOR_PROJECT_FINAL_QC_MASTER_VIDEO_REQUIRED'},{status:409})
       }

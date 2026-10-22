@@ -2,9 +2,10 @@ import { createHash } from "node:crypto"
 import { NextResponse } from "next/server"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { applyTimelineCommand,timelineCommandReason,type TimelineCommand } from "@jhadina/director-core/timeline-command"
+import { directorProductionAssetBlockers } from "@jhadina/director-core/production-asset-admission"
 import type { EditableTimeline,TimelineSnapshot,TimelineVersion } from "@jhadina/director-core/timeline-model"
 import { createClient } from "@/lib/supabase/server"
-import { createServiceRoleClient } from "@/lib/supabase/service-role"
+import { createRuntimeServiceRoleClient } from "@/lib/supabase/service-role"
 import { requireDirectorProjectAuthority } from "@/lib/director-project-authority"
 import { DirectorWorkstationTimelineRepository } from "@/lib/director-workstation-timeline-repository"
 
@@ -38,12 +39,13 @@ function restore(timeline:EditableTimeline,targetId:string,kind:"undo"|"redo"){
 async function canonicalizeGeneratedAsset(command:Extract<TimelineCommand,{type:"insert-generated-asset"}>,timeline:EditableTimeline,privileged:SupabaseClient):Promise<TimelineCommand>{
  const assetId=command.asset.assetId
  const [{data:asset,error:assetError},{data:approval,error:approvalError}]=await Promise.all([
-  privileged.from("director_generated_editing_assets").select("id,project_id,generation_job_id,media_type,uri,mime_type,metadata").eq("id",assetId).eq("project_id",timeline.projectId).maybeSingle(),
+  privileged.from("director_generated_editing_assets").select("id,project_id,generation_job_id,provider_id,media_type,uri,mime_type,metadata").eq("id",assetId).eq("project_id",timeline.projectId).maybeSingle(),
   privileged.from("director_editing_asset_approvals").select("asset_id,approval_id,approved_at,approved_by_user_id").eq("asset_id",assetId).maybeSingle(),
  ])
  if(assetError)throw new Error("DIRECTOR_ASSET_READ_FAILED:"+assetError.message)
  if(approvalError)throw new Error("DIRECTOR_ASSET_APPROVAL_READ_FAILED:"+approvalError.message)
  if(!asset)throw new Error("DIRECTOR_ASSET_NOT_FOUND_FOR_PROJECT")
+ if(directorProductionAssetBlockers(asset).length)throw new Error("DIRECTOR_PRODUCTION_ASSET_NOT_ADMISSIBLE")
  if(!approval)throw new Error("DIRECTOR_ASSET_APPROVAL_REQUIRED")
  const metadata=(asset.metadata??{}) as Record<string,unknown>
  return {type:"insert-generated-asset",asset:{
@@ -62,7 +64,7 @@ async function canonicalizeGeneratedAsset(command:Extract<TimelineCommand,{type:
 
 function statusFor(message:string):number{
  if(/ACCESS_DENIED|CAPABILITY_DENIED|EDIT_AUTHORITY_REQUIRED/.test(message))return 403
- if(/STALE_REVISION|APPROVAL_REQUIRED/.test(message))return 409
+ if(/STALE_REVISION|APPROVAL_REQUIRED|PRODUCTION_ASSET_NOT_ADMISSIBLE/.test(message))return 409
  if(/NOT_FOUND/.test(message))return 404
  return 400
 }
@@ -79,7 +81,7 @@ export async function POST(request:Request){
    return NextResponse.json({ok:false,error:"DIRECTOR_TIMELINE_EXPECTED_REVISION_REQUIRED"},{status:400})
   }
 
-  const privileged=createServiceRoleClient()
+  const privileged=await createRuntimeServiceRoleClient()
   if(!privileged)return NextResponse.json({ok:false,error:"DIRECTOR_PROJECT_STORE_NOT_CONFIGURED"},{status:503})
   await requireDirectorProjectAuthority(privileged,{projectId,userId:user.id,capability:"edit"})
 

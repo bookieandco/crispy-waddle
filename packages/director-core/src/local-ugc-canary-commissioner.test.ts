@@ -326,4 +326,29 @@ describe('Director local UGC canary commissioner',()=>{
     expect(decision.nextBoundary).toBe('ACCEPTED_OUTPUT_ECONOMICS_REQUIRED');
     expect(decision.blockers).toContain('DIRECTOR_LOCAL_UGC_CANARY_ECONOMICS_LINEAGE_REQUIRED');
   });
+
+  it('rejects outcome asset-identity drift even when the hash matches',()=>{
+    const input=state();
+    const decision=inspectDirectorLocalUgcCanaryCommissioning({...input,
+      ugcOutcome:{...input.ugcOutcome!,artifactId:'asset:unreviewed'},
+    });
+    expect(decision.complete).toBe(false);
+    expect(decision.nextBoundary).toBe('UGC_OUTCOME_REQUIRED');
+    expect(decision.blockers).toContain('DIRECTOR_LOCAL_UGC_CANARY_UGC_OUTCOME_QC_ASSET_MISMATCH');
+  });
+
+  it('rejects outcome hash drift and non-finite or negative accepted cost',()=>{
+    const input=state();
+    const badHash=inspectDirectorLocalUgcCanaryCommissioning({...input,
+      ugcOutcome:{...input.ugcOutcome!,artifactSha256:sha('f')},
+    });
+    expect(badHash.blockers).toContain('DIRECTOR_LOCAL_UGC_CANARY_UGC_OUTCOME_QC_HASH_MISMATCH');
+    for(const cost of [Number.NaN,Number.POSITIVE_INFINITY,-1]){
+      const decision=inspectDirectorLocalUgcCanaryCommissioning({...input,
+        ugcOutcome:{...input.ugcOutcome!,acceptedOutputCostUsd:cost},
+      });
+      expect(decision.nextBoundary).toBe('UGC_OUTCOME_REQUIRED');
+      expect(decision.blockers).toContain('DIRECTOR_LOCAL_UGC_CANARY_REALIZED_COST_MISMATCH');
+    }
+  });
 });

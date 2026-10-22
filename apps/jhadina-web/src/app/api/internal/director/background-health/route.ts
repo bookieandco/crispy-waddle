@@ -1,6 +1,6 @@
 import {NextRequest,NextResponse} from 'next/server'
 import {authorizedDirectorBackgroundRequest} from '@/lib/internal-scheduler-auth'
-import {createSchedulerServiceRoleClient} from '@/lib/supabase/service-role'
+import {createRuntimeServiceRoleClient} from '@/lib/supabase/service-role'
 import {getSupabasePublicConfig} from '@/lib/supabase/public-config'
 import {
   classifyDirectorBackgroundStorageBlocker,
@@ -30,6 +30,7 @@ export async function GET(request:NextRequest){
     directServiceRoleKey:Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
     publicSupabaseBootstrap,
     schedulerBearerIdentity:bearer.startsWith('Bearer ')&&bearer.slice(7).trim().length>0,
+    vercelProductionRuntime:process.env.VERCEL_ENV==='production',
     watchWorkerUrl:Boolean(process.env.JHADINA_DIRECTOR_WATCH_WORKER_URL?.trim()),
     watchWorkerToken:Boolean(process.env.JHADINA_DIRECTOR_WATCH_WORKER_TOKEN?.trim()),
     watchCallbackUrl:Boolean(process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_URL?.trim()),
@@ -42,7 +43,10 @@ export async function GET(request:NextRequest){
     authority:'DIRECTOR_BACKGROUND_HEALTH_ONLY' as const,
   }
 
-  const client=createSchedulerServiceRoleClient(request)
+  // GitHub OIDC authenticates this read-only route; Supabase privileged
+  // transport must use Vercel's independently verified production identity.
+  // Never forward a Director-scoped GitHub bearer to the generic service proxy.
+  const client=await createRuntimeServiceRoleClient()
   if(!client){
     return NextResponse.json({
       ok:false,

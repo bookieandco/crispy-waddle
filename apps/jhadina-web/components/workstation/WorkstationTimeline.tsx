@@ -5,6 +5,7 @@ import { type FadeCurve } from '@jhadina/director-core/timeline-editing';
 import type { EditableTimeline, TimelineClip, TimelineTrack, TimelineVersion, Transition } from '@jhadina/director-core/timeline-model';
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
 import { planClipExtension } from '@jhadina/director-core/generative-extend';
+import { WorkstationPlayback } from './WorkstationPlayback';
 
 type Clip = TimelineClip & { name: string; kind: 'video' | 'audio'; fade?: { fadeInSeconds: number; fadeOutSeconds: number; curve: FadeCurve } };
 type Track = Omit<TimelineTrack, 'clips'> & { clips: Clip[] };
@@ -15,6 +16,9 @@ type HistoryCommand = TimelineCommand | { type: 'undo'; targetVersionId?: string
 export type WorkstationTimelineProps = {
   projectId: string;
   durationSeconds: number;
+  fps: number;
+  width: number;
+  height: number;
   tracks: Track[];
   revision: number;
   versions?: TimelineVersion[];
@@ -30,12 +34,12 @@ const SNAP_SECONDS = 0.1;
 
 function snap(seconds: number) { return Math.round(seconds / SNAP_SECONDS) * SNAP_SECONDS; }
 
-function initialTimeline(projectId: string, durationSeconds: number, tracks: Track[], markers: Marker[], transitions: Transition[], versions: TimelineVersion[], playheadSeconds: number): EditableTimeline {
-  return { version: 1, projectId, fps: 30, width: 1920, height: 1080, durationSeconds, playheadSeconds, tracks, transitions, markers, versions };
+function initialTimeline(projectId: string, durationSeconds: number, fps:number, width:number, height:number, tracks: Track[], markers: Marker[], transitions: Transition[], versions: TimelineVersion[], playheadSeconds: number): EditableTimeline {
+  return { version: 1, projectId, fps, width, height, durationSeconds, playheadSeconds, tracks, transitions, markers, versions };
 }
 
-export function WorkstationTimeline({ projectId, durationSeconds, tracks: initialTracks, revision: initialRevision, versions: initialVersions = [], playheadSeconds: initialPlayheadSeconds = 0, markers = [], transitions: initialTransitions = [], onTimelineChange }: WorkstationTimelineProps) {
-  const [timeline, setTimeline] = useState<EditableTimeline>(() => initialTimeline(projectId, durationSeconds, initialTracks, markers, initialTransitions, initialVersions, initialPlayheadSeconds));
+export function WorkstationTimeline({ projectId, durationSeconds, fps, width, height, tracks: initialTracks, revision: initialRevision, versions: initialVersions = [], playheadSeconds: initialPlayheadSeconds = 0, markers = [], transitions: initialTransitions = [], onTimelineChange }: WorkstationTimelineProps) {
+  const [timeline, setTimeline] = useState<EditableTimeline>(() => initialTimeline(projectId, durationSeconds, fps, width, height, initialTracks, markers, initialTransitions, initialVersions, initialPlayheadSeconds));
   const [revision, setRevision] = useState(initialRevision);
   const [playheadSeconds, setPlayheadSeconds] = useState(initialPlayheadSeconds);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
@@ -290,13 +294,15 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
     }
   }
 
-  return <section className="flex min-h-[700px] flex-col overflow-hidden rounded-xl border bg-background select-none">
+  return <section className="flex min-h-[580px] flex-col gap-3 overflow-hidden rounded-xl border bg-background select-none">
     <div className="flex items-center justify-between border-b px-4 py-3">
       <div><h2 className="font-semibold">DirectorOS Timeline</h2><p className="text-xs text-muted-foreground">Governed edits • versioned history • drag previews commit on release</p></div>
-      <div className="flex items-center gap-2 text-sm"><span>Playhead {playheadSeconds.toFixed(2)}s</span><button className="rounded border px-2 py-1" disabled={busy} onClick={() => setPlayheadSeconds(Math.max(0, playheadSeconds - 1))}>−</button><button className="rounded border px-2 py-1" disabled={busy} onClick={() => setPlayheadSeconds(Math.min(durationSeconds, playheadSeconds + 1))}>+</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={!canUndo || busy} onClick={undo}>Undo</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={!canRedo || busy} onClick={redo}>Redo</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={busy} onClick={() => void exportTimeline('fcpxml')}>Export Final Cut XML</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={busy} onClick={() => void exportTimeline('otio')}>Export OTIO</button></div>
+      <div className="flex max-w-full flex-wrap items-center gap-2 text-sm"><span>Playhead {playheadSeconds.toFixed(2)}s</span><button className="rounded border px-2 py-1" disabled={busy} onClick={() => setPlayheadSeconds(Math.max(0, playheadSeconds - 1))}>−</button><button className="rounded border px-2 py-1" disabled={busy} onClick={() => setPlayheadSeconds(Math.min(durationSeconds, playheadSeconds + 1))}>+</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={!canUndo || busy} onClick={undo}>Undo</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={!canRedo || busy} onClick={redo}>Redo</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={busy} onClick={() => void exportTimeline('fcpxml')}>Export FCPXML (edit interchange)</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={busy} onClick={() => void exportTimeline('otio')}>Export OTIO</button></div>
     </div>
 
     {error ? <div className="border-b bg-destructive/10 px-4 py-2 text-xs text-destructive">{error}</div> : null}
+
+    <div className="px-3"><WorkstationPlayback projectId={projectId} revision={revision} playheadSeconds={playheadSeconds} sliderDuration={durationSeconds} frameWidth={width} frameHeight={height} onSeek={next=>{setPlayheadSeconds(next);setTimeline(current=>({...current,playheadSeconds:next}));}} /></div>
 
     <div className="grid flex-1 grid-cols-[160px_1fr] overflow-auto touch-pan-x touch-pan-y"><div className="sticky left-0 z-10 bg-background/95"><div className="h-9 border-b px-3 py-2 text-xs text-muted-foreground">TRACKS</div>{tracks.map(track => <div key={track.id} className="flex h-20 items-center gap-2 border-b px-3 text-sm"><span className="font-medium">{track.name}</span><span className="ml-auto text-[10px] uppercase text-muted-foreground">{track.kind}</span></div>)}</div><div className="relative" style={{ width: timelineWidth }}><div className="sticky top-0 z-20 h-9 border-b bg-background/95" onPointerDown={e => { const rect = e.currentTarget.getBoundingClientRect(); const nextPlayhead = snap(Math.max(0, Math.min(durationSeconds, (e.clientX - rect.left) / PX_PER_SECOND))); setPlayheadSeconds(nextPlayhead); setTimeline(current => ({ ...current, playheadSeconds: nextPlayhead })); }}>{Array.from({ length: Math.ceil(durationSeconds) + 1 }, (_, i) => <span key={i} className="absolute top-2 text-[10px] text-muted-foreground" style={{ left: i * PX_PER_SECOND }}>{i}s</span>)}</div><div className="absolute inset-x-0 top-9 bottom-0">{markers.map(marker => <div key={marker.id} className="absolute top-0 z-30 h-full border-l border-dashed" style={{ left: marker.timeSeconds * PX_PER_SECOND }} title={marker.label} />)}{tracks.map(track => <div key={track.id} className="relative h-20 border-b">{track.clips.map(clip => <div key={clip.id} onPointerDown={e => pointerDown(e, clip, 'move')} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} onClick={() => setSelectedClipId(clip.id)} className={`absolute top-2 h-16 overflow-hidden rounded-md border px-2 text-left text-xs touch-none ${selectedClipId === clip.id ? 'ring-2 ring-primary' : ''}`} style={{ left: clip.startSeconds * PX_PER_SECOND, width: Math.max(28, clip.durationSeconds * PX_PER_SECOND), opacity: clip.opacity ?? 1 }}><button aria-label="Trim start" className="absolute inset-y-0 left-0 z-20 w-3 cursor-ew-resize" onPointerDown={e => { e.stopPropagation(); pointerDown(e, clip, 'trim-start'); }} /><button aria-label="Trim end" className="absolute inset-y-0 right-0 z-20 w-3 cursor-ew-resize" onPointerDown={e => { e.stopPropagation(); pointerDown(e, clip, 'trim-end'); }} /><span className="font-medium">{clip.name}</span><span className="block opacity-60">{clip.durationSeconds.toFixed(1)}s</span>{clip.fade?.fadeInSeconds ? <span className="absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-background/70 to-transparent" /> : null}{clip.fade?.fadeOutSeconds ? <span className="absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background/70 to-transparent" /> : null}</div>)}</div>)}<div className="pointer-events-none absolute top-0 z-40 h-full border-l-2 border-red-500" style={{ left: playheadSeconds * PX_PER_SECOND }} /></div></div></div>
 
