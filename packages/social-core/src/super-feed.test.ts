@@ -14,7 +14,7 @@ describe("SuperFeed-inspired authorized public feed coordination",()=>{
   expect(publicFeedUrl(publicFeedSource("github","BookieAndCo"))).toBe("https://github.com/bookieandco.atom")
   expect(publicFeedUrl(publicFeedSource("youtube","UC4fAVLUoIqgKkOV0JMAX7Rg"))).toContain("channel_id=UC4fAVLUoIqgKkOV0JMAX7Rg")
   expect(publicFeedUrl(publicFeedSource("wordpress","Pups"))).toBe("https://pups.wordpress.com/feed/")
-  for(const invalid of ["127.0.0.1","user@localhost","https://localhost","user/path","user?x=1","a..b"])
+  for(const invalid of ["127.0.0.1","localhost","user@localhost","https://localhost","user/path","user?x=1","a..b"])
     expect(()=>publicFeedSource("github",invalid)).toThrow()
  })
  it("limits dominant source streak and includes both sources before exhaustion",()=>{
