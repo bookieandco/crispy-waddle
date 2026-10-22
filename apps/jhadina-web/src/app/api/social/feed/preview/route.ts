@@ -24,7 +24,8 @@ export async function GET(req: NextRequest) {
   // canonical package validator. Handles/UC channel IDs never contain
   // dots, slashes, credentials, queries, anchors or backslashes.
   if (values.length < 1 || values.length > MAX_PUBLIC_SOURCES ||
-      values.some(v => v.length > 100 || /[.\\/@?#]/.test(v))) {
+      values.some(v => v.length > 100 || v.includes(".") || v.includes("/") ||
+        v.includes("\\") || v.includes("@") || v.includes("?") || v.includes("#"))) {
     return NextResponse.json({ success: false, error: "Choose one to four public feed sources." },
       { status: 400, headers: NO_CACHE })
   }
