@@ -18,7 +18,7 @@ from types import SimpleNamespace
 
 from personal_release_gate import (assess_release, read_release_manifest,
                                    ReleaseEvidenceInvalid)
-from telegram_intake import (user_reader, verify_telegram_user_identity)
+from telegram_intake import (exclusive_worker_lock, user_reader, verify_telegram_user_identity)
 
 API_HASH = re.compile(r"[a-fA-F0-9]{32}\Z")
 POSITIVE = re.compile(r"[0-9]{1,20}\Z")
@@ -26,6 +26,22 @@ POSITIVE = re.compile(r"[0-9]{1,20}\Z")
 
 class CloudHold(RuntimeError):
     """Constant status only. Never include a secret or provider traceback."""
+
+
+
+def parse_private_exclusions(raw: str) -> list[str]:
+    """Optional selected peer exclusions; never echo private names or IDs."""
+    if not isinstance(raw, str) or len(raw) > 2048:
+        raise CloudHold("CLOUD_PRIVATE_EXCLUSION_POLICY_INVALID")
+    if not raw:
+        return []
+    items = raw.split(",")
+    if len(items) > 40 or any(
+        not re.fullmatch(r"(?:@[a-zA-Z0-9_]{5,32}|-?[1-9][0-9]{0,19})", item)
+        for item in items
+    ) or len(items) != len(set(items)):
+        raise CloudHold("CLOUD_PRIVATE_EXCLUSION_POLICY_INVALID")
+    return items
 
 
 def assert_cloud_environment(env: dict[str, str], *, creating: bool = False,
@@ -145,14 +161,25 @@ def main(argv=None) -> int:
         if args.action == "enroll":
             if not sys.stdin.isatty() or os.environ.get("TELEGRAM_CLOUD_ENROLL_APPROVED") != "YES":
                 raise CloudHold("CLOUD_ENROLL_REQUIRES_OWNER_SSH_TTY_AND_SEPARATE_CONSENT")
-            print("CLOUD_OWNER_TELEGRAM_LOGIN_VIA_PRIVATE_SSH_TERMINAL")
-            asyncio.run(enroll(root, os.environ))
+            if (root / "owner.session").exists() or (root / "owner.session").is_symlink():
+                raise CloudHold("CLOUD_ENROLL_EXISTING_SESSION_REQUIRES_MANUAL_REVOCATION_REVIEW")
+            try:
+                lock_fd = exclusive_worker_lock(root)
+            except BlockingIOError:
+                raise CloudHold("CLOUD_ENROLL_OTHER_READER_ACTIVE_STOP") from None
+            try:
+                print("CLOUD_OWNER_TELEGRAM_LOGIN_VIA_PRIVATE_SSH_TERMINAL")
+                asyncio.run(enroll(root, os.environ))
+            finally:
+                os.close(lock_fd)
             return 0
         assert_run_admission(os.environ, root)
         os.environ["TELEGRAM_CLOUD_NONINTERACTIVE"] = "1"
         # Reuse the sole personal-account event handler, never Bot API getUpdates.
         args_live = SimpleNamespace(
-            mode="live", all_chats=True, chats=None, exclude_chats=None,
+            mode="live", all_chats=True, chats=None,
+            exclude_chats=parse_private_exclusions(
+                os.environ.get("TELEGRAM_CLOUD_EXCLUDE_CHATS", "")),
             days=30, max_per_chat=2000,
         )
         asyncio.run(user_reader(args_live, root, ""))
@@ -162,6 +189,11 @@ def main(argv=None) -> int:
         return 1
     except (KeyboardInterrupt, EOFError):
         print("CLOUD_OWNER_TERMINATED")
+        return 1
+    except Exception:
+        # Telethon/auth/network errors may contain account context or secrets.
+        # Never echo an exception, traceback, phone number or 2FA in CI/journald.
+        print("CLOUD_OWNER_LOGIN_OR_RUNTIME_FAILED_PRIVATE_OPERATOR_REVIEW")
         return 1
 
 

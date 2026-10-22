@@ -67,6 +67,32 @@ jobs:
           assert "canTrade" in canary and "telegramDataUsed" in canary
           print("TELEGRAM_CLOUD_HELD_PUBLIC_SHARK_SEPARATE")
           PY
+      - name: Commission .06–.10 offline source and independent release holds
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/shark-telegram/cloud_commissioning.py --mode source
+          set +e
+          python3 scripts/shark-telegram/cloud_commissioning.py --mode release
+          code=$?
+          set -e
+          if [ "$code" -ne 1 ]; then
+            echo "::error::CLOUD_COMMISSION_RELEASE_GATE_BYPASSED"
+            exit 1
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          root = Path("scripts/shark-telegram")
+          x = json.loads((root / "cloud_commission_evidence.json").read_text())
+          assert x["mode"] == "SOURCE_ONLY"
+          assert all(v == "UNVERIFIED" for v in x["external"].values())
+          assert all(v is False for v in x["permissions"].values())
+          assert "TELEGRAM_CLOUD_SESSION_REVOKED_OR_EXPIRED_STOP" in (root / "telegram_intake.py").read_text()
+          assert "cloud_personal_listener.py run" in (root / "telegram-cloud.service.example").read_text()
+          assert (Path("docs/architecture") / "TELEGRAM-CLOUD-COMMISSION-06-10-2026-10-22.md").is_file()
+          print("CLOUD_COMMISSION_SOURCE_ONLY_RELEASE_HELD")
+          PY
       - name: Preserve current manual Telegram owner
         shell: bash
         run: |

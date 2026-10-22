@@ -17,6 +17,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 import fcntl
+from cloud_commissioning import EphemeralHandlerMetrics
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -303,6 +304,9 @@ async def supervise_personal_connection(client, owner_value, *, sleeper=None,
         await sleeper(delay)
         try:
             await client.connect()
+            if (os.getenv("TELEGRAM_CLOUD_NONINTERACTIVE") == "1"
+                    and not await client.is_user_authorized()):
+                raise SystemExit("TELEGRAM_CLOUD_SESSION_REVOKED_OR_EXPIRED_STOP")
             verify_telegram_user_identity(await client.get_me(), owner_value)
             print("TELEGRAM_CONNECTION_RECOVERED_OWNER_VERIFIED")
             try:
@@ -414,8 +418,15 @@ async def user_reader(args, root, secret):
             edit_filter = (events.MessageEdited(incoming=True)
                            if args.all_chats else events.MessageEdited(chats=entities, incoming=True))
 
+            cloud_metrics = (
+                EphemeralHandlerMetrics()
+                if os.getenv("TELEGRAM_CLOUD_NONINTERACTIVE") == "1"
+                else None
+            )
+
             @client.on(new_filter)
             async def new_message(event):
+                started_ns = time.perf_counter_ns() if cloud_metrics else None
                 try:
                     count = capture(event.message, event.chat_id)
                 except (AttributeError, TypeError, ValueError, OverflowError):
@@ -423,17 +434,34 @@ async def user_reader(args, root, secret):
                     # local status, never the incoming content, peer or traceback.
                     print("TELEGRAM_SCAN_EVENT_REJECTED")
                     return
+                if cloud_metrics is not None:
+                    try:
+                        receipt = cloud_metrics.add(started_ns, time.perf_counter_ns())
+                    except ValueError:
+                        print("TELEGRAM_CLOUD_LOCAL_TIMING_SAMPLE_REJECTED")
+                    else:
+                        if receipt:
+                            print(receipt)
                 if count:
                     summary = ephemeral_crypto_observation(event.message.message) if args.all_chats else None
                     print(ephemeral_local_notice("NEW", summary) if summary else "NEW_TOKEN_MENTIONS " + str(count))
 
             @client.on(edit_filter)
             async def edited_message(event):
+                started_ns = time.perf_counter_ns() if cloud_metrics else None
                 try:
                     count = capture(event.message, event.chat_id)
                 except (AttributeError, TypeError, ValueError, OverflowError):
                     print("TELEGRAM_SCAN_EVENT_REJECTED")
                     return
+                if cloud_metrics is not None:
+                    try:
+                        receipt = cloud_metrics.add(started_ns, time.perf_counter_ns())
+                    except ValueError:
+                        print("TELEGRAM_CLOUD_LOCAL_TIMING_SAMPLE_REJECTED")
+                    else:
+                        if receipt:
+                            print(receipt)
                 if count:
                     summary = ephemeral_crypto_observation(event.message.message) if args.all_chats else None
                     print(ephemeral_local_notice("EDIT", summary) if summary else "EDITED_TOKEN_MENTIONS " + str(count))
