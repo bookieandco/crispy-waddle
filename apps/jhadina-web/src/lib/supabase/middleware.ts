@@ -42,6 +42,7 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute =
     pathname.startsWith("/login") ||
     pathname.startsWith("/auth") ||
+    pathname === "/wallet/activate" || // Signature-gated wallet claim only; no account session
     pathname === "/jhadina-voice-audition.html" ||
     pathname.startsWith("/jhadina-voice-audition/");
 
