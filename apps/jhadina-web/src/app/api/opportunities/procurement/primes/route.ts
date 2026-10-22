@@ -2,6 +2,7 @@ import {NextRequest,NextResponse} from 'next/server'
 import {createRequestIdentityVerifier} from '@/lib/auth/request-identity'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
 import {researchFederalPrimeAwardHistory} from '@/lib/opportunities/public-usaspending-regional-primes'
+import {readPublicProcurementCanary} from '@/lib/opportunities/procurement-public-canary-docket'
 import {
  US_STATE_AND_DC_CODES,assembleProcurementPilot,regionalPrimeEvidenceFromAwards,
  buildRegionalPrimeMatrix,assessNationalProcurementPursuit,type PublicAwardPrimeFingerprint,type PrimeRegionalOpportunity,
@@ -65,11 +66,12 @@ export async function GET(request:NextRequest){
 export async function POST(request:NextRequest){
  try{
   const client=await authorized()
-  const body=await request.json().catch(()=>null) as {pilotId?:unknown;inboxId?:unknown}|null
+  const body=await request.json().catch(()=>null) as {pilotId?:unknown;inboxId?:unknown;canaryId?:unknown}|null
   const pilotId=typeof body?.pilotId==='string'?body.pilotId.trim():''
   const inboxId=typeof body?.inboxId==='string'?body.inboxId.trim():''
-  if(Boolean(pilotId)===Boolean(inboxId)||pilotId.length>128||inboxId.length>256)
-   return reply({ok:false,error:'Provide exactly one existing pilotId or inboxId'},400)
+  const canaryId=typeof body?.canaryId==='string'?body.canaryId.trim():''
+  if([pilotId,inboxId,canaryId].filter(Boolean).length!==1||pilotId.length>128||inboxId.length>256||canaryId.length>64)
+   return reply({ok:false,error:'Provide exactly one server-held pilotId, inboxId or canaryId'},400)
   let opportunity:PrimeRegionalOpportunity
   if(pilotId){
    const pilot=assembleProcurementPilot().opportunities.find(p=>p.id===pilotId)
@@ -83,6 +85,21 @@ export async function POST(request:NextRequest){
     bondingRequired:'unknown',allowedPrimeStructure:'unknown',
     directBidEligible:'unknown',subcontractingAllowed:'unknown',
     deadlineAt:pilot.deadlineAt,
+   }
+  }else if(canaryId){
+   const dossier=readPublicProcurementCanary(canaryId,new Date().toISOString())
+   if(!dossier)return reply({ok:false,error:'Unknown official public notice'},404)
+   opportunity={
+    opportunityId:dossier.id,buyer:dossier.buyer,state:'CA',county:dossier.county,
+    capabilityKeywords:dossier.specification==='PW 25-96'
+     ?['well rehabilitation','pump replacement','mechanical equipment','pipework','electrical installation']
+     :['transit center','building interior','ADA','general building'],
+    naicsCodes:[],sourceEvidenceRefs:[dossier.noticeUrl,dossier.officialBidListUrl],
+    officialSolicitationComplete:false,addendaVerified:false,requiredTradeLicenses:[dossier.requiredPrimeLicenseClass??'unknown'],
+    bondingRequired:'yes',allowedPrimeStructure:'unknown',
+    directBidEligible:'unknown',subcontractingAllowed:'unknown',
+    // Public NIB has a local clock with no canonical UTC offset in the notice.
+    // Do not invent a DST offset or automatic eligibility cutoff here.
    }
   }else{
    const {data,error}=await client.from('jhadina_public_opportunity_inbox')
