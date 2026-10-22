@@ -60,3 +60,24 @@ export function fitProductCamera(
     maxDistance: Math.max(configuredMax, distance * 1.85),
   };
 }
+
+/** Named, reproducible camera directions for storefront inspection and
+ * actual front/side/back QA. These do NOT rotate product geometry, change
+ * decal coordinates or claim a printable rear surface exists. */
+export type ProductInspectionView = 'front' | 'side' | 'back';
+
+export function inspectionCameraDirection(
+  position: ModelSize,
+  view: ProductInspectionView,
+): [number, number, number] {
+  const valid = position.every(Number.isFinite);
+  const [x, y, z] = valid ? position : [0, 0, 1];
+  const length = Math.hypot(x, y, z);
+  const ox = length > 0 ? x / length : 0;
+  const oy = length > 0 ? y / length : 0;
+  const oz = length > 0 ? z / length : 1;
+  const angle = view === 'back' ? Math.PI : view === 'side' ? Math.PI / 2 : 0;
+  const sin = Math.sin(angle);
+  const cos = Math.cos(angle);
+  return [ox * cos + oz * sin, oy, -ox * sin + oz * cos];
+}
