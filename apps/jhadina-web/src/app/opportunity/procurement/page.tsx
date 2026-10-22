@@ -32,6 +32,7 @@ function Deadline({value,continuous}:{value?:string;continuous:boolean}){
 type DirectoryRow={
  id:string;name:string;state:string;level:string;sourceCount:number;verifiedSourceCount:number
  certifiedSourceCount:number;inventorySourceUrl:string;discoveryStatus:string
+ inboxObservations:Array<{id:string;title:string;sourceUrl:string;lastSeenAt:string}>
  examples:Array<{name:string;url:string;status:string;certified:boolean}>;sourceDataMayBePartial:boolean;bidReady:false
 }
 type DirectoryResponse={ok:boolean;total:number;results:DirectoryRow[];sourceSamplePartial:boolean;error?:string}
@@ -49,6 +50,8 @@ function JurisdictionDirectory({state}:{state:string}){
  const [result,setResult]=useState<DirectoryResponse|null>(null)
  const [error,setError]=useState("")
  const [loading,setLoading]=useState(false)
+ const [reviewing,setReviewing]=useState<string|null>(null)
+ const [reviews,setReviews]=useState<Record<string,{status?:string;blockers:string[]}>>({})
  useEffect(()=>{setOffset(0)},[state,level,search])
  useEffect(()=>{
   let alive=true
@@ -68,6 +71,21 @@ function JurisdictionDirectory({state}:{state:string}){
   void load()
   return ()=>{alive=false}
  },[state,level,search,offset])
+ async function reviewInbox(id:string){
+  setReviewing(id);setError("")
+  try{
+   const response=await fetch("/api/opportunities/procurement",{
+    method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({inboxId:id}),cache:"no-store"
+   })
+   const payload=await response.json() as {ok:boolean;packet?:{status?:string;blockers?:string[]};error?:string}
+   if(!response.ok||!payload.ok)throw Error(payload.error??"No-send review unavailable")
+   setReviews(previous=>({...previous,[id]:{
+    status:payload.packet?.status,blockers:payload.packet?.blockers??[]
+   }}))
+  }catch(e){setError(e instanceof Error?e.message:"No-send review failed")}
+  finally{setReviewing(null)}
+ }
  return <section style={section}>
   <div style={mini}>Nationwide buyer directory</div>
   <h2 style={boxTitle}>Search {state} governments and public entities</h2>
@@ -92,6 +110,19 @@ function JurisdictionDirectory({state}:{state:string}){
      <SourceLink href={v.url}>{v.name}</SourceLink> · {v.certified?"Certified read-only":v.status.replace(/_/g," ")}
     </div>)}
     {x.examples.length===0&&<div style={{...dim,fontSize:12}}>No verified procurement source captured yet; source research required</div>}
+    {x.inboxObservations.length>0&&<div style={{marginTop:9}}>
+     <div style={{...mini,fontSize:10}}>Recorded solicitation observations · not bid-certified</div>
+     {x.inboxObservations.map(o=><div key={o.id} style={{padding:"7px 0",borderTop:"1px solid #34424f"}}>
+      <SourceLink href={o.sourceUrl}>{o.title}</SourceLink>
+      <div style={{...dim,fontSize:11}}>Last recorded: {new Date(o.lastSeenAt).toLocaleDateString()} · Recheck official deadline and addenda</div>
+      <button disabled={reviewing!==null} type="button" onClick={()=>void reviewInbox(o.id)} style={{...btn,marginTop:6,padding:"7px 10px",fontSize:12}}>Prepare no-send review</button>
+      {reviews[o.id]&&<div style={{...dim,fontSize:11,padding:7,marginTop:5,border:"1px solid #655039",borderRadius:8}}>
+       <strong>Review status: {reviews[o.id].status??"blocked"}</strong>
+       <ul>{reviews[o.id].blockers.slice(0,7).map(b=><li key={b}>{b}</li>)}</ul>
+      </div>}
+     </div>)}
+    </div>}
+
    </div>)}</div>
    <div style={{display:"flex",gap:8,alignItems:"center",marginTop:14}}>
     <button type="button" style={btn} disabled={offset===0} onClick={()=>setOffset(Math.max(0,offset-20))}>Previous</button>
