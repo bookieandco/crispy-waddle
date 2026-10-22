@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).parent))
 from procedural_tote_geometry import validate_tote_dimensions,build_geometry,measured_bounds
-from model_supplier_tote_blender import inspect,verify_approval
+from model_supplier_tote_blender import inspect,verify_approval,CANONICAL_TOTE_MATERIAL
 
 # Synthetic millimeter dimensions test only: NEVER a real Printify product.
 DIMS=[380,530,95]
@@ -51,6 +51,9 @@ class ToteCpuTests(unittest.TestCase):
         self.assertAlmostEqual(bounds[0],.38,delta=.012)
         self.assertAlmostEqual(bounds[1],.095,delta=.012)
         self.assertAlmostEqual(bounds[2],.53,delta=.012)
+    def test_blender_pbr_name_matches_canonical_3d_engine_material(self):
+        self.assertEqual(CANONICAL_TOTE_MATERIAL,"tote_material")
+
     def test_refined_preview_has_hem_reinforcements_and_measured_bounds(self):
         # The mesh remains ONE candidate mesh even with folded rim and
         # reinforcement islands. The result is not a certified product.
