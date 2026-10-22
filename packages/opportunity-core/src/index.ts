@@ -157,3 +157,5 @@ export * from './domain/zero-rig-live-certification.js'
 
 export * from './domain/autonomy-pilot.js'
 export * from './domain/autonomy-live.js'
+
+export * from './domain/autonomy-discovery-schedule.js'
