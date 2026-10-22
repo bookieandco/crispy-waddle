@@ -12,6 +12,7 @@ import { rememberWorkSession, resumeOwnerWorkSession, type SessionPointerStorage
 import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
 import { SportsHistoryCard, type SportsHistoryViewForUi } from "./sports-history-card"
 import { SportsWatchSubscriptionCard } from "./sports-watch-subscription-card"
+import { WikipediaResearchCard, type WikipediaResearchView } from "./wikipedia-research-card"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
@@ -26,7 +27,7 @@ type GrowthWorkPlan={kind:"growth_intelligence";operation:string;authority:"READ
 type VideoJobSummary={id:string;projectId:string;status:string;mode?:string;aspectRatio?:string;providerId?:string;error?:string;previewAssetId?:string}
 type SpatialContextUsageReceipt={used:boolean;authority:"INTELLIGENCE_ONLY";observationCount:number;evidenceCount:number;claimCount:number;realityCount:number;provenanceCount:number;sources:string[];conflictCount:number;uncertaintyCount:number;limitationCount:number}
 type SpatialGeographicScope={lat:number;lon:number;radiusKm?:number}
-type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;sportsHistoryView?:SportsHistoryViewForUi;feedbackEligible?:boolean}
+type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;sportsHistoryView?:SportsHistoryViewForUi;wikipediaResearch?:WikipediaResearchView;feedbackEligible?:boolean}
 
 function sessionPointerStorage():SessionPointerStorage|undefined{
  try{return typeof window!=="undefined"?window.localStorage:undefined}catch{return undefined}
@@ -141,9 +142,10 @@ function AskJhadina(){
    ...(data.videoJob?["director"]:[]),
    ...(data.spatialContext?.used?["spatial"]:[]),
    ...(data.sportsHistoryView?["sports"]:[]),
+   ...(data.wikipediaResearch?.articles.length?["research"]:[]),
   ])]
   const decisionRefs=[data.proposal?.id,data.reasoningEventId].filter((value):value is string=>typeof value==="string"&&Boolean(value))
-  const outputRefs=data.videoJob?.id?[data.videoJob.id]:[]
+  const outputRefs=[...(data.videoJob?.id?[data.videoJob.id]:[]),...(data.wikipediaResearch?.articles??[]).map(article=>`wikipedia:${article.id}:${article.revisionId??"unknown"}`)].slice(0,12)
   const durableRefs=[...new Set(artifactRefs)].slice(0,8).map(id=>({id,kind:"data" as const,provenanceRef:`artifact:${id}`,admitted:true}))
   const response=await fetch(`/api/jhadina/work-sessions/${encodeURIComponent(id)}`,{
    method:"PUT",
@@ -657,6 +659,7 @@ function AskJhadina(){
     <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
     <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
     {result.spatialContext?.used?<SpatialContextCard receipt={result.spatialContext}/>:null}
+    {result.wikipediaResearch?<WikipediaResearchCard research={result.wikipediaResearch}/>:null}
     {result.sportsHistoryView?<><SportsHistoryCard view={result.sportsHistoryView}/><SportsWatchSubscriptionCard defaultQuery={result.sportsHistoryView.records[0]?.entityLabel??""}/></>:null}
     {result.socialWorkPlan?<SocialWorkPlanCard plan={result.socialWorkPlan}/>:null}
     {result.growthWorkPlan?<GrowthWorkPlanCard plan={result.growthWorkPlan}/>:null}
