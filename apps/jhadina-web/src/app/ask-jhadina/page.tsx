@@ -55,7 +55,8 @@ function AskJhadina(){
  const [localCanaryBusy,setLocalCanaryBusy]=useState(false)
  const [localCanaryResult,setLocalCanaryResult]=useState("")
  const [modelReadiness,setModelReadiness]=useState<{selected:"local"|"anthropic"|"gemini";status:"CONFIGURED_UNVERIFIED"|"NOT_CONFIGURED";alternativeAvailable:"anthropic"|"gemini"|null;
- localHostReadiness?:"AUDIT_REPAIR_PENDING"|"HOST_ID_REQUIRED"|"ALTERNATE_HOST_CONFIGURED_UNVERIFIED"|"CLOUD_SELECTED";
+ localHostReadiness?:"AUDIT_REPAIR_PENDING"|"HOST_ID_REQUIRED"|"ALTERNATE_HOST_IDENTIFIED_UNVERIFIED"|"CLOUD_SELECTED";
+ macbookAudit?:{status:"AUDIT_REPAIR_PENDING";issue:string;diagnosisVerified:false};
  note:string}|null>(null)
  const [sessionWarning,setSessionWarning]=useState("")
  const [pendingSessionSave,setPendingSessionSave]=useState(false)
@@ -624,7 +625,7 @@ function AskJhadina(){
    {modelReadiness.alternativeAvailable?` An alternative (${modelReadiness.alternativeAvailable}) has a credential but is not automatically enabled.`:""}
   </p>:null}
   {modelReadiness?.selected==="local"&&modelReadiness.status==="NOT_CONFIGURED"?
-   <NoHostModeCard hostOnAuditHold={modelReadiness.localHostReadiness==="AUDIT_REPAIR_PENDING"}/>:null}
+   <NoHostModeCard hostOnAuditHold={modelReadiness.macbookAudit?.status==="AUDIT_REPAIR_PENDING"}/>:null}
   {modelReadiness?.selected==="local"&&modelReadiness.status==="CONFIGURED_UNVERIFIED"?
    <div className="jh-row" style={{marginTop:8,alignItems:"center"}}>
     <button type="button" className="jh-button" disabled={localCanaryBusy}
