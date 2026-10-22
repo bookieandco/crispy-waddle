@@ -25,6 +25,11 @@ export const PUPSON_3D_GENERATORS = Object.freeze({
     mode: 'operator-provisioned-local-gpu',
     requiresExternalDisclosureReview: false,
   }),
+  'pupson-procedural-tote-cpu': Object.freeze({
+    reference: 'https://github.com/bookieandco/crispy-waddle/blob/feat/pupson-uniform-asset-factory-20261021/apps/pupsonstuff/scripts/model_supplier_tote_blender.py',
+    mode: 'operator-provisioned-local-cpu',
+    requiresExternalDisclosureReview: false,
+  }),
   'tencent-hunyuan3d-2': Object.freeze({
     reference: 'https://github.com/Tencent-Hunyuan/Hunyuan3D-2',
     mode: 'operator-provisioned-local-gpu',
