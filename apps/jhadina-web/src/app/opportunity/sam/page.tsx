@@ -39,7 +39,9 @@ export default function FederalContractsWorkspace(){
         <h1 style={h1}>Federal Contracts</h1>
         <p style={sub}>SAM.gov opportunities connected to solicitation requirements, subcontractability, real provider evidence, fulfillment teams, and commercial-readiness blockers.</p>
       </div>
-      <Link href="/opportunity" style={backLink}>← Opportunities</Link>
+      <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+        <Link href="/opportunity/procurement" style={backLink}>School &amp; county procurement →</Link>
+        <Link href="/opportunity" style={backLink}>← Opportunities</Link></div>
     </div>
 
     <div style={metrics}>
