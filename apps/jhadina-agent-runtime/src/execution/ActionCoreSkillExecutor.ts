@@ -4,7 +4,7 @@ import type {
 } from "../../../../packages/jhadina-action-core/src/action-executor";
 import type { SkillCapabilityToken } from "./SkillCapabilityToken";
 import { SkillExecutorGuard } from "./SkillExecutorGuard";
-import type { SkillExecutionAuditEvent, SkillExecutionAuditSink } from "./GuardedSkillExecutor";
+import type { SkillExecutionAuditSink } from "./GuardedSkillExecutor";
 
 export interface SkillActionRequest<TAction = unknown> {
   skillId: string;

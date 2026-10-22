@@ -1,0 +1,43 @@
+name: JH Muse Parity Source Gate
+
+on:
+  pull_request:
+    paths:
+      - "apps/jhadina-agent-runtime/**"
+      - "packages/agent-runtime-core/**"
+      - ".github/workflows/jh-muse-parity-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  source-gate:
+    name: Muse parity type-check and targeted Vitest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Type-check canonical agent runtime and skill adapters
+        run: |
+          pnpm --filter @jhadina/agent-runtime-core type-check
+          pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p ../../apps/jhadina-agent-runtime/tsconfig.json
+      - name: Run explicit crash, skill, Sentinel and browser tests
+        run: |
+          pnpm --filter @jhadina/jhadina-web exec vitest run --root ../.. --config apps/jhadina-web/vitest.config.ts \
+            packages/agent-runtime-core/src/agent-runtime.test.ts \
+            apps/jhadina-agent-runtime/src/skills/MuseSkillCandidate.test.ts \
+            apps/jhadina-agent-runtime/src/governance/OutboundSentinel.test.ts \
+            apps/jhadina-agent-runtime/src/governance/GovernedBrowserSkillOperator.test.ts \
+            apps/jhadina-agent-runtime/src/governance/BrowserReadOnlyWorker.test.ts \
+            apps/jhadina-agent-runtime/src/governance/BrowserReadActionComposition.test.ts
