@@ -16,6 +16,7 @@ const defaultWikipediaResearch = createWikipediaResearchClient()
 export function createWikipediaAugmentedKnowledgeContextProvider(
   canonical: KnowledgeContextProvider,
   wikipedia: WikipediaResearch = defaultWikipediaResearch,
+  onResearch?: (result: Awaited<ReturnType<WikipediaResearch>>) => void,
 ): KnowledgeContextProvider {
   return {
     async getContext(input) {
@@ -29,6 +30,7 @@ export function createWikipediaAugmentedKnowledgeContextProvider(
       const canonicalContext = internal.status === "fulfilled"
         ? internal.value
         : { knowledge: [], limitations: ["canonical Knowledge runtime unavailable; not silently replaced with encyclopedia evidence"] }
+      if (external.status === "fulfilled") onResearch?.(external.value)
       const wikipediaContext = external.status === "fulfilled"
         ? wikipediaToEvidence(external.value)
         : { knowledge: [], limitations: ["Wikipedia lookup failed; no public evidence returned"] }
