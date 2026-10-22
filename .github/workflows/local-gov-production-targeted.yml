@@ -47,6 +47,7 @@ jobs:
           pnpm --filter @jhadina/opportunity-core exec tsx src/domain/public-award-prime.test.ts
           pnpm --filter @jhadina/opportunity-core exec tsx src/domain/public-prime-coverage.test.ts
           pnpm --filter @jhadina/opportunity-core exec tsx src/domain/procurement-commissioning.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/procurement-pilot-commission.test.ts
       - name: Jhadina Web typecheck
         run: pnpm --filter @jhadina/jhadina-web type-check
       - name: OIDC proxy and public procurement regressions
