@@ -6,7 +6,7 @@ const STORAGE_KEY = 'jtv-private-live-v1';
 interface SavedChannels { version: 1; channels: PrivateChannel[]; guideXml: string; }
 interface WorldChannel { id: string; name: string; country: string; categories: string[]; website?: string; access: 'discovery-only'; }
 const panel = { border: '1px solid #303745', borderRadius: 16, background: '#141923', padding: 16 } as const;
-const button = { background: '#f5f5f5', color: '#101216', border: 0, borderRadius: 12, padding: '10px 14px', fontWeight: 700 as const, cursor: 'pointer' };
+const button = { background: '#f5f5f5', color: '#101216', border: 0, borderRadius: 12, padding: '10px 14px', minHeight: 44, fontWeight: 700 as const, cursor: 'pointer' };
 const darkButton = { ...button, color: '#f7f7f7', background: '#272f3e' };
 const inputStyle = { background: '#0b111c', color: '#fff', border: '1px solid #465065', borderRadius: 10, padding: 10, maxWidth: '100%' };
 
@@ -214,7 +214,15 @@ export default function JhadinaTVLivePage() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 12, alignItems: 'center' }}>
               <button style={button} onClick={() => void startPlayback()}>▶ Play with sound</button>
               <button style={darkButton} onClick={() => { videoRef.current?.load(); setPlaybackMessage('Reloaded stream. Tap Play.'); }}>↻ Retry</button>
-              <button style={darkButton} onClick={() => { const v = videoRef.current; if (v && v.requestFullscreen) void v.requestFullscreen().catch(() => setPlaybackMessage('Fullscreen unavailable on this device.')); }}>⛶ Full screen</button>
+              <button style={darkButton} onClick={() => {
+                const video = videoRef.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
+                if (!video) return;
+                try {
+                  if (typeof video.webkitEnterFullscreen === 'function') video.webkitEnterFullscreen();
+                  else if (typeof video.requestFullscreen === 'function') void video.requestFullscreen().catch(() => setPlaybackMessage('Fullscreen unavailable on this device.'));
+                  else setPlaybackMessage('Use the native fullscreen control on your iPhone.');
+                } catch { setPlaybackMessage('Fullscreen unavailable; use the native video controls.'); }
+              }}>⛶ Full screen</button>
               <span role="status" style={{ color: '#a7b9d2', fontSize: 13 }}>{playerStatus}</span>
             </div>
             {playbackMessage && <p role="alert" style={{ color: '#f4cf9f' }}>{playbackMessage}</p>}
