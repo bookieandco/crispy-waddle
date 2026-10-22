@@ -16,6 +16,9 @@ type HistoryCommand = TimelineCommand | { type: 'undo'; targetVersionId?: string
 export type WorkstationTimelineProps = {
   projectId: string;
   durationSeconds: number;
+  fps: number;
+  width: number;
+  height: number;
   tracks: Track[];
   revision: number;
   versions?: TimelineVersion[];
@@ -31,12 +34,12 @@ const SNAP_SECONDS = 0.1;
 
 function snap(seconds: number) { return Math.round(seconds / SNAP_SECONDS) * SNAP_SECONDS; }
 
-function initialTimeline(projectId: string, durationSeconds: number, tracks: Track[], markers: Marker[], transitions: Transition[], versions: TimelineVersion[], playheadSeconds: number): EditableTimeline {
-  return { version: 1, projectId, fps: 30, width: 1920, height: 1080, durationSeconds, playheadSeconds, tracks, transitions, markers, versions };
+function initialTimeline(projectId: string, durationSeconds: number, fps:number, width:number, height:number, tracks: Track[], markers: Marker[], transitions: Transition[], versions: TimelineVersion[], playheadSeconds: number): EditableTimeline {
+  return { version: 1, projectId, fps, width, height, durationSeconds, playheadSeconds, tracks, transitions, markers, versions };
 }
 
-export function WorkstationTimeline({ projectId, durationSeconds, tracks: initialTracks, revision: initialRevision, versions: initialVersions = [], playheadSeconds: initialPlayheadSeconds = 0, markers = [], transitions: initialTransitions = [], onTimelineChange }: WorkstationTimelineProps) {
-  const [timeline, setTimeline] = useState<EditableTimeline>(() => initialTimeline(projectId, durationSeconds, initialTracks, markers, initialTransitions, initialVersions, initialPlayheadSeconds));
+export function WorkstationTimeline({ projectId, durationSeconds, fps, width, height, tracks: initialTracks, revision: initialRevision, versions: initialVersions = [], playheadSeconds: initialPlayheadSeconds = 0, markers = [], transitions: initialTransitions = [], onTimelineChange }: WorkstationTimelineProps) {
+  const [timeline, setTimeline] = useState<EditableTimeline>(() => initialTimeline(projectId, durationSeconds, fps, width, height, initialTracks, markers, initialTransitions, initialVersions, initialPlayheadSeconds));
   const [revision, setRevision] = useState(initialRevision);
   const [playheadSeconds, setPlayheadSeconds] = useState(initialPlayheadSeconds);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
