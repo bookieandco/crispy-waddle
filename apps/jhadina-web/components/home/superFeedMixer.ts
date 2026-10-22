@@ -32,11 +32,14 @@ export function balancedSourceMix<T extends Pick<Story,"source">>(
     // Keep source streaks bounded whenever any alternative exists.
     const alternatives=candidates.filter(([source])=>source!==previous||streak<maxStreak)
     const pool=alternatives.length?alternatives:candidates
-    // Stable ordering: first in input is newest (the caller already sorted).
+    // During the minimum-per-source pass, prefer least represented
+    // sources; otherwise preserve newest-first source heads.
     const source=pool.reduce((best,[name,rows])=>{
       const index=sorted.indexOf(rows[0])
-      return index<best.index?{name,index}:best
-    },{name:pool[0][0],index:Infinity}).name
+      const count=underQuota.length?(served.get(name)??0):0
+      return count<best.count||(count===best.count&&index<best.index)
+        ?{name,index,count}:best
+    },{name:pool[0][0],index:Infinity,count:Infinity}).name
     const item=buckets.get(source)?.shift()
     if(!item)break
     result.push(item)
