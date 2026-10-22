@@ -1,0 +1,64 @@
+name: SAM Prime Finder Recovery CI
+
+on:
+  push:
+    branches:
+      - fix/sam-prime-finder-recover-01-08-20261022
+  pull_request:
+    paths:
+      - "packages/opportunity-core/**"
+      - "apps/jhadina-web/src/lib/opportunities/**"
+      - "apps/jhadina-web/src/lib/money-opportunities/sam-**"
+      - "apps/jhadina-web/src/lib/relationships/**"
+      - "apps/jhadina-web/src/app/api/opportunities/prime-finder/**"
+      - "apps/jhadina-web/src/app/api/internal/subnet/**"
+      - ".github/workflows/jhadina-production-scheduler.yml"
+      - ".github/workflows/sam-prime-finder-recovery-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sam-prime-finder-recovery-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-only-acceptance:
+    name: Source-only prime finder checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Core procurement/coverage/identity tests
+        run: |
+          set -euo pipefail
+          for spec in \
+            public-award-prime.test.ts \
+            public-prime-coverage.test.ts \
+            prime-subcontractor-matching.test.ts \
+            prime-finder-pursuit-readiness.test.ts \
+            prime-finder-acceptance.test.ts; do
+            pnpm --filter @jhadina/opportunity-core exec tsx "src/domain/$spec"
+          done
+      - name: Gateway, SUBNet and CRM regression tests
+        run: >
+          pnpm --filter @jhadina/jhadina-web exec vitest run
+          src/lib/money-opportunities/sam-safe-batches.test.ts
+          src/lib/opportunities/subnet-client.test.ts
+          src/lib/relationships/production-runtime.test.ts
+      - name: Type checks
+        run: |
+          pnpm --filter @jhadina/opportunity-core run type-check
+          pnpm --filter @jhadina/jhadina-web run type-check
+      # No secrets, live scanning, private deployment, paid API or outbound contact.
