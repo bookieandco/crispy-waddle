@@ -1,29 +1,29 @@
 # SHARK-INTEL.DURABLE.02 — Database contract and rollout gate (review only)
 
 **Date:** 2026-10-22. **Status:** STAGED CODE, NOT MIGRATED, NOT COMMISSIONED.
-**Source branch:** \`build/shark-sniper-fastpath-rug-fingerprints-20261021\` in draft PR #1457.
+**Source branch:** `build/shark-sniper-fastpath-rug-fingerprints-20261021` in draft PR #1457.
 
 ## Scope and verified baseline
 Current connected Jhadina Supabase contains:
-- \`jhadina_shark_market_events\` (RLS enabled; requires sequence key);
-- \`jhadina_trade_memory_records\` (service-only latest projection, **not** the journal);
-- \`money_paper_execution_events\` (fixed event kinds, **not** a SHARK outcome memory bus).
+- `jhadina_shark_market_events` (RLS enabled; requires sequence key);
+- `jhadina_trade_memory_records` (service-only latest projection, **not** the journal);
+- `money_paper_execution_events` (fixed event kinds, **not** a SHARK outcome memory bus).
 
-The canonical \`money_shark_shadow_decisions\`, \`money_shark_shadow_executions\`, \`money_shark_shadow_observations\`, \`money_shark_shadow_lessons\`, \`money_shark_shadow_memory\` tables are **not confirmed present**. The existing event and trade-memory tables had 0 rows in the October 22 read-only spot check. Do not treat wallet verification as live market ingestion.
+The canonical `money_shark_shadow_decisions`, `money_shark_shadow_executions`, `money_shark_shadow_observations`, `money_shark_shadow_lessons`, `money_shark_shadow_memory` tables are **not confirmed present**. The existing event and trade-memory tables had 0 rows in the October 22 read-only spot check. Do not treat wallet verification as live market ingestion.
 
 ## Implemented source
-- \`apps/jhadina-web/src/lib/shark/sniper-intel-journal.ts\`: canonical, owner-bound SHA-256 receipt and minimal immutable research payload; NO_TRADE and PAPER_RECORDED captured atomically in **one proposed row**. No seed, keys, signing lease, balances, raw texts or private transcript body.
-- \`apps/jhadina-web/src/lib/shark/sniper-intel-journal-repository.ts\`: **service-only** Supabase table adapter; an absent table results in failure.
-- \`apps/jhadina-web/src/lib/shark/sniper-intel-durable-cycle.ts\`: canonical \`runSniperPaperCycle\` followed by required archive receipt; not a second risk/financial engine.
-- \`apps/jhadina-web/src/lib/shark/sniper-intel-journal.test.ts\`: duplicate replay, conflict, partial write, paper/no-trade and authority regression tests.
+- `apps/jhadina-web/src/lib/shark/sniper-intel-journal.ts`: canonical, owner-bound SHA-256 receipt and immutable research payload; NO_TRADE and PAPER_RECORDED captured atomically in **one proposed row**, including hard rug vetoes without imaginary quotes or fills. No seed, keys, signing lease, balances, raw texts or private transcript body.
+- `apps/jhadina-web/src/lib/shark/sniper-intel-journal-repository.ts`: **service-only** Supabase table adapter; an absent table results in failure.
+- `apps/jhadina-web/src/lib/shark/sniper-intel-durable-cycle.ts`: canonical `runSniperPaperCycle` followed by required archive receipt; not a second risk/financial engine.
+- `apps/jhadina-web/src/lib/shark/sniper-intel-journal.test.ts`: duplicate replay, conflict, partial write, paper/no-trade, no-quote rug veto, and authority regression tests; these are source tests, not yet observed passing CI.
 
-This does not yet persist production events. These modules are not connected to a scheduled worker or running Helius/Telegram stream and cannot be commissioned before a reviewed migration and authentication check.
+The `verifiedOwnerId` must come from an authenticated server-side identity, never a UI field or external message. This does not yet persist production events. These modules are not connected to a scheduled worker or running Helius/Telegram stream and cannot be commissioned before a reviewed migration and authentication check.
 
 ## Proposed SQL shape for separately generated migration
 
-**DO NOT APPLY THIS DDL FROM A CHAT RESPONSE.** The Supabase CLI was unavailable in this session. Generate the migration with the project's supported \`supabase migration new\` command, review this contract against latest schema, then test on an isolated branch/database. This is a review specimen, not the actual migration file.
+**DO NOT APPLY THIS DDL FROM A CHAT RESPONSE.** The Supabase CLI was unavailable in this session. Generate the migration with the project's supported `supabase migration new` command, review this contract against latest schema, then test on an isolated branch/database. This is a review specimen, not the actual migration file.
 
-\`\`\`sql
+```sql
 -- Service-only append archive. No UPDATE/DELETE grants; no client/browser calls.
 create table if not exists public.money_shark_sniper_intel_archive (
   receipt_id text primary key,
@@ -61,7 +61,7 @@ revoke all on table public.money_shark_sniper_intel_archive from anon, authentic
 grant select,insert on table public.money_shark_sniper_intel_archive to service_role;
 -- service_role bypasses RLS, but table privileges still restrict write kind.
 -- No browser role policy, no public SECURITY DEFINER function.
-\`\`\`
+```
 
 ## Preflight before applying anything
 1. Verify target database and migration ordering. Recheck existing constraints, table name collision and auth user ownership.
@@ -72,8 +72,8 @@ grant select,insert on table public.money_shark_sniper_intel_archive to service_
 6. Only after the above: separately approve source worker schedule, backlog bound, retention, recovery/backup and owner/private iPhone QA. Production migration, paid infrastructure, wallet signing, funding and live orders require explicit approval.
 
 ## Remaining honest blockers
-- There is no commissioned durable \`money_shark_sniper_intel_archive\` table; invoking the Supabase adapter today should fail closed.
-- Source authentication and market-event timestamp/slot verification are separate from copying a provider claim into the fusion; a source-provided \`verification\` string alone is not a cryptographic attestation.
+- There is no commissioned durable `money_shark_sniper_intel_archive` table; an October 22 read-only `to_regclass` query returned NULL, so invoking the adapter today should fail closed.
+- Source authentication and market-event timestamp/slot verification are separate from copying a provider claim into the fusion; a source-provided `verification` string alone is not a cryptographic attestation.
 - Canonical Shadow missing schemas and old lesson partial-write/return-basis defects still require independent repair.
 - Post-trade onchain outcome projection requires a *separately authenticated* settled transaction with exact trade/pair/chain binding. Neither a signed Phantom ownership message nor a paper close proves this.
 - Telemetry latency and true trade outcomes are not available from the zero-row ledger baseline. No profit claim.
