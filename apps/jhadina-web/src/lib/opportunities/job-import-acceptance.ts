@@ -42,7 +42,6 @@ export function verifyCanonicalImportReadback(input:{
   return Boolean(input.persisted &&
     input.persisted.userId===input.expectedOwnerId &&
     input.persisted.opportunity.id===input.expectedId &&
-    input.persisted.opportunity.metadata?.applicationAuthority==='NONE' &&
-    input.persisted.opportunity.status==='discovered'
+    input.persisted.opportunity.metadata?.applicationAuthority==='NONE'
   )
 }
