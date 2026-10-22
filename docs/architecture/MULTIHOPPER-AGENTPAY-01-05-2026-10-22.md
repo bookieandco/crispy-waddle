@@ -14,7 +14,7 @@ Date: 2026-10-22
 - API reference: https://multihopper.com/api-docs
 - Developer access: https://business.multihopper.com/developers/
 - Prize and revenue share are contingent. Confirm deadline and payout terms directly with sponsor before claiming eligibility.
-- Reports of a transaction-volume qualification threshold and prize formula differ between public descriptions. Seek written confirmation; **do not manufacture routing volume**.
+- Specific discrepancy verified 2026-10-22: Superteam Earn listing requires at least **$100,000** of per-product qualifying production volume and describes volume-proportional winner awards; the MultiHopper sponsor page says **no minimum volume** and describes fixed winner shares **60% / 25% / 15%**. Superteam page still contains **draft** language conditioning the initial $5,000 on $2 million aggregate volume, whereas sponsor page calls that base pool guaranteed. Deadline is not shown as a confirmed calendar date (December 28, 2026 is an announcement date). Obtain written confirmation. **Do not manufacture routing volume.**
 
 ## .02 — Adapter
 `multihopper-devnet-readonly.ts` implements only:
@@ -45,7 +45,7 @@ Jhadina AgentPay will be a customer-facing payout draft and fee quote screen, no
 4. Any later real transfer uses a separate user-approved signing and receipt flow, with idempotent invoice ID, provider state reconciliation and recipient allowlist.
 5. iPhone mobile UI must avoid requesting seed phrases or storing wallet signing keys.
 
-No live UI route or deployed preview is delivered by this PR.
+The branch includes a mobile-friendly **non-executable** `/money/agentpay` devnet quote preview and authenticated `/api/money/agentpay/quote` server endpoint. It is feature-flagged off by default, requires `MULTIHOPPER_DEVNET_READONLY_ENABLED=true` and a server-only `MULTIHOPPER_DEVNET_API_KEY=mh_test_...`, and is **not deployed**.
 
 ## .05 — Legitimate customer and submission acceptance
 - Secure sponsor clarification on exact closing date, $50k pool mechanics, volume requirements, eligible cohorts, fee share, revenue-share term, attribution method, and what counts as qualifying volume.
@@ -59,7 +59,7 @@ No live UI route or deployed preview is delivered by this PR.
 - .01 Sponsor/API references found; closing date and terms remain **UNVERIFIED**.
 - .02 Read-only adapter committed for review; **not deployed**.
 - .03 Mock tests authored; independent CI and live devnet evidence remain **UNVERIFIED** until results checked.
-- .04 UI and authentic customer pilot **NOT BUILT**.
+- .04 Preview-only iPhone-compatible UI **AUTHORED ON FEATURE BRANCH, NOT DEPLOYED**. Genuine customer pilot **NOT BUILT**.
 - .05 Qualified usage and submission **NOT STARTED**.
 
 ## Prioritized next sequence
