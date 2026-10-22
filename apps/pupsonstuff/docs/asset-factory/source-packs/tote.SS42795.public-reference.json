@@ -1,0 +1,62 @@
+{
+  "schema": "pupson.tote.public-product-reference.v1",
+  "status": "PUBLIC_VENDOR_PAGE_REFERENCE_ONLY_NOT_A_SHOP_VARIANT_OR_EXECUTABLE_SOURCE_PACK",
+  "capturedDate": "2026-10-22",
+  "product": {
+    "name": "Natural Tote Bag",
+    "brand": "S&S Bags",
+    "model": "42795",
+    "listedPrintProvider": "Duplium",
+    "listedPrintMethod": "DTG",
+    "material": "6 oz/yd² 100% natural cotton canvas"
+  },
+  "officialSource": "https://printify.com/app/products/1090/s-and-s-bags/natural-tote-bag",
+  "publicProductUrlId": "1090 (page route identifier, NOT authenticated Printify API blueprint ID)",
+  "manufacturerSizeGuide": {
+    "sizeLabel": "15\" x 16\"",
+    "measuresInches": {
+      "width": 15,
+      "height": 15.98,
+      "thickness": 0.39,
+      "handleDrop": 9.5,
+      "handleLength": 20.5,
+      "handleWidth": 1.26
+    },
+    "calculatedMeasurementsMmFromInches": {
+      "bodyWidth": 381,
+      "bodyHeight": 405.892,
+      "flatBagThickness": 9.906,
+      "handleDrop": 241.3,
+      "handleLength": 520.7,
+      "handleWidth": 32.004,
+      "approxOverallHeightFromBodyPlusDrop": 647.192
+    },
+    "lengthConversionFactor": 25.4,
+    "interpretation": "Printify labels product thickness, not handle strap thickness. Manufacturer size guide does not establish exact handle anchor spacing or production tolerance. Approximate overall height is derived, not the vendor's own labeled overall-height specification."
+  },
+  "merchantIdentity": {
+    "blueprintId": null,
+    "printProviderId": null,
+    "variantId": null,
+    "supplierSku": null,
+    "shopProduct": null,
+    "authenticatedPrintifySnapshotSha256": null
+  },
+  "missingPhysicalEvidence": {
+    "handleStrapThicknessMm": null,
+    "handleAnchorSpacingMm": null,
+    "edgeFoldSeamSpecification": null,
+    "productionPrintZonePhysicalCoordinates": null,
+    "referencePhotosFrontSideBackHashes": null,
+    "photoRightsPermission": null,
+    "actualSampleMeasurement": null,
+    "approvedPrintSample": null
+  },
+  "rightsAndReview": {
+    "catalogPhotosLicensedFor3dCommercialProduction": false,
+    "verifiedByOperator": false,
+    "physicalSampleReviewed": false,
+    "storefrontApproved": false
+  },
+  "nextAction": "Resolve shop's authenticated exact variant, supplier licensed blank front/side/back photos, handle details, then fill offline source pack and run quarantine-only candidate export. This public data file is NOT an approval."
+}
