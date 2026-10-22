@@ -309,6 +309,8 @@ jobs:
           pnpm --filter @jhadina/director-core exec vitest run src/timeline-playback-plan.test.ts src/offline-final-render-plan.test.ts src/explainer-director.test.ts src/recast-preview.test.ts
       - name: Director background OIDC/storage readiness regressions
         run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/director-background-readiness.test.ts src/lib/director-schema-recovery.test.ts
+      - name: Director project/timeline secure request-context OIDC tests
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/app/api/workstation/timeline/route.test.ts src/app/api/workstation/timeline/command/route.test.ts
       - name: Director missing-schema isolated PostgreSQL 17 replay and tenant ACL/RPC proof
         run: bash scripts/director-commission-13-staging.sh
       - name: Director migration ledger collision inventory (never apply)
