@@ -58,7 +58,30 @@ export async function GET(request:NextRequest){
 export async function POST(request:NextRequest){
  try{
   await authorize()
-  const body=await request.json().catch(()=>null) as {inboxId?:unknown;samNoticeId?:unknown}|null
+  const body=await request.json().catch(()=>null) as {inboxId?:unknown;samNoticeId?:unknown;pilotId?:unknown}|null
+  const pilotId=typeof body?.pilotId==='string'?body.pilotId.trim():''
+  if(pilotId){
+    if(body?.samNoticeId||body?.inboxId||pilotId.length>128)return reply({ok:false,error:'Use exactly one pilot identifier'},400)
+    const caseFile=assembleProcurementPilot().opportunities.find(p=>p.id===pilotId)
+    if(!caseFile)return reply({ok:false,error:'Unknown canonical research pilot'},404)
+    // Deliberately do not convert a public listing or secondary specification into a verified solicitation.
+    const notice=reconcileProcurementNotice(pilotId,[])
+    const plan:FulfillmentPlan={opportunityId:pilotId,structure:'unresolved',assignments:[],
+      coveredRequirementIds:[],uncoveredRequirementIds:[],
+      blockers:['Official planholder solicitation, required specifications, addenda, vendor qualification and scope evidence missing.'],
+      rationale:['Research-source candidate shortlisting is not a certified provider assignment.'],
+      requiresHumanApproval:true,engagementAuthorized:false}
+    const commercial=reviewProcurementCommercial({plan,providers:[],quotes:[],costEvidence:[]})
+    const packet=prepareProcurementBidPacket({notice,plan,providers:[],commercial,formAttachments:{}})
+    return reply({ok:true,mode:'research_pilot_no_send_draft',
+      observed:{id:caseFile.id,title:caseFile.title,buyer:caseFile.buyer,
+        officialSourceUrl:caseFile.officialSourceUrl,deadlineAt:caseFile.deadlineAt,
+        deadlineStatus:caseFile.deadlineStatus},
+      vendorCandidates:caseFile.candidates,
+      evidenceDebt:caseFile.blockers,
+      packet,
+      externalActionAuthorized:false})
+  }
   const samNoticeId=typeof body?.samNoticeId==='string'?body.samNoticeId.trim():''
   const id=typeof body?.inboxId==='string'?body.inboxId.trim():''
   if(samNoticeId){
