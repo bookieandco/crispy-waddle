@@ -5,7 +5,7 @@ import { applyTimelineCommand,timelineCommandReason,type TimelineCommand } from 
 import { directorProductionAssetBlockers } from "@jhadina/director-core/production-asset-admission"
 import type { EditableTimeline,TimelineSnapshot,TimelineVersion } from "@jhadina/director-core/timeline-model"
 import { createClient } from "@/lib/supabase/server"
-import { createServiceRoleClient } from "@/lib/supabase/service-role"
+import { createRuntimeServiceRoleClient } from "@/lib/supabase/service-role"
 import { requireDirectorProjectAuthority } from "@/lib/director-project-authority"
 import { DirectorWorkstationTimelineRepository } from "@/lib/director-workstation-timeline-repository"
 
@@ -81,7 +81,7 @@ export async function POST(request:Request){
    return NextResponse.json({ok:false,error:"DIRECTOR_TIMELINE_EXPECTED_REVISION_REQUIRED"},{status:400})
   }
 
-  const privileged=createServiceRoleClient()
+  const privileged=await createRuntimeServiceRoleClient()
   if(!privileged)return NextResponse.json({ok:false,error:"DIRECTOR_PROJECT_STORE_NOT_CONFIGURED"},{status:503})
   await requireDirectorProjectAuthority(privileged,{projectId,userId:user.id,capability:"edit"})
 
