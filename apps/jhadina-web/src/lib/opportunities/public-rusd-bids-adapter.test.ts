@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
+import {test} from 'vitest'
 import {parseRiversideUnifiedPublicBidList,isRiversideOfficialBidListSource,RUSD_BIDS_SOURCE_ID} from './public-rusd-bids-adapter'
+test('RUSD bid parser rejects closed, expired, duplicate, malformed and wrong-source signals',()=>{
 const base='https://webapps.riversideunified.org/apps/planholdersregistration/BidsSelect.aspx'
 const candidate={id:RUSD_BIDS_SOURCE_ID,jurisdiction_id:'school_district:unified:0633150',source_url:base,
  verification_status:'official_owner_verified',adapter_kind:'html'}
@@ -43,3 +45,4 @@ assert.equal(wrong.signals.length,0)
 const invalidDate=fixture.replaceAll('11/4/2026 10:00:00 AM','2/31/2026 10:00:00 AM')
 assert.equal(parseRiversideUnifiedPublicBidList(invalidDate,desc,observedAt).signals.length,1)
 console.log('RUSD school bidder parser: current, closed, duplicates, expiry, provenance and source allowlist PASS')
+})
