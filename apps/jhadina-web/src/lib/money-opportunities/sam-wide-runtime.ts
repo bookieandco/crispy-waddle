@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { persistSamCatalogBatches } from './sam-gateway-batches'
+import { reconcileSamObservedHistory } from './sam-history-recovery'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { classifySamNoticeChange, computeSamMarketCoverage, nextSamBootstrapWindow, normalizeSamWideNotice, type SamCoverageInterval, type SamMarketCoverage, type SamWideNotice } from '@jhadina/opportunity-core'
 import { scanSamOpportunityWindow, searchSamOpportunities } from './sam-client'
@@ -51,6 +52,7 @@ export async function runSamWideScan(client:SupabaseClient,input:{postedFrom:str
       const ids=chunk.map(x=>x.noticeId)
       const {data:existingRows,error:existingError}=await client.from('jhadina_sam_catalog').select('notice_id,checksum,version').in('notice_id',ids)
       if(existingError)throw new Error(`Unable to read SAM catalog: ${existingError.message}`)
+      await reconcileSamObservedHistory(client, rows(existingRows) as Existing[], { write: true })
       const existing=new Map(rows(existingRows).map(x=>[String(x.notice_id),x as unknown as Existing]))
       const upserts:Array<Record<string,unknown>>=[]
       const versions:Array<Record<string,unknown>>=[]
@@ -72,7 +74,8 @@ export async function runSamWideScan(client:SupabaseClient,input:{postedFrom:str
   }catch(error){
     receipt.status='failed';receipt.errors.push(error instanceof Error?error.message:'SAM scan failed')
   }
-  await client.from('jhadina_sam_scan_runs').update({status:receipt.status,pages:receipt.pages,total_records:receipt.totalRecords,seen_records:receipt.seenRecords,new_records:receipt.newRecords,amended_records:receipt.amendedRecords,unchanged_records:receipt.unchangedRecords,resource_links:receipt.resourceLinks,errors:receipt.errors,completed_at:new Date().toISOString()}).eq('id',runId)
+  const {error:receiptError}=await client.from('jhadina_sam_scan_runs').update({status:receipt.status,pages:receipt.pages,total_records:receipt.totalRecords,seen_records:receipt.seenRecords,new_records:receipt.newRecords,amended_records:receipt.amendedRecords,unchanged_records:receipt.unchangedRecords,resource_links:receipt.resourceLinks,errors:receipt.errors,completed_at:new Date().toISOString()}).eq('id',runId)
+  if(receiptError)throw new Error(`Unable to persist SAM scan receipt: ${receiptError.message}; original_status=${receipt.status}; original_error=${receipt.errors.join('; ')}`)
   if(receipt.status==='failed')throw new Error(receipt.errors.join('; '))
   return receipt
 }
@@ -83,6 +86,7 @@ async function persistSamNoticeChunk(client:SupabaseClient,chunk:SamWideNotice[]
   const ids=chunk.map(x=>x.noticeId)
   const {data:existingRows,error:existingError}=await client.from('jhadina_sam_catalog').select('notice_id,checksum,version').in('notice_id',ids)
   if(existingError)throw new Error(`Unable to read SAM catalog: ${existingError.message}`)
+  await reconcileSamObservedHistory(client, rows(existingRows) as Existing[], { write: true })
   const existing=new Map(rows(existingRows).map(x=>[String(x.notice_id),x as unknown as Existing]))
   const upserts:Array<Record<string,unknown>>=[]
   const versions:Array<Record<string,unknown>>=[]
@@ -193,7 +197,7 @@ export async function runSamBulkSnapshotScan(
     receipt.errors.push(error instanceof Error?error.message:'SAM bulk scan failed')
   }
 
-  await client.from('jhadina_sam_scan_runs').update({
+  const {error:receiptError}=await client.from('jhadina_sam_scan_runs').update({
     posted_from:receipt.postedFrom,
     posted_to:receipt.postedTo,
     status:receipt.status,
@@ -213,6 +217,7 @@ export async function runSamBulkSnapshotScan(
     errors:receipt.errors,
     completed_at:new Date().toISOString(),
   }).eq('id',runId)
+  if(receiptError)throw new Error(`Unable to persist SAM bulk receipt: ${receiptError.message}; original_status=${receipt.status}; original_error=${receipt.errors.join('; ')}`)
 
   if(receipt.status==='failed')throw new Error(receipt.errors.join('; '))
   return receipt
