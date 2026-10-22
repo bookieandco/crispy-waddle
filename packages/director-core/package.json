@@ -11,6 +11,7 @@
     "./generation-submission-reconciler": "./src/generation-submission-reconciler.ts",
     "./outbox-generation-provider": "./src/outbox-generation-provider.ts",
     "./editing-asset-manifest": "./src/editing-asset-manifest.ts",
+    "./production-asset-admission": "./src/production-asset-admission.ts",
     "./study-job": "./src/study-job.ts",
     "./study-control-orchestrator": "./src/study-control-orchestrator.ts",
     "./study-cancellation-registry": "./src/study-cancellation-registry.ts",
