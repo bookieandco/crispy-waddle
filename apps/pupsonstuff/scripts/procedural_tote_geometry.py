@@ -115,11 +115,11 @@ def build_geometry(physical_mm, spec):
     # mesh so the existing Printify 3D viewer contract is unchanged.
     lip_start=len(verts)
     top_z=z0+body_h
-    inner_ring=body_ring(width-.004,depth-.004,top_z-.007,1.0)
+    inner_ring=body_ring(width-min(.004,width*.015),
+                         depth-min(.004,depth*.14),top_z-.007,1.0)
     for i,p in enumerate(inner_ring):
         append(p,(i/ring_len,1.0))
-        outer=(body_steps*ring_len)+i
-        # The face will be joined below in a second pass to connect neighbors.
+        # Faces are stitched to the outer ring below in a second pass.
     for i in range(ring_len):
         j=(i+1)%ring_len
         outer=body_steps*ring_len+i
@@ -148,10 +148,10 @@ def build_geometry(physical_mm, spec):
             dz=(drop+insert)*math.pi*math.cos(math.pi*t)
             norm=math.hypot(dx,dz)
             nx,nz=-dz/norm,dx/norm
-            y=side*(depth/2+thickness*.62)
-            # The ribbons lean forward very slightly around the shoulder.
-            # Both rise to the same measured peak; no hidden model scaling.
-            y+=side*(.013*depth)*math.sin(math.pi*t)
+            # Keep the physical thickness/handle ribbon inside the verified
+            # SKU depth envelope. Handle panel overlap is intentional.
+            y=side*(depth/2-thickness*.52-.012*depth)
+            y+=side*(.008*depth)*math.sin(math.pi*t)
             for yoff in (-thickness/2,thickness/2):
                 for sign in (-1,1):
                     append((x+sign*strap*nx/2,y+yoff,z+sign*strap*nz/2),
@@ -171,7 +171,9 @@ def build_geometry(physical_mm, spec):
     top=top_z-.014
     for side in (-1,1):
         for xmid in (-spacing/2,spacing/2):
-            y=side*(depth/2+thickness*.9)
+            # At most 0.4% of nominal depth outside the front/back panel:
+            # visibility on the cloth surface without fictitious bulk.
+            y=side*depth/2*1.004
             base=len(verts)
             for x,z,u,v in ((xmid-patch_w/2,top-patch_h,0,0),
                             (xmid+patch_w/2,top-patch_h,1,0),
