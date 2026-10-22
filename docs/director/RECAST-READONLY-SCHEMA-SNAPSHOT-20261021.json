@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "director.recast.live-readonly-observation.v1",
+  "observedDate": "2026-10-21",
+  "environment": "Jhadina Supabase production read-only inventory",
+  "branch": {
+    "name": "main",
+    "status": "MIGRATIONS_FAILED",
+    "failedMigrationSqlConfirmed": false
+  },
+  "tables": {
+    "public.jhadina_artifacts": true,
+    "public.director_project_memberships": true,
+    "public.director_cast_characters": true,
+    "public.director_character_appearance_variants": true,
+    "public.director_project_inputs": false,
+    "public.director_recast_review_receipts": false
+  },
+  "sourceMigration": "20261004193000_director_workstation_project_inputs.sql",
+  "sourceMigrationRecordedAsApplied": false,
+  "exactFailureStatement": null,
+  "notes": "Historical 2026-08-07 logs are not proof of the current branch replay's failing SQL. Snapshot is not a live connection."
+}
