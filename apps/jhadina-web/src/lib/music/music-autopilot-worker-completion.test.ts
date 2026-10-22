@@ -4,7 +4,7 @@ import {isMusicAutopilotReceiptComplete} from './music-autopilot-worker';
 const receipt = (statuses: Array<'complete'|'blocked'|'waiting'|'skipped'|'failed'>,
   overrides: Record<string,unknown>={}) => ({
     charterEnabled:true,approvalRequired:false,blockers:[],
-    stages:statuses.map((status,index)=>({stage:'MUSIC-AUTO.'+(index+1),status,details:{}})),
+    stages:statuses.map(status=>({stage:'MUSIC-AUTO.4' as const,status,details:{}})),
     ...overrides,
   });
 
