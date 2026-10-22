@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import hmac
 import importlib
 import math
+import os
 import re
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from sportsdataverse import find_athlete
@@ -218,7 +220,17 @@ def health() -> dict[str, Any]:
 
 
 @app.post("/history/query")
-def history_query(request: HistoryQuery) -> dict[str, Any]:
+def history_query(
+    request: HistoryQuery,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    # A public Vercel endpoint must reject unauthenticated or unconfigured reads.
+    expected = os.environ.get("SPORTS_HISTORY_TOKEN", "").strip()
+    if not expected:
+        raise HTTPException(status_code=503, detail="History authentication is not configured.")
+    supplied = (authorization or "").removeprefix("Bearer ").strip() if (authorization or "").startswith("Bearer ") else ""
+    if not hmac.compare_digest(expected, supplied):
+        raise HTTPException(status_code=401, detail="Historical data access denied.")
     raw_query = (request.query or "").strip()
     league = (request.league or _infer_league(raw_query) or "").lower().strip()
     if league not in SUPPORTED_LEAGUES:
