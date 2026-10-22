@@ -28,6 +28,8 @@ export type PurseRebalanceIntent=Readonly<{
  lane:MoneyStrategyLane
  strategyId:string
  instrumentId:string
+ positionId?:string
+ accountId?:string
  action:'INCREASE'|'REDUCE'|'EXIT'|'HOLD'
  currentValueMinor:bigint
  targetValueMinor:bigint
@@ -99,11 +101,18 @@ export function buildPurseRebalancePlan(input:{
  if(portfolio.cofferId!==charter.cofferId||portfolio.userId!==charter.userId||portfolio.reportingCurrency!==charter.reportingCurrency)throw new Error('PURSE_REBALANCE_PORTFOLIO_BINDING_MISMATCH')
  if(portfolio.authority!=='PORTFOLIO_EVIDENCE'||portfolio.canExecute!==false)throw new Error('PURSE_REBALANCE_PORTFOLIO_AUTHORITY_INVALID')
  if(input.createdAt<portfolio.observedAt||input.expiresAt<=input.createdAt)throw new Error('PURSE_REBALANCE_TIME_INVALID')
- const positionsByInstrument=new Map(portfolio.positions.map(x=>[x.instrumentId,x]))
+ const positionsByKey=new Map<string,PursePositionSnapshot[]>()
+ const positionsById=new Map(portfolio.positions.map(p=>[p.positionId,p]))
+ for(const p of portfolio.positions){
+  const key=p.lane+':'+p.strategyId+':'+p.instrumentId
+  positionsByKey.set(key,[...(positionsByKey.get(key)??[]),p])
+ }
  const directivesByPosition=new Map<string,PurseRiskRebalanceDirective>()
  for(const d of input.riskDirectives){
   if(d.authority!=='RISK_REBALANCE_DIRECTIVE'||d.canExecute!==false||d.reductionBps<0||d.reductionBps>10000||!d.evidenceIds.length)throw new Error('PURSE_REBALANCE_DIRECTIVE_INVALID')
   if(d.observedAt>input.createdAt)throw new Error('PURSE_REBALANCE_DIRECTIVE_FUTURE')
+  const position=positionsById.get(d.positionId)
+  if(!position||position.lane!==d.lane||position.strategyId!==d.strategyId||position.instrumentId!==d.instrumentId)throw new Error('PURSE_REBALANCE_DIRECTIVE_POSITION_MISMATCH')
   if(directivesByPosition.has(d.positionId))throw new Error('PURSE_REBALANCE_DUPLICATE_DIRECTIVE')
   directivesByPosition.set(d.positionId,d)
  }
@@ -111,7 +120,10 @@ export function buildPurseRebalancePlan(input:{
  const evidenceIds=[...portfolio.evidenceIds,...charter.evidenceIds]
 
  for(const d of decisions.allocations){
-  const current=positionsByInstrument.get(d.instrumentId)
+  const matches=positionsByKey.get(d.lane+':'+d.strategyId+':'+d.instrumentId)??[]
+  // Multiple accounts/lots cannot safely be routed through one unbound increase.
+  if(matches.length>1)throw new Error('PURSE_REBALANCE_AMBIGUOUS_POSITION')
+  const current=matches[0]
   const directive=current?directivesByPosition.get(current.positionId):undefined
   if(directive&&(directive.action==='EXIT'||directive.action==='TRIM')){
    continue
@@ -121,6 +133,7 @@ export function buildPurseRebalancePlan(input:{
   intents.push(Object.freeze({
    intentId:'purse-rebalance:'+hash({decisionId:d.decisionId,currentValue,targetValue,createdAt:input.createdAt}),
    charterId:charter.charterId,decisionSetId:decisions.decisionSetId,lane:d.lane as MoneyStrategyLane,strategyId:d.strategyId,instrumentId:d.instrumentId,
+   positionId:current?.positionId,accountId:current?.accountId,
    action:d.amountMinor>0n?'INCREASE':'HOLD',currentValueMinor:currentValue,targetValueMinor:targetValue,notionalMinor:d.amountMinor,reportingCurrency:d.reportingCurrency,
    reasonCodes:Object.freeze([...d.reasonCodes,'PURSE_ALLOCATION_DECISION']),evidenceIds:unique([...d.evidenceIds,...(current?.evidenceIds??[])]),
    createdAt:input.createdAt,expiresAt:input.expiresAt,authority:'PURSE_REBALANCE_INTENT_ONLY',financialAuthority:'NONE',
@@ -138,6 +151,7 @@ export function buildPurseRebalancePlan(input:{
   intents.push(Object.freeze({
    intentId:'purse-rebalance:'+hash({directiveId:directive.directiveId,current:p.marketValueMinor,target,createdAt:input.createdAt}),
    charterId:charter.charterId,decisionSetId:decisions.decisionSetId,lane:p.lane,strategyId:directive.strategyId,instrumentId:p.instrumentId,
+   positionId:p.positionId,accountId:p.accountId,
    action:directive.action==='EXIT'?'EXIT':directive.action==='TRIM'?'REDUCE':'HOLD',currentValueMinor:p.marketValueMinor,targetValueMinor:target,notionalMinor:reduction,
    reportingCurrency:p.reportingCurrency,reasonCodes:directive.reasonCodes,evidenceIds:unique([...directive.evidenceIds,...p.evidenceIds]),
    createdAt:input.createdAt,expiresAt:input.expiresAt,authority:'PURSE_REBALANCE_INTENT_ONLY',financialAuthority:'NONE',

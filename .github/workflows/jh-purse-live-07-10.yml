@@ -1,0 +1,22 @@
+name: JH Purse LIVE 07-10 Evidence Gates
+on:
+  pull_request:
+    paths:
+      - 'scripts/purse-live-07-10-gates*'
+      - 'apps/jhadina-web/src/app/money/purse/page.tsx'
+      - '.github/workflows/jh-purse-live-07-10.yml'
+      - 'docs/architecture/JH-PURSE-SELF-FUND-LIVE-07-10.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  nonexecuting-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Replay fail-closed restore, Stripe, iPhone and business canary fixtures
+        run: node --test scripts/purse-live-07-10-gates.test.mjs
