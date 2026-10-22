@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server'
 import type {JhadinaBrand} from '@jhadina/social-core'
 import {createClient} from '@/lib/supabase/server'
-import {createServiceRoleClient} from '@/lib/supabase/service-role'
+import {createRuntimeServiceRoleClient} from '@/lib/supabase/service-role'
 import {requireDirectorProjectAuthority} from '@/lib/director-project-authority'
 import {requestSocialPublication} from '@/lib/social/governed-publication'
 import {directorProductionAssetBlockers} from '@jhadina/director-core/production-asset-admission'
@@ -29,7 +29,7 @@ export async function POST(request:Request){
       return NextResponse.json({ok:false,error:'SOCIAL_AUTOMATION_SCHEDULE_MUST_BE_FUTURE'},{status:400})
     }
 
-    const privileged=createServiceRoleClient()
+    const privileged=await createRuntimeServiceRoleClient()
     if(!privileged)return NextResponse.json({ok:false,error:'DIRECTOR_PROJECT_STORE_NOT_CONFIGURED'},{status:503})
     await requireDirectorProjectAuthority(privileged,{projectId,userId:user.id,capability:'read'})
 
