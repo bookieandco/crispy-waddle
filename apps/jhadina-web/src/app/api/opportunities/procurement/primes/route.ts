@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from 'next/server'
 import {createRequestIdentityVerifier} from '@/lib/auth/request-identity'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
+import {researchFederalPrimeAwardHistory} from '@/lib/opportunities/public-usaspending-regional-primes'
 import {
  US_STATE_AND_DC_CODES,assembleProcurementPilot,regionalPrimeEvidenceFromAwards,
  buildRegionalPrimeMatrix,assessNationalProcurementPursuit,type PublicAwardPrimeFingerprint,type PrimeRegionalOpportunity,
@@ -34,6 +35,20 @@ export async function GET(request:NextRequest){
   const client=await authorized()
   const state=(request.nextUrl.searchParams.get('state')??'CA').toUpperCase()
   if(!US_STATE_AND_DC_CODES.some(x=>x===state))return reply({ok:false,error:'State/DC required'},400)
+  const manual=request.nextUrl.searchParams.get('history')
+  if(manual==='manual'){
+   // Explicit owner-invoked, never scheduled or background. The 12-month
+   // federal sample is NOT a certified supplier directory.
+   const end=new Date()
+   const start=new Date(end)
+   start.setUTCFullYear(start.getUTCFullYear()-1)
+   const report=await researchFederalPrimeAwardHistory({
+    state:state as typeof US_STATE_AND_DC_CODES[number],
+    startDate:start.toISOString().slice(0,10),endDate:end.toISOString().slice(0,10),limit:12})
+   return reply({ok:true,report,mode:'manual_federal_award_history_research',
+    crossJurisdictionBidderEligibility:false,contactAuthorized:false,bidSubmissionAuthorized:false})
+  }
+  if(manual)return reply({ok:false,error:'Unsupported read mode'},400)
   const rows=await profiles(client,state,50)
   return reply({ok:true,mode:'read_only_historical_prime_profiles',state,
    primes:rows.filter(row=>(row.evidence_refs??[]).length>0)
