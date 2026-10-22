@@ -46,7 +46,7 @@ def normalize_name(label: str) -> str:
 
 
 def resolve_stat(column: str, names: Sequence[Any] | None) -> str | None:
-    numbered = re.fullmatch(r"stat_(\\d+)", column)
+    numbered = re.fullmatch(r"stat_(\d+)", column)
     if numbered:
         # A missing/out-of-range index is unknown, not an unnamed measurement.
         if not isinstance(names, (list, tuple)):
@@ -60,7 +60,7 @@ def resolve_stat(column: str, names: Sequence[Any] | None) -> str | None:
     else:
         name = column
     resolved = normalize_name(name)
-    if not resolved or re.fullmatch(r"stat_\\d+", resolved):
+    if not resolved or re.fullmatch(r"stat_\d+", resolved):
         return None
     return resolved
 
@@ -75,7 +75,7 @@ def decode_stat_value(value: Any, stat: str) -> float | None:
         return None
     cleaned = value.strip().replace(",", "")
     if stat in PAIR_MADE_STATS:
-        pair = re.fullmatch(r"(\\d+)-(\\d+)", cleaned)
+        pair = re.fullmatch(r"(\d+)-(\d+)", cleaned)
         if pair:
             made, attempted = map(int, pair.groups())
             return float(made) if made <= attempted else None
