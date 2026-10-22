@@ -46,6 +46,7 @@ function AskJhadina(){
  const [task,setTask]=useState(()=>params.get("prompt")??"")
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState("")
+ const [modelReadiness,setModelReadiness]=useState<{selected:"anthropic"|"gemini";status:"CONFIGURED_UNVERIFIED"|"NOT_CONFIGURED";alternativeAvailable:"anthropic"|"gemini"|null;note:string}|null>(null)
  const [sessionWarning,setSessionWarning]=useState("")
  const [pendingSessionSave,setPendingSessionSave]=useState(false)
  const [retryingSessionSave,setRetryingSessionSave]=useState(false)
@@ -79,6 +80,20 @@ function AskJhadina(){
  const pendingSessionSaveRef=useRef<{userId:string;command:string;data:CommandResult}|null>(null)
  const commandAbortRef=useRef<AbortController|null>(null)
  const speechAbortRef=useRef<AbortController|null>(null)
+
+ // Owner-only configuration readiness; never touches model providers or credentials.
+ useEffect(()=>{
+  let cancelled=false
+  void (async()=>{
+   const userId=await getCurrentUserId()
+   if(!userId)return
+   const response=await fetch("/api/jhadina/model-status",{cache:"no-store",headers:{"x-jhadina-user-id":userId}})
+   if(!response.ok)return
+   const json=await response.json()
+   if(!cancelled&&json?.success&&json?.data)setModelReadiness(json.data)
+  })().catch(()=>{})
+  return()=>{cancelled=true}
+ },[])
 
  // Keep child effect callbacks stable: changing their identity on every render
  // re-admits an empty array and can trap the entire Ask page in an update loop.
@@ -583,6 +598,10 @@ function AskJhadina(){
  return <main className="jh-page"><div className="jh-wrap" style={{maxWidth:900}}>
   <p className="jh-eyebrow">Ask Jhadina · {surface}</p>
   <h1 className="jh-title">Think across the whole OS.</h1>
+  {modelReadiness?<p className={modelReadiness.status==="NOT_CONFIGURED"?"jh-error":"jh-meta"} role="status">
+   Reasoning model: {modelReadiness.selected} · {modelReadiness.status==="NOT_CONFIGURED"?"not configured":"credential configured; live answer unverified"}.
+   {modelReadiness.alternativeAvailable?` An alternative (${modelReadiness.alternativeAvailable}) has a credential but is not automatically enabled.`:""}
+  </p>:null}
   <p className="jh-copy">Ask is Jhadina’s governed LLM surface. It can reason across approved context and subsystem intelligence, explain its evidence, and propose next steps. The model itself does not mutate policy, memory, values, money, or external systems.</p>
   <div className="jh-card jh-card--wide" style={{marginTop:28}}>
    <div className="jh-between" style={{gap:16,alignItems:"center"}}>
