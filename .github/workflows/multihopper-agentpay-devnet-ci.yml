@@ -1,0 +1,58 @@
+name: MultiHopper AgentPay devnet acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'packages/money-core/src/multihopper-devnet-readonly*'
+      - 'packages/money-core/src/index.ts'
+      - 'apps/jhadina-web/src/app/money/agentpay/**'
+      - 'apps/jhadina-web/src/app/api/money/agentpay/**'
+      - '.github/workflows/multihopper-agentpay-devnet-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: multihopper-agentpay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  devnet-readonly:
+    name: Exact-head read-only adapter and mobile compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout pull request head
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Assert live-transfer methods absent
+        run: |
+          ! grep -E 'async (createTransfer|prepareTransfer|confirmBroadcast|sendTransaction|signTransaction)\(' packages/money-core/src/multihopper-devnet-readonly.ts
+          ! grep -E 'mh_live_|sendRawTransaction|VersionedTransaction' packages/money-core/src/multihopper-devnet-readonly.ts
+
+      - name: Run exact MultiHopper mock safety suite
+        run: pnpm --filter @jhadina/money-core exec tsx --test src/multihopper-devnet-readonly.test.ts
+
+      - name: Money Core type-check
+        run: pnpm --filter @jhadina/money-core type-check
+
+      - name: AgentPay mobile route and API compile
+        run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.money.json

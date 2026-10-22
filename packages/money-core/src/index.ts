@@ -362,3 +362,5 @@ export * from './purse-rebalancer.js';
 export * from './purse-autonomous-bridge.js';
 
 export * from './purse-learning-personality.js';
+export { MULTIHOPPER_DEVNET_BASE_URL, MULTIHOPPER_READ_ONLY_AUTHORITY, MultiHopperDevnetReadOnlyClient, verifyMultiHopperWebhookRawBody } from './multihopper-devnet-readonly.js';
+export type { MultiHopperEstimateInput, MultiHopperDevnetEstimate, MultiHopperDevnetTransferObservation } from './multihopper-devnet-readonly.js';
