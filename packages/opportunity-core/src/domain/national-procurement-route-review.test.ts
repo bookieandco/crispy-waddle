@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {NATIONAL_PURSUIT_GATES,assessNationalProcurementPursuit,type ProcurementGateEvidence} from './national-procurement-route-review.js'
-assert.equal(NATIONAL_PURSUIT_GATES.length,21)
+assert.equal(NATIONAL_PURSUIT_GATES.length,22)
 const base=assessNationalProcurementPursuit({opportunityId:'RUSD-2026-27-11',angle:'teaming',gates:[]})
 assert.equal(base.status,'review_required')
 assert.equal(base.missing.length,21)
