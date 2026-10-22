@@ -1,29 +1,31 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import type { EditingAssetManifestEntry } from '@jhadina/director-core';
-import { LiveGeneratedEditingAssetShelf } from '../../../components/workstation/LiveGeneratedEditingAssetShelf';
-import { WorkstationTimeline } from '../../../components/workstation/WorkstationTimeline';
-import { ReferenceCharacterVideoPanel } from '../../../components/workstation/ReferenceCharacterVideoPanel';
-import { WorkstationProjectInputs } from '../../../components/workstation/WorkstationProjectInputs';
-import { WorkstationExplainerStudio } from '../../../components/workstation/WorkstationExplainerStudio';
-import { WorkstationRenderPlan } from '../../../components/workstation/WorkstationRenderPlan';
-import { WorkstationBusinessContext } from '../../../components/workstation/WorkstationBusinessContext';
-import { WorkstationSocialScheduler } from '../../../components/workstation/WorkstationSocialScheduler';
-import { WorkstationScreenplayProposals } from '../../../components/workstation/WorkstationScreenplayProposals';
-import { WorkstationWatchStudy } from '../../../components/workstation/WorkstationWatchStudy';
-import { WorkstationRoughCut } from '../../../components/workstation/WorkstationRoughCut';
-import { WorkstationAudioPost } from '../../../components/workstation/WorkstationAudioPost';
-import { WorkstationTakeSets } from '../../../components/workstation/WorkstationTakeSets';
-import { WorkstationMediaStudy } from '../../../components/workstation/WorkstationMediaStudy';
-import { WorkstationProductionGates } from '../../../components/workstation/WorkstationProductionGates';
-import { WorkstationFinalQc } from '../../../components/workstation/WorkstationFinalQc';
-import { WorkstationBusinessCanary } from '../../../components/workstation/WorkstationBusinessCanary';
-import { WorkstationWatchCommissioning } from '../../../components/workstation/WorkstationWatchCommissioning';
-import { WorkstationAnnotationReview } from '../../../components/workstation/WorkstationAnnotationReview';
-import { WorkstationAutoFinal } from '../../../components/workstation/WorkstationAutoFinal';
 import type { EditableTimeline, TimelineClip, TimelineTrack } from '@jhadina/director-core/timeline-model';
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
+
+const LiveGeneratedEditingAssetShelf = dynamic(() => import('../../../components/workstation/LiveGeneratedEditingAssetShelf').then(m => m.LiveGeneratedEditingAssetShelf), { ssr: false });
+const WorkstationTimeline = dynamic(() => import('../../../components/workstation/WorkstationTimeline').then(m => m.WorkstationTimeline), { ssr: false });
+const ReferenceCharacterVideoPanel = dynamic(() => import('../../../components/workstation/ReferenceCharacterVideoPanel').then(m => m.ReferenceCharacterVideoPanel), { ssr: false });
+const WorkstationProjectInputs = dynamic(() => import('../../../components/workstation/WorkstationProjectInputs').then(m => m.WorkstationProjectInputs), { ssr: false });
+const WorkstationExplainerStudio = dynamic(() => import('../../../components/workstation/WorkstationExplainerStudio').then(m => m.WorkstationExplainerStudio), { ssr: false });
+const WorkstationRenderPlan = dynamic(() => import('../../../components/workstation/WorkstationRenderPlan').then(m => m.WorkstationRenderPlan), { ssr: false });
+const WorkstationBusinessContext = dynamic(() => import('../../../components/workstation/WorkstationBusinessContext').then(m => m.WorkstationBusinessContext), { ssr: false });
+const WorkstationSocialScheduler = dynamic(() => import('../../../components/workstation/WorkstationSocialScheduler').then(m => m.WorkstationSocialScheduler), { ssr: false });
+const WorkstationScreenplayProposals = dynamic(() => import('../../../components/workstation/WorkstationScreenplayProposals').then(m => m.WorkstationScreenplayProposals), { ssr: false });
+const WorkstationWatchStudy = dynamic(() => import('../../../components/workstation/WorkstationWatchStudy').then(m => m.WorkstationWatchStudy), { ssr: false });
+const WorkstationRoughCut = dynamic(() => import('../../../components/workstation/WorkstationRoughCut').then(m => m.WorkstationRoughCut), { ssr: false });
+const WorkstationAudioPost = dynamic(() => import('../../../components/workstation/WorkstationAudioPost').then(m => m.WorkstationAudioPost), { ssr: false });
+const WorkstationTakeSets = dynamic(() => import('../../../components/workstation/WorkstationTakeSets').then(m => m.WorkstationTakeSets), { ssr: false });
+const WorkstationMediaStudy = dynamic(() => import('../../../components/workstation/WorkstationMediaStudy').then(m => m.WorkstationMediaStudy), { ssr: false });
+const WorkstationProductionGates = dynamic(() => import('../../../components/workstation/WorkstationProductionGates').then(m => m.WorkstationProductionGates), { ssr: false });
+const WorkstationFinalQc = dynamic(() => import('../../../components/workstation/WorkstationFinalQc').then(m => m.WorkstationFinalQc), { ssr: false });
+const WorkstationBusinessCanary = dynamic(() => import('../../../components/workstation/WorkstationBusinessCanary').then(m => m.WorkstationBusinessCanary), { ssr: false });
+const WorkstationWatchCommissioning = dynamic(() => import('../../../components/workstation/WorkstationWatchCommissioning').then(m => m.WorkstationWatchCommissioning), { ssr: false });
+const WorkstationAnnotationReview = dynamic(() => import('../../../components/workstation/WorkstationAnnotationReview').then(m => m.WorkstationAnnotationReview), { ssr: false });
+const WorkstationAutoFinal = dynamic(() => import('../../../components/workstation/WorkstationAutoFinal').then(m => m.WorkstationAutoFinal), { ssr: false });
 
 type WorkstationPageProps = {
   searchParams: { projectId?: string; durationSeconds?: string; aspectRatio?: string };
