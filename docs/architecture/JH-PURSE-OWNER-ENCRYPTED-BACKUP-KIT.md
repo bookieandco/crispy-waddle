@@ -45,3 +45,19 @@ Mandatory *separate* follow-up:
 A custom-format logical export may not capture all project resources: Supabase storage binary objects, external provider data, secrets, custom role passwords or backups in the Management API must be handled independently. **Do not call this a complete production recovery or a restored backup until its full scope is proved.**
 
 Related stack: #1456 → #1460 → #1461 → #1462 → #1466 → this PR. All are draft/read-only; main merge/deployment, paid restoration, production SQL and money moves remain separately approval-gated.
+
+## Owner-private independent encrypted copy verification
+
+On a **separate** trusted computer, obtain a complete independently copied/downloaded `.dump.age` archive and its JSON receipt. Never give ChatGPT, GitHub CI or Stripe the age private key. Run:
+
+```bash
+python3 scripts/purse_verify_owner_archive.py \
+  --archive "/private/copy/jhadina-purse-TIMESTAMP-NONCE.dump.age" \
+  --receipt "/private/copy/jhadina-purse-TIMESTAMP-NONCE.dump.age.json" \
+  --age-identity "/private/keys/age-backup-identity.txt" \
+  --output-dir "/private/checks"
+```
+
+The verifier rehashes the **full encrypted archive**, compares the source receipt, then streams **all** decrypted bytes through age authentication without writing plaintext to disk. It checks the PostgreSQL custom-format header and reports the decrypted-byte SHA256, with financial/database permissions still false. A matching metadata receipt is not signed independent evidence of the origin; the owner must independently confirm provenance. An age-authenticated PG header does **not** establish a valid restored database, compatible roles/extensions, recoverable storage objects or intact row-level permissions.
+
+The next mandatory stage remains a separate isolated PG17 instance with real custom roles/extensions and a full `pg_restore` run, readback and actual tenant-JWT validation. Do not use this script to repair or touch source production, and do not represent its output as a completed live restore.

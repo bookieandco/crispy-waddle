@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/purse_owner_offline_backup.py'
       - 'scripts/purse_owner_offline_backup_test.py'
+      - 'scripts/purse_verify_owner_archive.py'
+      - 'scripts/purse_verify_owner_archive_test.py'
       - 'docs/architecture/JH-PURSE-OWNER-ENCRYPTED-BACKUP-KIT.md'
       - '.github/workflows/jh-purse-owner-offline-backup-safety.yml'
   workflow_dispatch:
@@ -19,6 +21,8 @@ jobs:
         with:
           python-version: '3.12'
       - name: Dry-run identity and encrypted-backup receipt guard tests
-        run: python3 -m unittest discover -s scripts -p 'purse_owner_offline_backup_test.py' -v
+        run: |
+          python3 -m unittest discover -s scripts -p 'purse_owner_offline_backup_test.py' -v
+          python3 -m unittest discover -s scripts -p 'purse_verify_owner_archive_test.py' -v
       - name: Syntax
-        run: python3 -m py_compile scripts/purse_owner_offline_backup.py
+        run: python3 -m py_compile scripts/purse_owner_offline_backup.py scripts/purse_verify_owner_archive.py
