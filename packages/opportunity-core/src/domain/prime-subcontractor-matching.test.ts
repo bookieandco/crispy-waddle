@@ -96,3 +96,14 @@ test('blocks a subcontractor with unavailable capacity',()=>{
   assert.equal(matrix.matches[0]?.disposition,'blocked')
   assert.ok(matrix.matches[0]?.blockers.includes('Provider capacity is unavailable.'))
 })
+
+test('unknown capacity or location cannot be promoted by score alone',()=>{
+  const matrix=matchPrimeToSubcontractors({
+    opportunityId:'opp:1',prime,workPackages:[pkg],
+    subcontractors:[{provider:sub,capacity:'unknown',observedAt:'2026-09-29T00:00:00Z'}],
+    now:'2026-10-01T00:00:00Z',
+  })
+  assert.equal(matrix.candidateCount,0)
+  assert.equal(matrix.reviewCount,1)
+  assert.equal(matrix.matches[0]?.externalContactAuthorized,false)
+})
