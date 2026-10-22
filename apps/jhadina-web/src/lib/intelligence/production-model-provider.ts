@@ -13,8 +13,9 @@ const isCloud=(v:string|undefined):v is "anthropic"|"gemini"=>v==="anthropic"||v
 /** The free/local model is the default. Selecting billable clouds is explicit.
  * A key's mere presence NEVER authorizes a paid fallback.
  */
-export function configuredJllmSelection(env:Record<string,string|undefined>=process.env):JllmModelSelection{
- return isCloud(env.JHADINA_REASONING_PROVIDER)?env.JHADINA_REASONING_PROVIDER:"local"
+export function configuredJllmSelection(env?:{JHADINA_REASONING_PROVIDER?:string}):JllmModelSelection{
+ const choice=env===undefined?process.env.JHADINA_REASONING_PROVIDER:env.JHADINA_REASONING_PROVIDER
+ return isCloud(choice)?choice:"local"
 }
 
 export function createProductionIntelligenceRouter(
