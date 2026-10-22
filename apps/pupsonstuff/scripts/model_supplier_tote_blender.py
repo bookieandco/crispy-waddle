@@ -33,6 +33,8 @@ def inspect(pack, output):
     problems=list(receipt["blockers"])
     if manifest.get("productId")!="tote":
         problems.append("ONLY_TOTE_CPU_FALLBACK_SUPPORTED")
+    if manifest.get("generator") != "pupson-procedural-tote-cpu":
+        problems.append("CPU_PROCEDURAL_SOURCE_PROVENANCE_REQUIRED")
     spec=manifest.get("proceduralTote")
     geom=None
     try:
