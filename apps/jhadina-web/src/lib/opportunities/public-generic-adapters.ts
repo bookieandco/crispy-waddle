@@ -12,7 +12,7 @@ export type GenericPublicSourceDescriptor={
 }
 
 export type GenericAdapterParseResult={
-  parserKey:'generic-html-table-v1'|'generic-rss-atom-v1'|'generic-json-collection-v1'|'rusd-official-html-bids-v1'
+  parserKey:'generic-html-table-v1'|'generic-rss-atom-v1'|'generic-json-collection-v1'|'rusd-official-html-bids-v1'|'oxnard-public-project-bids-v1'
   parserVersion:'1.0.0'
   signals:PublicOpportunitySignal[]
   structureMatched:boolean
