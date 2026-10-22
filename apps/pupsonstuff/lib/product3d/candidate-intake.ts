@@ -152,6 +152,25 @@ export function preflightProductGlb(
             b !== null && typeof b === 'object' && 'uri' in b)) {
             reasons.push('EXTERNAL_OR_MISSING_BUFFER');
           }
+          // A JSON-only stub with fake accessors must never reach review.
+          // Require one complete padded BIN chunk whose declared glTF
+          // buffer length fits actual bytes. The deeper accessor/mesh
+          // validity checks still belong to the established Python audit.
+          const binOffset = 20 + jsonLength;
+          if (binOffset + 8 > bytes.length) {
+            reasons.push('GLB_BINARY_CHUNK_INVALID');
+          } else {
+            const binLength = data.getUint32(binOffset, true);
+            const binType = data.getUint32(binOffset + 4, true);
+            const expectedLength =
+              (buffers[0] as { byteLength?: unknown } | undefined)?.byteLength;
+            if (binType !== 0x004e4942 || binLength % 4 !== 0 ||
+                binOffset + 8 + binLength !== bytes.length ||
+                !positiveInteger(expectedLength) ||
+                expectedLength > binLength || binLength - expectedLength > 3) {
+              reasons.push('GLB_BINARY_CHUNK_INVALID');
+            }
+          }
           if (images.some((img) =>
             img !== null && typeof img === 'object' && 'uri' in img)) {
             reasons.push('EXTERNAL_IMAGE_URI');
