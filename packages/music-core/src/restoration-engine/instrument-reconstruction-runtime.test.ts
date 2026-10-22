@@ -60,6 +60,18 @@ const fingerprint:InstrumentFingerprint={
   dynamicRangeDb:14,
 };
 
+function syntheticWav(frames:number,channels=2,rate=48000):Uint8Array{
+  const bytes=new Uint8Array(44+frames*channels*2),v=new DataView(bytes.buffer);
+  const word=(at:number,s:string)=>{for(let i=0;i<s.length;i++)v.setUint8(at+i,s.charCodeAt(i));};
+  word(0,"RIFF");v.setUint32(4,bytes.length-8,true);word(8,"WAVE");
+  word(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);
+  v.setUint16(22,channels,true);v.setUint32(24,rate,true);
+  v.setUint32(28,rate*channels*2,true);v.setUint16(32,channels*2,true);
+  v.setUint16(34,16,true);word(36,"data");
+  v.setUint32(40,frames*channels*2,true);
+  return bytes;
+}
+
 function artifacts(){
   const source:StoredRestorationArtifact={
     id:"drums-damaged",kind:"derived",contentHash:"a".repeat(64),sampleRate:48000,channels:2,sampleCount:240000,
@@ -182,7 +194,7 @@ describe("instrument reconstruction",()=>{
     const {source,replacement}=artifacts();
     store.artifacts.set(source.id,source);
     store.artifacts.set(replacement.id,replacement);
-    const bytes=new TextEncoder().encode("localized-reconstruction");
+    const bytes=syntheticWav(240000);
     const hash=await sha256Hex(bytes);
     let runtimeRequest:unknown;
 
@@ -194,7 +206,7 @@ describe("instrument reconstruction",()=>{
           return {
             jobId:input.jobId,requestId:input.requestId,
             sourceArtifactId:input.source.artifactId,replacementArtifactId:input.replacement.artifactId,
-            outputArtifactId:"reconstruction-output",resultUri:"/output.wav",outputSha256:hash,
+            outputArtifactId:"reconstruction-output",resultUri:"/v1/jobs/job-1/artifact/output.wav",outputSha256:hash,
             sampleRate:48000,channels:2,sampleCount:240000,durationSeconds:5,segmentCount:1,
             runtimeReceiptId:"music-reconstruction:receipt-1",
           };
@@ -229,7 +241,7 @@ describe("instrument reconstruction",()=>{
           return {
             jobId:input.jobId,requestId:input.requestId,
             sourceArtifactId:input.source.artifactId,replacementArtifactId:input.replacement.artifactId,
-            outputArtifactId:"bad-output",resultUri:"/output.wav",outputSha256:"c".repeat(64),
+            outputArtifactId:"bad-output",resultUri:"/v1/jobs/job-1/artifact/output.wav",outputSha256:"c".repeat(64),
             sampleRate:48000,channels:2,sampleCount:240000,durationSeconds:5,segmentCount:1,
             runtimeReceiptId:"music-reconstruction:bad",
           };

@@ -248,7 +248,11 @@ class MusicRestorationWorkerTest(unittest.TestCase):
             with patch.object(worker.shutil,"which",side_effect=lambda name:f"/usr/bin/{name}"), \
                  patch.object(worker.importlib.util,"find_spec",return_value=object()):
                 state=worker.runtime_readiness(config)
-        self.assertTrue(state["productionReady"])
+        self.assertTrue(state["dependenciesReady"])
+        self.assertFalse(state["productionReady"])
+        self.assertFalse(state["modelLoaded"])
+        self.assertFalse(state["modelWeightsVerified"])
+        self.assertFalse(state["realCanaryPassed"])
         self.assertEqual(state["reasons"],[])
         self.assertEqual(state["demucsDevice"],"cpu")
 

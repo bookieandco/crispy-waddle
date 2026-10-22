@@ -1,3 +1,4 @@
+import { inspectRestorationWav } from "./wav-integrity.js";
 import { buildDeepStemDecomposition, type DeepStemDecomposition, type DeepStemNode } from "./deep-stem-decomposition.js";
 import { sha256Hex, type RestorationArtifactStore, type StoredRestorationArtifact } from "./ingest-runtime.js";
 import type { RestorationRuntimeClient, RestorationRuntimeSource, RestorationStemRole } from "./runtime-contract.js";
@@ -58,6 +59,47 @@ export async function separateRestorationSource(input: {
     modelId: input.modelId,
   });
 
+  // All four byte-bound stems must be admitted before the first durable write.
+  // This cannot make an external object store/SQL write atomic; infrastructure
+  // transaction/compensation remains a commissioning gate.
+  const roles = ["vocals","drums","bass","other"] as const;
+  if (receipt.jobId !== input.jobId || receipt.sourceArtifactId !== input.source.id ||
+      receipt.sourceSha256?.toLowerCase() !== input.source.contentHash.toLowerCase() ||
+      !receipt.runtimeReceiptId?.trim() || receipt.stems.length !== roles.length) {
+    throw new Error("MUSIC_SEPARATION_RECEIPT_SCOPE_OR_ROLE_COUNT_INVALID");
+  }
+  const seenRoles = new Set<string>(), seenArtifacts = new Set<string>();
+  const prepared: Array<{stem:typeof receipt.stems[number];bytes:Uint8Array;actualSha256:string}> = [];
+  for (const stem of receipt.stems) {
+    validateRole(stem.role);
+    if (!roles.includes(stem.role as typeof roles[number]) ||
+        seenRoles.has(stem.role) || seenArtifacts.has(stem.artifactId) ||
+        stem.artifactId===input.source.id ||
+        stem.parentArtifactId!==input.source.id ||
+        !stem.runtimeReceiptId?.trim() ||
+        !/^\/v1\/jobs\/[a-zA-Z0-9._-]+\/artifact\/[a-zA-Z0-9._-]+\.wav$/.test(stem.resultUri)) {
+      throw new Error("MUSIC_SEPARATION_STEM_RECEIPT_INVALID");
+    }
+    seenRoles.add(stem.role);seenArtifacts.add(stem.artifactId);
+    const bytes = await input.runtime.downloadArtifact(stem.resultUri);
+    if (!bytes.byteLength) throw new Error("MUSIC_SEPARATION_STEM_EMPTY");
+    const actualSha256 = await sha256Hex(bytes);
+    if (actualSha256.toLowerCase() !== stem.sha256.toLowerCase()) {
+      throw new Error("MUSIC_SEPARATION_STEM_HASH_MISMATCH");
+    }
+    const decoded = inspectRestorationWav(bytes);
+    if (decoded.sampleRate!==stem.sampleRate || decoded.channels!==stem.channels ||
+        decoded.sampleCount!==stem.sampleCount ||
+        decoded.sampleRate!==input.source.sampleRate ||
+        decoded.sampleCount!==input.source.sampleCount) {
+      throw new Error("MUSIC_SEPARATION_STEM_DECODED_TIMEBASE_MISMATCH");
+    }
+    if (await input.store.get(input.ownerUserId,stem.artifactId)) {
+      throw new Error("MUSIC_SEPARATION_STEM_ALREADY_EXISTS");
+    }
+    prepared.push({stem,bytes,actualSha256});
+  }
+
   const now = input.now ?? new Date().toISOString();
   const artifacts: StoredRestorationArtifact[] = [];
   const nodes: DeepStemNode[] = [{
@@ -76,18 +118,7 @@ export async function separateRestorationSource(input: {
     canonicalSource: true,
   }];
 
-  for (const stem of receipt.stems) {
-    validateRole(stem.role);
-    const bytes = await input.runtime.downloadArtifact(stem.resultUri);
-    if (!bytes.byteLength) throw new Error(`Separated ${stem.role} stem is empty.`);
-    const actualSha256 = await sha256Hex(bytes);
-    if (actualSha256.toLowerCase() !== stem.sha256.toLowerCase()) {
-      throw new Error(`Separated ${stem.role} stem hash mismatch.`);
-    }
-
-    const existing = await input.store.get(input.ownerUserId, stem.artifactId);
-    if (existing) throw new Error(`Separated stem artifact already exists: ${stem.artifactId}`);
-
+  for (const {stem,bytes,actualSha256} of prepared) {
     const stored = await input.store.putDerived({
       ownerUserId: input.ownerUserId,
       caseId: input.caseId,

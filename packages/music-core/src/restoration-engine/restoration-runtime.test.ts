@@ -48,6 +48,19 @@ function runtime(overrides:Partial<RestorationRuntimeClient>={}):RestorationRunt
   };
 }
 
+function syntheticRestorationWav(frames:number):Uint8Array {
+  const channels=2,rate=48000,bytes=new Uint8Array(44+frames*channels*2);
+  const view=new DataView(bytes.buffer);
+  const tag=(at:number,s:string)=>{for(let i=0;i<s.length;i++)view.setUint8(at+i,s.charCodeAt(i));};
+  tag(0,"RIFF");view.setUint32(4,bytes.length-8,true);tag(8,"WAVE");
+  tag(12,"fmt ");view.setUint32(16,16,true);
+  view.setUint16(20,1,true);view.setUint16(22,channels,true);
+  view.setUint32(24,rate,true);view.setUint32(28,rate*channels*2,true);
+  view.setUint16(32,channels*2,true);view.setUint16(34,16,true);
+  tag(36,"data");view.setUint32(40,frames*channels*2,true);
+  return bytes;
+}
+
 describe("restoration runtime spine",()=>{
   it("hashes, probes, persists and creates an immutable restoration case",async()=>{
     const store=new MemoryStore();
@@ -73,22 +86,26 @@ describe("restoration runtime spine",()=>{
       mimeType:"audio/flac",sizeBytes:sourceBytes.length,
     };
     store.artifacts.set(source.id,source);
-    const stemBytes=new TextEncoder().encode("vocals");
+    const stemBytes=syntheticRestorationWav(48000);
     const stemHash=await sha256Hex(stemBytes);
+    const roles=["vocals","drums","bass","other"] as const;
     const separated=await separateRestorationSource({
       ownerUserId:"user-1",caseId:"case-1",source,store,jobId:"job-1",
       runtime:runtime({
         async separate(){ return {
           jobId:"job-1",sourceArtifactId:"source-1",sourceSha256:sourceHash,modelId:"htdemucs",modelVersion:"4.0.1",
-          runtimeReceiptId:"sep-1",stems:[{
-            artifactId:"stem-vocals",parentArtifactId:"source-1",role:"vocals",resultUri:"/vocals.wav",sha256:stemHash,
-            sampleRate:48000,channels:2,sampleCount:48000,durationSeconds:1,modelId:"htdemucs",modelVersion:"4.0.1",
-            confidence:0.85,runtimeReceiptId:"stem-1",
-          }],
+          runtimeReceiptId:"sep-1",stems:roles.map(role=>({
+            artifactId:"stem-"+role,parentArtifactId:"source-1",role,
+            resultUri:"/v1/jobs/job-1/artifact/"+role+".wav",sha256:stemHash,
+            sampleRate:48000,channels:2,sampleCount:48000,durationSeconds:1,
+            modelId:"htdemucs",modelVersion:"4.0.1",
+            confidence:0.85,runtimeReceiptId:"stem-"+role,
+          })),
         }; },
         async downloadArtifact(){ return stemBytes; },
       }),
     });
+    expect(separated.artifacts).toHaveLength(4);
     expect(separated.artifacts[0]?.contentHash).toBe(stemHash);
     expect(separated.decomposition.nodes.find(node=>node.id==="stem-vocals")?.canonicalSource).toBe(false);
   });

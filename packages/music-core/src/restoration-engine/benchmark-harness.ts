@@ -49,22 +49,29 @@ function overlap(
   return {referenceStart,candidateStart,length:Math.max(0,length)};
 }
 
-function correlationAt(reference:Float32Array,candidate:Float32Array,delay:number):number{
+
+function correlationAt(reference:Float32Array,candidate:Float32Array,delay:number):number|null{
   const span=overlap(reference,candidate,delay);
-  if(span.length<8)return 0;
-  let xy=0,xx=0,yy=0;
-  for(let i=0;i<span.length;i+=1){
-    const a=reference[span.referenceStart+i]??0;
-    const b=candidate[span.candidateStart+i]??0;
-    xy+=a*b;xx+=a*a;yy+=b*b;
+  const minOverlap=Math.max(8,Math.ceil(Math.min(reference.length,candidate.length)*0.5));
+  if(span.length<minOverlap)return null;
+  // Bound computation on full songs without changing the candidate sample clock.
+  const stride=Math.max(1,Math.floor(span.length/16384));
+  let n=0,sumA=0,sumB=0,sumAA=0,sumBB=0,sumAB=0;
+  for(let i=0;i<span.length;i+=stride){
+    const a=reference[span.referenceStart+i]!;
+    const b=candidate[span.candidateStart+i]!;
+    n++;sumA+=a;sumB+=b;sumAA+=a*a;sumBB+=b*b;sumAB+=a*b;
   }
-  if(xx<=1e-18||yy<=1e-18)return 0;
-  return xy/Math.sqrt(xx*yy);
+  const varA=sumAA-sumA*sumA/n,varB=sumBB-sumB*sumB/n;
+  if(varA<=1e-12*n||varB<=1e-12*n)return null;
+  return clamp((sumAB-sumA*sumB/n)/Math.sqrt(varA*varB),-1,1);
 }
 
 /**
- * Positive candidateDelaySamples means the candidate content begins later than
- * the reference and must be shifted left by that many samples for comparison.
+ * A/B alignment is evidence, not permission to move audio. DC, silence,
+ * non-finite input, repeated/periodic peaks and weak correlations abstain.
+ * This preserves the old return shape: confidence=0 and delay=0 mean no
+ * measurement can support an automatic alignment.
  */
 export function estimateBenchmarkAlignment(
   reference:Float32Array,
@@ -73,18 +80,40 @@ export function estimateBenchmarkAlignment(
 ):BenchmarkAlignment{
   if(!Number.isInteger(maxDelaySamples)||maxDelaySamples<0)throw new Error("Maximum alignment delay must be a non-negative integer.");
   if(reference.length<8||candidate.length<8)throw new Error("Alignment requires non-empty audio evidence.");
-  let bestDelay=0,best=-Infinity,second=-Infinity;
-  for(let delay=-maxDelaySamples;delay<=maxDelaySamples;delay+=1){
-    const score=correlationAt(reference,candidate,delay);
-    if(score>best){second=best;best=score;bestDelay=delay;}
-    else if(score>second)second=score;
+  for(const samples of [reference,candidate]){
+    for(const sample of samples)if(!Number.isFinite(sample))
+      return {candidateDelaySamples:0,correlation:0,confidence:0};
   }
-  const margin=best-second;
-  return {
-    candidateDelaySamples:bestDelay,
-    correlation:Number.isFinite(best)?best:0,
-    confidence:clamp(((best+1)/2)*0.8+Math.max(0,margin)*0.2,0,1),
+  // Evaluate a coarse lag grid first when the possible delay is wide.
+  const coarseStep=Math.max(1,Math.ceil(maxDelaySamples/512));
+  const scored=new Map<number,number>();
+  const score=(lag:number)=>{
+    if(scored.has(lag))return scored.get(lag)!;
+    const value=correlationAt(reference,candidate,lag);
+    if(value!==null)scored.set(lag,value);
+    return value;
   };
+  const candidates=new Set<number>([0,-maxDelaySamples,maxDelaySamples]);
+  for(let lag=-maxDelaySamples;lag<=maxDelaySamples;lag+=coarseStep)candidates.add(lag);
+  let coarseLag=0,coarseScore=-Infinity;
+  for(const lag of candidates){
+    const s=score(lag);
+    if(s!==null&&s>coarseScore){coarseScore=s;coarseLag=lag;}
+  }
+  if(!Number.isFinite(coarseScore)||coarseScore<0.35)
+    return {candidateDelaySamples:0,correlation:0,confidence:0};
+  for(let lag=Math.max(-maxDelaySamples,coarseLag-coarseStep);
+      lag<=Math.min(maxDelaySamples,coarseLag+coarseStep);lag++)score(lag);
+  const ordered=[...scored].sort((a,b)=>b[1]-a[1]);
+  const [bestLag,best]=ordered[0]!;
+  // An adjacent lag can be highly correlated on band-limited audio; compare
+  // distinctive peaks at least two samples apart, not a neighboring shoulder.
+  const rival=ordered.find(([lag])=>Math.abs(lag-bestLag)>1)?.[1]??-1;
+  const margin=best-rival;
+  if(best<0.5||margin<0.015)
+    return {candidateDelaySamples:0,correlation:best,confidence:0};
+  return {candidateDelaySamples:bestLag,correlation:best,
+    confidence:clamp(best*Math.min(1,margin/0.15),0,1)};
 }
 
 function rmsAt(samples:Float32Array,start:number,length:number):number{

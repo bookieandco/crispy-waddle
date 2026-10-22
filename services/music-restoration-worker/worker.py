@@ -70,7 +70,13 @@ def runtime_readiness(config:RestorationWorkerConfig)->dict[str,Any]:
         writable=False
     if not writable: reasons.append("MUSIC_RESTORATION_OUTPUT_DIR_NOT_WRITABLE")
     return {
-        "productionReady":not reasons,
+        "dependenciesReady":not reasons,
+        "modelWeightsVerified":False,
+        "modelLoaded":False,
+        "realCanaryPassed":False,
+        "restorationQualityCertified":False,
+        "productionReady":False,
+        "readinessScope":"dependency-presence-only",
         "reasons":reasons,
         "ffmpegReady":bool(ffmpeg),
         "ffprobeReady":bool(ffprobe),
@@ -177,6 +183,7 @@ def separate_path(
             "sha256":digest,"sampleRate":stem_probe["sampleRate"],"channels":stem_probe["channels"],
             "sampleCount":stem_probe["sampleCount"],"durationSeconds":stem_probe["durationSeconds"],
             "modelId":requested,"modelVersion":DEMUCS_VERSION,"confidence":0.85,
+            "confidenceCalibrated":False,"confidenceMethod":"uncalibrated-runtime-prior",
             "resultUri":f"/v1/jobs/{_safe_token(job_id)}/artifact/{role}.wav",
         }
         stem["runtimeReceiptId"]=receipt_id("music-stem",stem)
