@@ -86,6 +86,36 @@ try {
     assert.equal(await more.getAttribute("aria-expanded"), "false",
       "More did not close after navigation")
 
+    // Follow every visible shell destination, not merely its static file mapping.
+    // Running this at one mobile size bounds CI time while both sizes retain geometry checks.
+    if (size.width === 390) {
+      await visit(page, "/work")
+      await page.getByRole("button", { name: "More Jhadina worlds" }).click()
+      const directory = page.getByRole("navigation", { name: "Jhadina worlds" })
+      const destinations = await directory.locator('a[href]').evaluateAll(links =>
+        [...new Set(links.map(link => {
+          const target = link.getAttribute("href") ?? ""
+          return target.startsWith("/") && !target.startsWith("//") ? target : null
+        }).filter(Boolean))]
+      )
+      assert(destinations.length > 20, "Worlds destination coverage unexpectedly small")
+      for (const destination of destinations) {
+        await visit(page, "/work")
+        await page.getByRole("button", { name: "More Jhadina worlds" }).click()
+        // The href is CSS escaped using JSON quoting, and only local hrefs are accepted.
+        const selected = page.getByRole("navigation", { name: "Jhadina worlds" })
+          .locator('a[href=' + JSON.stringify(destination) + ']')
+        await selected.click()
+        await page.waitForURL(url => url.pathname + url.search === destination, { timeout: 15000 })
+        assert.equal(await page.getByRole("navigation", { name: "Primary navigation" }).count(), 1,
+          "Shell absent after visiting " + destination)
+        assert(!(await page.locator("body").innerText()).includes("This page could not be found"),
+          "Destination returned Next.js not found: " + destination)
+        console.log("PASS shell destination", destination)
+      }
+      console.log("PASS shell destination traversal", destinations.length)
+    }
+
     // Real Pages Router destination, which mounts the shell separately from App Router.
     await visit(page, "/jhadinatv")
     await page.getByRole("navigation", { name: "Primary navigation" }).waitFor({ state: "visible" })
