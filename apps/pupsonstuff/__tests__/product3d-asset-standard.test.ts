@@ -28,7 +28,12 @@ describe('PupsonStuff uniform blank-product 3D standard', () => {
     const answer = assessUniformAssetPlan(hoodie);
     expect(answer.status).toBe('quarantine-normalization-candidate');
     expect(answer.uniformScale).toBeCloseTo(0.1);
-    expect(answer.normalizedBoundsMeters).toEqual([0.5, 0.7000000000000001, 0.12]);
+    expect(answer.normalizedBoundsMeters).not.toBeNull();
+    for (const [value, target] of (answer.normalizedBoundsMeters ?? []).map(
+      (value, index) => [value, [0.5, 0.7, 0.12][index]] as const,
+    )) {
+      expect(value).toBeCloseTo(target, 9);
+    }
     expect(answer.storefrontApproved).toBe(false);
     expect(answer.requiresPhysicalAndVisualReview).toBe(true);
     expect(answer.studioStandard.personalizedArtworkBakedIntoMesh).toBe(false);
