@@ -6,7 +6,7 @@ measurements. This test doesn't certify vendor dimensions, print-zone artwork,
 real iOS Safari or a physical sample, and it cannot deploy or place an order.
 */
 import assert from 'node:assert/strict';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { webkit } from 'playwright';
 
@@ -52,22 +52,26 @@ try {
   assert.ok(cbox && cbox.width>=280 && cbox.width<=390,'portrait WebGL width overflow');
   // No checkout, upload, paid AI or external provider interactions on this page.
   assert.equal(await page.getByRole('button',{name:/checkout|pay now|place order/i}).count(),0);
+  // SIX browser captures: 3 candidate + 3 unchanged original, same
+  // mobile viewport. Visuals are synthetic functional QA and do not stand
+  // in for the Blender/supplier/physical certification matrix.
   const views=['front','side','back'];
   const screenshotHashes={};
-  for(const view of views){
-    const control=candidate.getByRole('button',{name:'View '+view+' of product'});
-    await control.tap();
-    assert.equal(await control.getAttribute('aria-pressed'),'true');
-    // Canvas screenshot captures the REAL GLB loaded through the canonical
-    // Product3DEngine; don't interpret screenshot capture as quality approval.
-    const image=await candidate.screenshot({
-      path:output+'/pilot-tote-'+view+'-iphone-webkit.png',
-    });
-    screenshotHashes[view]=hash(image);
-    assert.ok(image.length>2000,'candidate render unexpectedly empty');
+  for(const [name,region] of [['candidate',candidate],['approved',baseline]]){
+    for(const view of views){
+      const control=region.getByRole('button',{name:'View '+view+' of product'});
+      await control.tap();
+      assert.equal(await control.getAttribute('aria-pressed'),'true');
+      const image=await region.screenshot({
+        path:output+'/pilot-tote-'+name+'-'+view+'-iphone-webkit.png',
+      });
+      screenshotHashes[name+'-'+view]=hash(image);
+      assert.ok(image.length>2000,name+' '+view+' render unexpectedly empty');
+    }
+    assert.ok(new Set(views.map(view=>screenshotHashes[name+'-'+view])).size>=2,
+      name+' front/side/back screenshots are identical');
   }
-  assert.ok(new Set(Object.values(screenshotHashes)).size>=2,
-    'front/side/back candidate screenshots are identical');
+  assert.equal(Object.keys(screenshotHashes).length,6);
   // Confirm old approved tote has NOT been replaced by our preview GLB.
   const original=await page.request.get(origin+'/models/tote.glb');
   const synthetic=await page.request.get(origin+'/qa-pilot-tote.glb');
@@ -77,12 +81,24 @@ try {
   const absent=await page.request.get(origin+'/api/checkout/session');
   assert.equal(absent.status(),503,'read-only preview must block payment session APIs');
   assert.deepEqual(errors,[],'Uncaught browser rendering errors');
-  console.log(JSON.stringify({
-    status:'SYNTHETIC_WEBKIT_IPHONE_VIEWPORT_PROVEN',
-    syntheticOnly:true,physicalIphoneProven:false,
-    supplierCertified:false,printZoneCertified:false,
-    separateApprovedGlbPreserved:true,screenshots:screenshotHashes,
-  },null,2));
+  const receipt={
+    status:'SIX_VIEW_SYNTHETIC_WEBKIT_FUNCTIONAL_QA_ONLY',
+    syntheticOnly:true,
+    screenshotCount:6,
+    physicalIphoneProven:false,
+    supplierCertified:false,
+    licensedProductPhotosVerified:false,
+    printZoneCertified:false,
+    physicalSampleCertified:false,
+    mayPromoteAutomatically:false,
+    separateApprovedGlbPreserved:true,
+    candidateSha256:hash(await synthetic.body()),
+    baselineSha256:hash(await original.body()),
+    screenshots:screenshotHashes,
+  };
+  await writeFile(output+'/pilot-tote-six-view-UNCERTIFIED.receipt.json',
+    JSON.stringify(receipt,null,2)+'\n',{flag:'wx'});
+  console.log(JSON.stringify(receipt,null,2));
 } finally {
   await browser.close();
 }
