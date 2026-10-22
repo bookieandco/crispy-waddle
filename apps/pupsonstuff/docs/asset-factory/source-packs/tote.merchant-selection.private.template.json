@@ -1,0 +1,10 @@
+{
+  "_PRIVATE_OPERATOR_TEMPLATE_ONLY": "Save a filled copy as merchant-selection.json beside private printify-catalog.json. Obtain IDs via the authenticated Printify catalog, never the product page URL. Do not commit the private files.",
+  "ownerConfirmedForPupsonstuff": false,
+  "blueprintId": null,
+  "printProviderId": null,
+  "variantId": null,
+  "selectedSku": null,
+  "selectedBy": null,
+  "_certification": "This is an operator selection receipt, not proof of rights, physical product accuracy, manufacturing or approval to deploy."
+}
