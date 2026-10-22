@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PasskeyAction } from "./passkey-action";
+import { EmailLinkInBrowser } from "./email-link-in-browser";
 import { safeAuthNext } from "@/lib/auth/passkey";
 import { login, sendOwnerSignInLink } from "./actions";
 import { JHADINA_PERSONAL_OWNER_EMAIL } from "@/lib/auth/personal-owner";
@@ -30,6 +31,7 @@ export default function LoginPage({ searchParams = {} }: LoginPageProps) {
         <h2 style={{ margin: 0, fontSize: 20 }}>First-time access</h2>
         <p style={{ margin: 0 }}>Use one verified email link to enter, then add Face ID in Security Settings. If Supabase has temporarily reached its email quota, wait before requesting another; existing password sign-in remains available below.</p>
         <form action={sendOwnerSignInLink} style={{ display: "grid", gap: 12 }}>
+          <input type="hidden" name="next" value={next} />
           <label style={{ display: "grid", gap: 6 }}>
             Owner email
             <input name="email" type="email" autoComplete="email" readOnly value={JHADINA_PERSONAL_OWNER_EMAIL} style={{ padding: 13, minHeight: 48, width: "100%" }} />
@@ -37,6 +39,7 @@ export default function LoginPage({ searchParams = {} }: LoginPageProps) {
           <button type="submit" style={{ padding: "12px 20px", minHeight: 50, borderRadius: 12, fontWeight: 700 }}>Email my one-time sign-in link</button>
         </form>
       </section>
+      <EmailLinkInBrowser next={next} />
       <details style={{ marginTop: 22 }}>
         <summary style={{ cursor: "pointer", padding: "8px 0" }}>Use an existing password (optional recovery)</summary>
       <form action={login} style={{ display: "grid", gap: 14, marginTop: 24 }}>
