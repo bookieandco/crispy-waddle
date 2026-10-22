@@ -21,6 +21,14 @@ assert.equal(sources.find(s=>s.sourceId==='c')?.action,'manual_review')
 assert.equal(sources.find(s=>s.sourceId==='d')?.action,'manual_review')
 assert.equal(sources.find(s=>s.sourceId==='a')?.action,'monitor')
 assert.ok(sources.every(s=>s.externalFetchAuthorized===false))
+const junk=planProcurementSourceRecovery([{
+ id:'irrelevant',name:'Purchasing and Group Sales',sourceUrl:'https://www.bart.gov/tickets/sales',
+ stateCode:'CA',jurisdictionLevel:'special_district',verificationStatus:'official_owner_verified',
+ adapterStatus:'degraded',accessReviewStatus:'approved_public_official',sourceKinds:['solicitation']
+}],now)
+assert.equal(junk[0]?.action,'manual_review')
+assert.ok(junk[0]?.blockers.some(x=>x.includes('procurement feed')))
+
 
 const documents:ProcurementDocument[]=[
  {id:'original',kind:'solicitation',version:'1',publishedAt:'2026-10-01T16:00:00Z',sourceUrl:'https://school.example.gov/bids/123',official:true,evidenceRef:'official-v1',
