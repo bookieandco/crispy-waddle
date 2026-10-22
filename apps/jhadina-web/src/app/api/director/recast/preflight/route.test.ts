@@ -37,6 +37,7 @@ vi.mock('@/lib/supabase/service-role',()=>({
       mocks.readTables.push(table)
       const q:any={}
       q.select=()=>q
+      q.order=()=>q
       q.eq=(column:string,value:unknown)=>{mocks.eqCalls.push([table,column,value]);return q}
       q.in=(_column:string,_values:unknown[])=>table==='jhadina_artifacts'
         ?Promise.resolve({data:mocks.artifactRows,error:null})
