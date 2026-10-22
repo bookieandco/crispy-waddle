@@ -1,0 +1,34 @@
+name: ASK-JLLM.COMMISSION.11-13 Local Host Certification
+
+on:
+  pull_request:
+    paths:
+      - 'services/jhadina-local-model-gateway/**'
+      - 'scripts/jllm-mac-model-check*'
+      - 'apps/jhadina-web/src/lib/intelligence/ollama-local-transport*'
+      - '.github/workflows/ask-jllm-commission-11-13.yml'
+  push:
+    branches:
+      - 'feat/ask-jllm-commission-11-13'
+    paths:
+      - 'services/jhadina-local-model-gateway/**'
+      - 'scripts/jllm-mac-model-check*'
+      - 'apps/jhadina-web/src/lib/intelligence/ollama-local-transport*'
+      - '.github/workflows/ask-jllm-commission-11-13.yml'
+permissions:
+  contents: read
+jobs:
+  local-host-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Source syntax and fixed-route validation
+        run: |
+          node --check services/jhadina-local-model-gateway/server.mjs
+          node --check scripts/jllm-mac-model-check.mjs
+      - name: Offline host gateway / Mac preflight safety tests
+        run: node --test services/jhadina-local-model-gateway/server.test.mjs scripts/jllm-mac-model-check.test.mjs
