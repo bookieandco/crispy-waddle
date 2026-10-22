@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import {useEffect,useState} from "react"
+import {useEffect,useState,type ReactNode,type CSSProperties} from "react"
 
 type Provider={id:string;name:string;capabilityClaim:string;sourceUrl:string;qualification:string;quote:string;partnerConsent:string;requiredChecks:string[]}
 type Case={id:string;buyer:string;title:string;kind:string;officialSourceUrl:string;buyerContactSourceUrl:string;buyerPhone?:string;buyerEmail?:string;deadlineAt?:string;deadlineStatus:string;description:string;candidates:Provider[];blockers:string[];nextActions:string[];scopeComplete:false;requiredFormsVerified:false;addendaComplete:false}
@@ -10,16 +10,16 @@ type Source={sourceId:string;sourceUrl:string;action:string;priority:number;bloc
 type PilotResponse={ok:boolean;docket?:Pilot;error?:string}
 type SourceResponse={ok:boolean;decisions?:Source[];scanned?:number;sourceSnapshotIsPartial?:boolean;error?:string}
 type Draft={ok:boolean;buyerContacts?:Array<{name?:string;email?:string;phone?:string;sourceUrl:string}>;packet?:{status:string;blockers:string[]};error?:string;observed?:{title:string}}
-const shell:React.CSSProperties={minHeight:"100vh",background:"#0d131c",color:"#eff3f1",fontFamily:"system-ui,-apple-system,sans-serif",padding:"24px 14px 90px"}
-const contentWidth:React.CSSProperties={maxWidth:990,margin:"auto"}
-const section:React.CSSProperties={background:"#151f2b",border:"1px solid #334052",borderRadius:18,padding:20,marginTop:16}
-const mini:React.CSSProperties={fontSize:12,letterSpacing:1.1,color:"#9eb7a8",fontWeight:700,textTransform:"uppercase"}
-const dim:React.CSSProperties={fontSize:14,color:"#b3bfca",lineHeight:1.65}
-const link:React.CSSProperties={color:"#92d7b0",textDecoration:"underline",overflowWrap:"anywhere"}
-const pill:React.CSSProperties={border:"1px solid #6a5732",color:"#e4ca8c",padding:"4px 9px",borderRadius:20,fontSize:12,display:"inline-block",fontWeight:600}
-const btn:React.CSSProperties={background:"#d0e4d8",color:"#13231c",fontWeight:700,border:0,padding:"12px 18px",borderRadius:10,cursor:"pointer"}
-const boxTitle:React.CSSProperties={fontSize:19,fontWeight:750,margin:"8px 0 4px"}
-function SourceLink({href,children}:{href:string;children:React.ReactNode}){return <a href={href} target="_blank" rel="noopener noreferrer" style={link}>{children} ↗</a>}
+const shell:CSSProperties={minHeight:"100vh",background:"#0d131c",color:"#eff3f1",fontFamily:"system-ui,-apple-system,sans-serif",padding:"24px 14px 90px"}
+const contentWidth:CSSProperties={maxWidth:990,margin:"auto"}
+const section:CSSProperties={background:"#151f2b",border:"1px solid #334052",borderRadius:18,padding:20,marginTop:16}
+const mini:CSSProperties={fontSize:12,letterSpacing:1.1,color:"#9eb7a8",fontWeight:700,textTransform:"uppercase"}
+const dim:CSSProperties={fontSize:14,color:"#b3bfca",lineHeight:1.65}
+const link:CSSProperties={color:"#92d7b0",textDecoration:"underline",overflowWrap:"anywhere"}
+const pill:CSSProperties={border:"1px solid #6a5732",color:"#e4ca8c",padding:"4px 9px",borderRadius:20,fontSize:12,display:"inline-block",fontWeight:600}
+const btn:CSSProperties={background:"#d0e4d8",color:"#13231c",fontWeight:700,border:0,padding:"12px 18px",borderRadius:10,cursor:"pointer"}
+const boxTitle:CSSProperties={fontSize:19,fontWeight:750,margin:"8px 0 4px"}
+function SourceLink({href,children}:{href:string;children:ReactNode}){return <a href={href} target="_blank" rel="noopener noreferrer" style={link}>{children} ↗</a>}
 function Deadline({value,continuous}:{value?:string;continuous:boolean}){
  if(continuous)return <span style={pill}>Continuous qualification · not a contract award</span>
  if(!value)return <span style={pill}>Deadline requires official confirmation</span>
