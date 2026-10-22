@@ -44,6 +44,27 @@ try {
       if (red>145 && red>green*1.45 && green>35 && green<155 && blue<105) coloredMarkerPixels++;
     }
     assert.ok(coloredMarkerPixels>20,`${item.name}: colored synthetic artwork invisible on front (${coloredMarkerPixels} red pixels)`);
+    if (item.model === 'bottle') {
+      // This exercises a prior texture lifecycle bug: rotating the front
+      // cylinder decal disposed its THREE.Texture clone during the update.
+      const rotate=page.getByRole('button',{name:'QA rotate artwork'});
+      await rotate.click();
+      await rotate.click();
+      await page.waitForTimeout(300);
+      const rotated=await page.screenshot({
+        path:`${output}/qa3d-${item.name}-rotated-artwork.png`,
+      });
+      const {data:rotatedPixels,info:ri}=await sharp(rotated).removeAlpha().raw()
+        .toBuffer({resolveWithObject:true});
+      let rotatedMarkerPixels=0;
+      for(let y=120;y<Math.min(720,ri.height);y++) for(let x=160;x<Math.min(740,ri.width);x++) {
+        const p=(y*ri.width+x)*ri.channels;
+        if(rotatedPixels[p]>145 && rotatedPixels[p]>rotatedPixels[p+1]*1.45 &&
+            rotatedPixels[p+1]>35 && rotatedPixels[p+1]<155 && rotatedPixels[p+2]<105)
+          rotatedMarkerPixels++;
+      }
+      assert.ok(rotatedMarkerPixels>20,`${item.name}: curved decal vanished after rotation (${rotatedMarkerPixels} pixels)`);
+    }
     // Use exact named camera directions. The older freehand-mouse drag
     // overshot 180°: its misleading 'back' screenshot often showed a side.
     // This is a reliable inspection receipt, NOT print-back approval.
