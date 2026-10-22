@@ -177,6 +177,12 @@ try {
     await visit(page, "/workstation?projectId=director-unowned-mobile-canary")
     const directorLoader = page.getByRole("heading", { name: "Preparing project" })
     await directorLoader.waitFor({ state: "visible" })
+    // Local smoke bypasses only middleware; API auth must still reject the caller.
+    const unauthTimelineStatus = await page.evaluate(async () => {
+      const response = await fetch("/api/workstation/timeline?projectId=director-unowned-mobile-canary", { cache: "no-store" })
+      return response.status
+    })
+    assert.equal(unauthTimelineStatus, 401, "Workstation timeline accepted an unauthenticated actor")
     await noHorizontalOverflow(page, size.name + " Director locked workstation")
     assert.equal(await page.getByRole("navigation", { name: "Director production stages" }).count(), 0,
       "Missing owner session exposed Director edit controls")
