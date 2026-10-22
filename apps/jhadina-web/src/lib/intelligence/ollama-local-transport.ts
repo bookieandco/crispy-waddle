@@ -11,6 +11,8 @@ export type LocalModelConnection = Readonly<{
  model:string
  allowedHost?:string
  token?:string
+ accessClientId?:string
+ accessClientSecret?:string
  production?:boolean
 }>
 type FetchLike = typeof fetch
@@ -18,6 +20,7 @@ type FetchLike = typeof fetch
 export function resolveLocalModelConnection(env?:{
  JHADINA_LOCAL_MODEL_URL?:string;JHADINA_LOCAL_MODEL_NAME?:string;
  JHADINA_LOCAL_MODEL_ALLOWED_HOST?:string;JHADINA_LOCAL_MODEL_GATEWAY_TOKEN?:string;
+ JHADINA_LOCAL_MODEL_ACCESS_CLIENT_ID?:string;JHADINA_LOCAL_MODEL_ACCESS_CLIENT_SECRET?:string;
  NODE_ENV?:string;
 }):LocalModelConnection|null{
  env=env??{
@@ -25,6 +28,8 @@ export function resolveLocalModelConnection(env?:{
   JHADINA_LOCAL_MODEL_NAME:process.env.JHADINA_LOCAL_MODEL_NAME,
   JHADINA_LOCAL_MODEL_ALLOWED_HOST:process.env.JHADINA_LOCAL_MODEL_ALLOWED_HOST,
   JHADINA_LOCAL_MODEL_GATEWAY_TOKEN:process.env.JHADINA_LOCAL_MODEL_GATEWAY_TOKEN,
+  JHADINA_LOCAL_MODEL_ACCESS_CLIENT_ID:process.env.JHADINA_LOCAL_MODEL_ACCESS_CLIENT_ID,
+  JHADINA_LOCAL_MODEL_ACCESS_CLIENT_SECRET:process.env.JHADINA_LOCAL_MODEL_ACCESS_CLIENT_SECRET,
   NODE_ENV:process.env.NODE_ENV,
  }
  const baseUrl=env.JHADINA_LOCAL_MODEL_URL?.trim()
@@ -32,6 +37,8 @@ export function resolveLocalModelConnection(env?:{
  if(!baseUrl || !model)return null
  return {baseUrl,model,allowedHost:env.JHADINA_LOCAL_MODEL_ALLOWED_HOST?.trim(),
    token:env.JHADINA_LOCAL_MODEL_GATEWAY_TOKEN?.trim(),
+   accessClientId:env.JHADINA_LOCAL_MODEL_ACCESS_CLIENT_ID?.trim(),
+   accessClientSecret:env.JHADINA_LOCAL_MODEL_ACCESS_CLIENT_SECRET?.trim(),
    production:env.NODE_ENV==="production"}
 }
 
@@ -41,6 +48,11 @@ export function validateLocalModelEndpoint(connection:LocalModelConnection):URL 
  try{target=new URL(connection.baseUrl)}catch{throw Error("LOCAL_MODEL_URL_INVALID")}
  if(target.username||target.password||target.hash||target.search || !["","/"].includes(target.pathname))throw Error("LOCAL_MODEL_URL_INVALID")
  const loopback=target.hostname==="localhost"||target.hostname==="127.0.0.1"||target.hostname==="[::1]"
+ if(Boolean(connection.accessClientId)!==Boolean(connection.accessClientSecret))
+  throw Error("LOCAL_MODEL_ACCESS_CREDENTIAL_PAIR_REQUIRED")
+ if((connection.accessClientId||connection.accessClientSecret)&&
+   (!connection.token||target.protocol!=="https:"))
+  throw Error("LOCAL_MODEL_PRIVATE_GATEWAY_REQUIRED")
  if(connection.production){
   if(target.protocol!=="https:" || !connection.allowedHost || target.hostname!==connection.allowedHost || !connection.token)
    throw Error("LOCAL_MODEL_PRIVATE_GATEWAY_REQUIRED")
@@ -76,7 +88,12 @@ export function createOllamaLocalInferenceTransport(connection:LocalModelConnect
   if(input.prompt.length>200_000)throw Error("LOCAL_MODEL_CONTEXT_TOO_LARGE")
   const response=await fetchImpl(endpoint.href,{
    method:"POST",redirect:"error",signal:AbortSignal.timeout(20_000),
-   headers:{"content-type":"application/json",...(connection.token?{authorization:"Bearer "+connection.token}:{})},
+   headers:{"content-type":"application/json",
+    ...(connection.token?{authorization:"Bearer "+connection.token}:{}),
+    ...(connection.accessClientId&&connection.accessClientSecret?{
+      "CF-Access-Client-Id":connection.accessClientId,
+      "CF-Access-Client-Secret":connection.accessClientSecret,
+    }:{})},
    body:JSON.stringify({model:input.model,stream:false,format:"json",
       messages:[{role:"system",content:input.system},{role:"user",content:input.prompt}],
       options:{temperature:0.2,num_predict:Math.min(Math.max(input.maxOutputTokens,256),4096)}}),
