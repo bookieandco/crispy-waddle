@@ -12,7 +12,7 @@ from assemble_tote_source_pack import compile_private_manifest,run
 
 def fixture(root):
     for name in ("front.png","side.png","back.png"):
-        (root/name).write_bytes(b"\x89PNG\r\n\x1a\n"+b"fake-unit-test-only"*16)
+        (root/name).write_bytes(b"\x89PNG\r\n\x1a\n"+name.encode("ascii")*36)
     for name in ("measurement-source.txt","blank-photo-rights.txt","commercial-usage-license.txt"):
         (root/name).write_text("SYNTHETIC PRIVATE UNIT TEST DOCUMENT: not a licensed supplier record.\n")
     ids={"blueprintId":72,"printProviderId":4,"variantId":611}
@@ -31,6 +31,7 @@ def fixture(root):
        "physical":{
          "dimensionsMm":[380,530,95],
          "depthBasis":"sample-measured-3d-depth",
+         "catalogVariantId":611,
          "measuredVariant":"fake-variant-for-tests",
          "proceduralTote":{
            "bodyHeightMm":390,"handleDropMm":140,
@@ -78,6 +79,18 @@ class RealPackAssemblyTests(unittest.TestCase):
         _,blockers=compile_private_manifest(self.root)
         self.assertTrue(any("OWNER_SELECTION_NOT_TIED" in b for b in blockers))
         self.assertFalse((self.root/"manifest.json").exists())
+
+    def test_manufacturer_sample_must_match_actual_selected_catalog_variant(self):
+        intake=self.intake
+        intake["physical"]["catalogVariantId"]=999
+        (self.root/"intake.json").write_text(json.dumps(intake))
+        _,blockers=compile_private_manifest(self.root)
+        self.assertIn("MEASURED_PRODUCT_VARIANT_MUST_EQUAL_SELECTED_CATALOG_VARIANT",blockers)
+
+    def test_three_view_copies_are_not_proof_of_three_blank_angles(self):
+        (self.root/"back.png").write_bytes((self.root/"front.png").read_bytes())
+        _,blockers=compile_private_manifest(self.root)
+        self.assertIn("THREE_DISTINCT_BLANK_VIEW_FILES_REQUIRED",blockers)
 
     def test_public_flat_thickness_is_not_3d_depth_evidence(self):
         intake=self.intake
