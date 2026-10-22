@@ -28,7 +28,7 @@ A prompt, request payload, GitHub README, model assertion or static `true` is **
 It depends on:
 - `ActionIdentityVerifier` tied to authenticated server-side session;
 - canonical ActionPolicy, further restricted by a domain overlay: deny non-browser type, preserve canonical DENY; turn even canonical ALLOW into `approval_required`;
-- `ApprovalReceiptVerifier` from existing Action Core, bound to action/owner/type/fingerprint with single-use consumption;
+- `ApprovalReceiptStore` from existing Action Core, composed by the factory with canonical `createApprovalReceiptVerifier`; `browserReadApprovalFingerprint` binds exact action ID, owner, timestamp, type, URL/payload, WorkSession, task and idempotency key. Receipts are single-use and must be durably/atomically consumed in real production (in-memory store is test-only);
 - existing `SupabaseAuditLedger` RPC, which must append STARTED before work and COMPLETED after work;
 - an operator-provided `BrowserWorkScopeVerifier` whose backend must validate owner-bound canonical WorkSession/task/version/lease/idempotency against durable data, rather than trust client-supplied lineage;
 - `BrowserIsolationVerifier`, described above.
@@ -41,7 +41,7 @@ The read result carries exact action, owner, WorkSession/task and idempotency li
 Action Core consumes the approval receipt *before* the handler and writes the STARTED event *before* policy execution. Duplicate use of the same approval is denied. A completed fetch followed by audit failure returns `ACTION_COMPLETED_AUDIT_FAILED`, not a fictitious fetch failure; retrying with the consumed receipt does not repeat the fetch. Multi-worker durable idempotency beyond single-use approval must be validated on actual Supabase and provider storage and never inferred from a mocked unit test.
 
 ## CI / code proof
-`apps/jhadina-agent-runtime/src/governance/BrowserReadActionComposition.test.ts` exercises canonical ALLOW still requiring explicit receipt; verified identity; approved first read and digest; consumed-receipt replay denial; policy DENY; changed-URL fingerprint rejection; scope failure; missing/stale/forged isolation; wrong action domain; missing task lineage; started audit failure; completed-read audit failure. Uses fake DNS/transport/host attestation/Supabase audit RPC: **no live external network or account operation**.
+`apps/jhadina-agent-runtime/src/governance/BrowserReadActionComposition.test.ts` exercises canonical ALLOW still requiring explicit receipt; verified identity; approved first read and digest; consumed-receipt replay denial; policy DENY; changed-URL, WorkSession/task/idempotency/timestamp fingerprint rejection; scope failure; missing/stale/forged isolation; wrong action domain; missing task lineage; started audit failure; completed-read audit failure. Uses fake DNS/transport/host attestation/Supabase audit RPC: **no live external network or account operation**.
 
 The existing `.github/workflows/jh-muse-parity-ci.yml` includes the new test alongside prior `.01–.06` tests. Exact-head CI is required, not an older SHA's green check. Tests do not establish live Supabase RLS, network jail, DNS rebind, secure identity verifier, trusted attestation issuer, isolated deployment or physical iPhone acceptance.
 
