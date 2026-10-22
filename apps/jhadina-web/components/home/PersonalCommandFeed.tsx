@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { baseStories } from './storyCatalog';
 import { HOME_FEED_SOURCES, type FeedSource, type Story } from './storyTypes';
 import styles from './PersonalCommandFeed.module.css';
-import {selectHomeStories, type FeedOrdering, type FeedView} from './feedPresentation';
+import {selectHomeStories,searchHomeStories, type FeedOrdering, type FeedView} from './feedPresentation';
 import {presentSavedFeed,type SavedFeedRead} from './savedFeedPresentation';
 import {publicAuthorStories, type PublicPreviewProvider} from './publicAuthorStories';
 
@@ -364,6 +364,7 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
   const [selected,setSelected]=useState<Story|null>(null)
   const [publicProvider,setPublicProvider]=useState<PublicPreviewProvider>("bluesky")
   const [publicHandle,setPublicHandle]=useState("")
+  const [feedSearch,setFeedSearch]=useState("")
   const [publicStories,setPublicStories]=useState<Story[]>([])
   const [publicPreviewMessage,setPublicPreviewMessage]=useState("")
   const [publicPreviewLoading,setPublicPreviewLoading]=useState(false)
@@ -414,8 +415,8 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
   },[selected])
   const stories=useMemo(()=>{
     const all=[...publicStories,...savedFeed.stories,...socialStories,...youtubeStories,...moneyStories,...opportunityStories,...tvStories,...(growthStory?[growthStory]:[])]
-    return selectHomeStories(all,view,source??platform,ordering)
-  },[publicStories,savedFeed.stories,socialStories,youtubeStories,moneyStories,opportunityStories,tvStories,growthStory,view,platform,source,ordering])
+    return searchHomeStories(selectHomeStories(all,view,source??platform,ordering),feedSearch)
+  },[publicStories,savedFeed.stories,socialStories,youtubeStories,moneyStories,opportunityStories,tvStories,growthStory,view,platform,source,ordering,feedSearch])
   // Keep the filter palette proportional to connected/recently observed sources.
   // Other platforms belong in the Connections screen until they have real data.
   const sourceChoices:FeedSource[] = ["All",...HOME_FEED_SOURCES.filter(item=>{
@@ -441,9 +442,9 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
     <div role="tablist" aria-label="Choose what to see" className={styles.primaryFilters}>
       {views.map(([key,label])=><button type="button" role="tab" aria-selected={view===key} key={key} className={view===key?styles.filterActive:styles.filter} onClick={()=>{setView(key);setPlatform("All")}}>{label}</button>)}
     </div>
-    <div className={styles.orderControl}><label htmlFor="jh-feed-order">Show</label><select id="jh-feed-order" value={ordering} onChange={event=>setOrdering(event.target.value as FeedOrdering)}><option value="latest">Latest first</option><option value="balanced">Mix sources evenly</option></select><span>Only observed updates; no inferred likes or personality tracking.</span></div>
+    <div className={styles.orderControl}><label htmlFor="jh-feed-order">Show</label><select id="jh-feed-order" value={ordering} onChange={event=>setOrdering(event.target.value as FeedOrdering)}><option value="latest">Latest first</option><option value="balanced">Mix sources evenly</option></select><label htmlFor="jh-feed-search">Search these posts</label><input id="jh-feed-search" className={styles.previewInput} type="search" maxLength={80} value={feedSearch} onChange={event=>setFeedSearch(event.target.value)} placeholder="Search this feed"/><span>Only observed updates; no inferred likes or personality tracking.</span></div>
     <details className={styles.sourceDetails}>
-      <summary>Preview public Bluesky or Mastodon posts on Home</summary>
+      <summary>Preview public Bluesky, Mastodon or GitHub activity on Home</summary>
       <form onSubmit={event=>{event.preventDefault();void loadPublicPreview()}}>
        <div className={styles.orderControl}>
         <label htmlFor="jh-public-provider">Network</label>
@@ -454,11 +455,11 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
           setPublicPreviewLoading(false)
           setPublicPreviewMessage("")
         }}>
-         <option value="bluesky">Bluesky</option><option value="mastodon">Mastodon.social</option>
+         <option value="bluesky">Bluesky</option><option value="mastodon">Mastodon.social</option><option value="github">GitHub public</option>
         </select>
         <label htmlFor="jh-public-handle">Public account</label>
         <input id="jh-public-handle" className={styles.previewInput} value={publicHandle}
-         maxLength={250} placeholder={publicProvider==="bluesky"?"name.bsky.social":"name"}
+         maxLength={250} placeholder={publicProvider==="bluesky"?"name.bsky.social":publicProvider==="github"?"GitHub username":"name"}
          onChange={event=>setPublicHandle(event.target.value)}/>
         <button type="submit" className={styles.action} disabled={!publicHandle.trim()||publicPreviewLoading}>
          {publicPreviewLoading?"Checking…":"Show posts"}
@@ -467,7 +468,7 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
        </div>
       </form>
       <p className={styles.sourceNote} role="status">{publicPreviewMessage||
-       "Optional public author preview only. This does not sign in, sync your Following feed, or save a subscription."}</p>
+       "Optional public activity preview only. This does not sign in, sync a private timeline, or save a subscription."}</p>
     </details>
     <details className={styles.sourceDetails}>
       <summary>Filter by platform {platform!=="All"?"· "+platform:""} <span aria-hidden="true">⌄</span></summary>
