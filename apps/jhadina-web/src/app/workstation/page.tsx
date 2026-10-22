@@ -303,6 +303,9 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
           key={timelineKey}
           projectId={projectId}
           durationSeconds={timelineRef.current.durationSeconds}
+          fps={timelineRef.current.fps}
+          width={timelineRef.current.width}
+          height={timelineRef.current.height}
           tracks={timelineTracks}
           revision={timelineRevision}
           versions={timelineRef.current.versions}
