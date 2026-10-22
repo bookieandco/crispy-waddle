@@ -106,9 +106,19 @@ try {
         const selected = page.getByRole("navigation", { name: "Jhadina worlds" })
           .locator('a[href=' + JSON.stringify(destination) + ']')
         await selected.click()
+        // Security settings require a verified Supabase owner even though the
+        // local production-bundle browser harness bypasses only middleware.
+        // Do not treat a proper owner-auth redirect as a broken link.
+        if (destination === "/settings/security") {
+          await page.waitForURL(url => url.pathname === "/login" &&
+            url.searchParams.get("next") === destination, { timeout: 15000 })
+          assert.equal(await page.getByRole("navigation", { name: "Primary navigation" }).count(), 0,
+            "The owner-login page must hide the shell")
+          console.log("PASS owner-gated destination", destination)
+          continue
+        }
         await page.waitForURL(url => url.pathname + url.search === destination, { timeout: 15000 })
-        assert.equal(await page.getByRole("navigation", { name: "Primary navigation" }).count(), 1,
-          "Shell absent after visiting " + destination)
+        await page.getByRole("navigation", { name: "Primary navigation" }).waitFor({ state: "visible" })
         assert(!(await page.locator("body").innerText()).includes("This page could not be found"),
           "Destination returned Next.js not found: " + destination)
         console.log("PASS shell destination", destination)
