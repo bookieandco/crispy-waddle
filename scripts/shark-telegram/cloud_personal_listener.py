@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import getpass
 import os
 from pathlib import Path
 import re
@@ -114,7 +115,12 @@ async def enroll(root: Path, env: dict[str, str]) -> None:
     client = TelegramClient(str(root / "owner"), int(env["TELEGRAM_API_ID"]),
                             env["TELEGRAM_API_HASH"])
     try:
-        await client.start()
+        # Hide phone, verification code and 2FA even from terminal scrollback.
+        await client.start(
+            phone=lambda: getpass.getpass("Telegram phone (hidden): "),
+            code_callback=lambda: getpass.getpass("Telegram code (hidden): "),
+            password=lambda: getpass.getpass("Telegram 2FA (hidden): "),
+        )
         verify_telegram_user_identity(
             await client.get_me(), env["TELEGRAM_ALLOWED_USER_ID"])
     finally:
