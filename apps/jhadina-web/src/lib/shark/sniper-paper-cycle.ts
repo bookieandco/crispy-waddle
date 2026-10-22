@@ -1,4 +1,6 @@
 import {assessSniperLiveRisk,type RugProtectionInput,type SniperVerifiedEvidence} from '@jhadina/shark-intelligence-core/meme-trader'
+import {fuseSniperIntelligence,type SniperIntelObservation,type SniperIntelFusion} from './sniper-intel-fusion'
+import type {SharkShadowCounterfactualLesson} from '@jhadina/money-core'
 import {
  compareSniperLandingRoutes,runSniperPaperRoundTrip,acceptSniperLiveWiringPaper,
  type SniperLandingObservation,type SniperRouteStudyCandidate,
@@ -10,6 +12,7 @@ import {
 export type SniperPaperCycleResult=Readonly<{
   tokenAddress:string
   disposition:'NO_TRADE'|'PAPER_RECORDED'
+  intel:SniperIntelFusion
   risk:ReturnType<typeof assessSniperLiveRisk>
   route:ReturnType<typeof compareSniperLandingRoutes>
   paper?:SniperPaperTradeReceipt
@@ -48,6 +51,9 @@ export function runSniperPaperCycle(input:{
  latency?:SniperLatencyReceipt
  exitDecision?:SniperExitDecision
  evidenceIds:readonly string[]
+ /** Snapshot / prior lessons are research-only; they never alter the hard safety gate. */
+ intelObservations?:readonly SniperIntelObservation[]
+ priorShadowLessons?:readonly SharkShadowCounterfactualLesson[]
 }):SniperPaperCycleResult{
  const risk=assessSniperLiveRisk({
   evidence:input.riskEvidence,rug:input.rugInput,now:input.now,
@@ -57,6 +63,11 @@ export function runSniperPaperCycle(input:{
  if(risk.tokenAddress!==input.tokenAddress||!input.tradeId.trim()||!input.evidenceIds.length){
   throw new Error('SNIPER_PAPER_CYCLE_IDENTITY_INVALID')
  }
+ const intelFor=(paper?:SniperPaperTradeReceipt)=>fuseSniperIntelligence({
+  decisionId:input.tradeId,tokenAddress:input.tokenAddress,chainId:'solana-mainnet',
+  cutoff:input.now,risk,observations:input.intelObservations,
+  priorShadowLessons:input.priorShadowLessons,paper,
+ })
  const route=compareSniperLandingRoutes({
   candidates:input.landingCandidates,observations:input.landingObservations,cutoff:input.now,
   maxQuoteAgeMs:input.maxQuoteAgeMs,notionalLamports:input.notionalLamports,
@@ -69,7 +80,7 @@ export function runSniperPaperCycle(input:{
  if(reasons.length){
   return Object.freeze({
    tokenAddress:input.tokenAddress,disposition:'NO_TRADE',
-   risk,route,reasonCodes:Object.freeze([...new Set(reasons)]),
+   risk,intel:intelFor(),route,reasonCodes:Object.freeze([...new Set(reasons)]),
    authority:'SHARK_MONEY_PAPER_ONLY',canExecute:false,
   })
  }
@@ -85,7 +96,7 @@ export function runSniperPaperCycle(input:{
   exit:input.exitDecision,evidenceIds:input.evidenceIds,
  })
  return Object.freeze({
-  tokenAddress:input.tokenAddress,disposition:'PAPER_RECORDED',risk,route,paper,acceptance,
+  tokenAddress:input.tokenAddress,disposition:'PAPER_RECORDED',risk,intel:intelFor(paper),route,paper,acceptance,
   reasonCodes:Object.freeze([...acceptance.reasonCodes]),
   authority:'SHARK_MONEY_PAPER_ONLY',canExecute:false,
  })
