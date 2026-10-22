@@ -6,6 +6,7 @@ import {
   type ActionHandler,
   type ActionLedger,
   type ActionPolicy,
+  type ActionRequest,
   type ApprovalReceiptStore,
 } from "@jhadina/action-core"
 import {
@@ -333,7 +334,7 @@ export async function approvePaidCampaign(
   }
 
   const actionIdentity = {
-    verify: (r: ReturnType<typeof actionRequest>) => deps.identityVerifier.verify({ userId: r.userId }),
+    verify: (r: ActionRequest<PaidAdPublishAction>) => deps.identityVerifier.verify({ userId: r.userId }),
   }
   const executor = new VerifiedActionExecutor(actionIdentity, deps.policy, deps.ledger, [handler], verifier)
   const result = await executor.execute({
