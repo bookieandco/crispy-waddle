@@ -58,8 +58,12 @@ def body_ring(width, depth, z, frac, segments=8):
             theta=start + (math.pi / 2) * (k / segments)
             x=cx + r * math.cos(theta)
             y=cy + r * math.sin(theta)
-            # Fold amplitude below 0.8% of the bag depth.
-            y+= .006 * depth * math.sin(4 * math.pi * x/width) * math.sin(math.pi*frac)
+            # Local soft textile waves: vanish at the top/bottom so the
+            # measurements and rim stay stable. This is an illustrative
+            # drape, NOT a physical supplier simulation or print-safe UV.
+            panel_wave=math.sin(math.pi*frac)**2
+            y+= .027*depth*math.sin(4*math.pi*x/width)*panel_wave
+            y+= .010*depth*math.sin(9*math.pi*x/width+.25)*panel_wave
             result.append((x,y,z))
     return result
 
@@ -90,9 +94,12 @@ def build_geometry(physical_mm, spec):
     z0=-total_h/2
     for j in range(body_steps+1):
         f=j/body_steps
-        # Gentle hem taper instead of a cuboid. Width broadest near top.
+        # A lightly gathered bottom and full-width upper panel; this is
+        # style geometry to be compared with actual SKU photos, not a source
+        # of manufacturer-certified shape.
         shaped_w=width * (.965 + .035*f)
-        ring=body_ring(shaped_w,depth,z0+body_h*f,f)
+        shaped_d=depth * (.84 + .16*f)
+        ring=body_ring(shaped_w,shaped_d,z0+body_h*f,f)
         assert len(ring)==ring_len
         for i,p in enumerate(ring):
             append(p,(i/ring_len,f))
@@ -103,24 +110,48 @@ def build_geometry(physical_mm, spec):
                 c=j*ring_len+(i+1)%ring_len
                 d=j*ring_len+i
                 faces.extend(((a,b,d),(b,c,d)))
+    # Folded inner hem, 7 mm below the upper outer edge. A visible rim
+    # makes the opening less like a paper-thin rigid slab. It remains one
+    # mesh so the existing Printify 3D viewer contract is unchanged.
+    lip_start=len(verts)
+    top_z=z0+body_h
+    inner_ring=body_ring(width-.004,depth-.004,top_z-.007,1.0)
+    for i,p in enumerate(inner_ring):
+        append(p,(i/ring_len,1.0))
+        outer=(body_steps*ring_len)+i
+        # The face will be joined below in a second pass to connect neighbors.
+    for i in range(ring_len):
+        j=(i+1)%ring_len
+        outer=body_steps*ring_len+i
+        outer_next=body_steps*ring_len+j
+        inner=lip_start+i
+        inner_next=lip_start+j
+        faces.extend(((outer,outer_next,inner),
+                      (outer_next,inner_next,inner)))
     # Bottom side is capped; bag top remains open intentionally.
     center=append((0,0,z0),(.5,.5))
     for i in range(ring_len):
         faces.append((center,(i+1)%ring_len,i))
-    # Two natural fabric handles, one on each physical side. They meet the
-    # top seam but remain separately constructed islands pending retopology.
+    # Two raised ribbon handles: anchors sit inside the front and back
+    # panels below the folded hem rather than only touching a top corner.
+    # Their arc reaches the verified overall height exactly; not a guessed
+    # extra dimension. Island attachment and stitch pattern still need QA.
     for side in (-1,1):
         start_index=len(verts)
         sections=48
         for n in range(sections+1):
             t=n/sections
             x=spacing*(t-.5)
-            z=z0+body_h+drop*math.sin(math.pi*t)
+            insert=min(.034,body_h*.095)
+            z=top_z-insert+(drop+insert)*math.sin(math.pi*t)
             dx=spacing
-            dz=drop*math.pi*math.cos(math.pi*t)
+            dz=(drop+insert)*math.pi*math.cos(math.pi*t)
             norm=math.hypot(dx,dz)
             nx,nz=-dz/norm,dx/norm
-            y=side*(depth/2+thickness*.3)
+            y=side*(depth/2+thickness*.62)
+            # The ribbons lean forward very slightly around the shoulder.
+            # Both rise to the same measured peak; no hidden model scaling.
+            y+=side*(.013*depth)*math.sin(math.pi*t)
             for yoff in (-thickness/2,thickness/2):
                 for sign in (-1,1):
                     append((x+sign*strap*nx/2,y+yoff,z+sign*strap*nz/2),
@@ -132,6 +163,23 @@ def build_geometry(physical_mm, spec):
                           (a+2,a+3,b+2),(a+3,b+3,b+2),
                           (a,a+2,b),(a+2,b+2,b),
                           (a+1,b+1,a+3),(a+3,b+1,b+3)))
+    # Four small raised reinforcement overlays at strap landings. Their
+    # size is proportional to supplier-verified strap width, not presented
+    # as a factory stitch specification. No textile decals are generated.
+    patch_w=min(strap*1.22,spacing*.30)
+    patch_h=min(body_h*.13,.044)
+    top=top_z-.014
+    for side in (-1,1):
+        for xmid in (-spacing/2,spacing/2):
+            y=side*(depth/2+thickness*.9)
+            base=len(verts)
+            for x,z,u,v in ((xmid-patch_w/2,top-patch_h,0,0),
+                            (xmid+patch_w/2,top-patch_h,1,0),
+                            (xmid+patch_w/2,top,1,1),
+                            (xmid-patch_w/2,top,0,1)):
+                append((x,y,z),(u,v))
+            # Double-sided one-material PBR permits front/back panel visibility.
+            faces.extend(((base,base+1,base+2),(base,base+2,base+3)))
     return {"vertices":verts,"faces":faces,"uv":uv,"units":"meters",
             "source":"supplier-metrics-required","storefrontApproved":False,
             "watertightApproved":False,"printifyPrintZoneCertified":False}
