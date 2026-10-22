@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabasePublicConfig } from "@/lib/supabase/public-config";
 import { isVerifiedPersonalOwner } from "@/lib/auth/personal-owner";
@@ -12,7 +12,7 @@ export function EmailLinkInBrowser({ next }: { next: string }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
-  async function verify(event: React.FormEvent<HTMLFormElement>) {
+  async function verify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
     setBusy(true);
