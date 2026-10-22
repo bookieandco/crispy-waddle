@@ -47,7 +47,7 @@ function parseReceipt(value: unknown): ApprovalReceipt {
   if (!Number.isFinite(Date.parse(String(row.expires_at)))) {
     throw new Error("ACTION_APPROVAL_RPC_RECEIPT_INVALID")
   }
-  const receipt = row as ReceiptRow
+  const receipt = row as unknown as ReceiptRow
   return {
     id: receipt.id,
     actionId: receipt.action_id,
