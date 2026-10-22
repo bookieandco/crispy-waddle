@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {
- planProcurementSourceRecovery,reconcileProcurementNotice,verifyProcurementProviders,
+ planProcurementSourceRecovery,reconcileProcurementNotice,extractOfficialBuyerContacts,verifyProcurementProviders,
  reviewProcurementCommercial,prepareProcurementBidPacket,
  type ProcurementDocument,type ProcurementCostEvidence,
 } from './procurement-commissioning.js'
@@ -35,6 +35,15 @@ assert.equal(notice.selectedDeadline,'2026-11-03T11:00:00-08:00')
 assert.equal(notice.buyerContacts.length,1)
 assert.equal(notice.documents.length,2)
 assert.equal(notice.bidSubmissionAuthorized,false)
+assert.equal(extractOfficialBuyerContacts('Webmaster: hi@example.gov').length,0)
+const extracted=extractOfficialBuyerContacts('Contracting Officer: Alex Rivera\\nEmail: alex.rivera@school.example.gov\\nPhone: (951) 555-0199')
+assert.equal(extracted.length,1)
+assert.equal(extracted[0]?.email,'alex.rivera@school.example.gov')
+const textContactNotice=reconcileProcurementNotice('school-123',[
+ {...documents[0]!,buyerContacts:[],bodyText:'Buyer: Alex Rivera\\nEmail: alex.rivera@school.example.gov\\nPhone: (951) 555-0199'}
+],now)
+assert.equal(textContactNotice.buyerContacts[0]?.name,'Alex Rivera')
+
 const unknown=reconcileProcurementNotice('school-123',[documents[2]!],now)
 assert.equal(unknown.status,'review_required')
 assert.ok(unknown.blockers.some(s=>s.includes('official')))
