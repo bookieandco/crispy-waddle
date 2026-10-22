@@ -39,6 +39,7 @@ assert.equal(extractOfficialBuyerContacts('Webmaster: hi@example.gov').length,0)
 const extracted=extractOfficialBuyerContacts('Contracting Officer: Alex Rivera\nEmail: alex.rivera@school.example.gov\nPhone: (951) 555-0199')
 assert.equal(extracted.length,1)
 assert.equal(extracted[0]?.email,'alex.rivera@school.example.gov')
+assert.equal(extractOfficialBuyerContacts('CONTACT INFORMATION|4|APBB.07|YIS|(445) 737-3576|KAILEIGH.BLAKER@DLA.MIL')[0]?.email,'KAILEIGH.BLAKER@DLA.MIL')
 const textContactNotice=reconcileProcurementNotice('school-123',[
  {...documents[0]!,buyerContacts:[],bodyText:'Buyer: Alex Rivera\nEmail: alex.rivera@school.example.gov\nPhone: (951) 555-0199'}
 ],now)
