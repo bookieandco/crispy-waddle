@@ -68,7 +68,10 @@ class ToteCpuTests(unittest.TestCase):
         self.assertEqual(len(model["vertices"]),len(model["uv"]))
         bounds=measured_bounds(model)
         self.assertAlmostEqual(bounds[0],DIMS[0]/1000,delta=.012)
-        self.assertAlmostEqual(bounds[2],DIMS[1]/1000,delta=.007)
+        # Vertical dimensions are supplier-fixed. The strap thickness
+        # must NOT silently increase the overall height beyond this.
+        self.assertAlmostEqual(bounds[2],DIMS[1]/1000,delta=.0005)
+        self.assertLessEqual(bounds[2],DIMS[1]/1000+.0005)
         # No handle/patch component may turn the finished tote into
         # materially thicker geometry than its supplier dimension envelope.
         self.assertLessEqual(bounds[1],DIMS[2]/1000*1.035)
@@ -83,7 +86,19 @@ class ToteCpuTests(unittest.TestCase):
         bounds=measured_bounds(thin)
         self.assertGreater(bounds[1],.008)
         self.assertLessEqual(bounds[1],.0094)
-        self.assertAlmostEqual(bounds[2],.46,delta=.006)
+        self.assertAlmostEqual(bounds[2],.46,delta=.0005)
+        self.assertLessEqual(bounds[2],.4605)
+
+    def test_wide_and_narrow_approved_straps_do_not_overrun_measured_height(self):
+        for strap_mm in (8,12,22,32,42):
+            with self.subTest(strapWidthMm=strap_mm):
+                spec={**SPEC,"strapWidthMm":strap_mm,
+                      "handleAnchorSpacingMm":180}
+                model=build_geometry(DIMS,spec)
+                bounds=measured_bounds(model)
+                self.assertAlmostEqual(bounds[2],.530,delta=.0005)
+                self.assertLessEqual(bounds[2],.5305)
+                self.assertFalse(model["storefrontApproved"])
 
     def test_existing_product_dimensions_or_no_source_pack_fail_closed(self):
         with tempfile.TemporaryDirectory() as directory:
