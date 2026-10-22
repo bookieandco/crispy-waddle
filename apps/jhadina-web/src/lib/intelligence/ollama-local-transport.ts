@@ -1,4 +1,5 @@
 import type { LocalInferenceTransport } from "@jhadina/intelligence-core"
+import { assessLocalModelHost } from "./model-host-audit"
 
 /**
  * The Ollama daemon is NOT an Internet service. Production may contact only
@@ -9,6 +10,7 @@ import type { LocalInferenceTransport } from "@jhadina/intelligence-core"
 export type LocalModelConnection = Readonly<{
  baseUrl:string
  model:string
+ hostId?:string
  allowedHost?:string
  token?:string
  accessClientId?:string
@@ -19,6 +21,7 @@ type FetchLike = typeof fetch
 
 export function resolveLocalModelConnection(env?:{
  JHADINA_LOCAL_MODEL_URL?:string;JHADINA_LOCAL_MODEL_NAME?:string;
+ JHADINA_LOCAL_MODEL_HOST_ID?:string;
  JHADINA_LOCAL_MODEL_ALLOWED_HOST?:string;JHADINA_LOCAL_MODEL_GATEWAY_TOKEN?:string;
  JHADINA_LOCAL_MODEL_ACCESS_CLIENT_ID?:string;JHADINA_LOCAL_MODEL_ACCESS_CLIENT_SECRET?:string;
  NODE_ENV?:string;
@@ -26,6 +29,7 @@ export function resolveLocalModelConnection(env?:{
  env=env??{
   JHADINA_LOCAL_MODEL_URL:process.env.JHADINA_LOCAL_MODEL_URL,
   JHADINA_LOCAL_MODEL_NAME:process.env.JHADINA_LOCAL_MODEL_NAME,
+  JHADINA_LOCAL_MODEL_HOST_ID:process.env.JHADINA_LOCAL_MODEL_HOST_ID,
   JHADINA_LOCAL_MODEL_ALLOWED_HOST:process.env.JHADINA_LOCAL_MODEL_ALLOWED_HOST,
   JHADINA_LOCAL_MODEL_GATEWAY_TOKEN:process.env.JHADINA_LOCAL_MODEL_GATEWAY_TOKEN,
   JHADINA_LOCAL_MODEL_ACCESS_CLIENT_ID:process.env.JHADINA_LOCAL_MODEL_ACCESS_CLIENT_ID,
@@ -35,7 +39,7 @@ export function resolveLocalModelConnection(env?:{
  const baseUrl=env.JHADINA_LOCAL_MODEL_URL?.trim()
  const model=env.JHADINA_LOCAL_MODEL_NAME?.trim()
  if(!baseUrl || !model)return null
- return {baseUrl,model,allowedHost:env.JHADINA_LOCAL_MODEL_ALLOWED_HOST?.trim(),
+ return {baseUrl,model,hostId:env.JHADINA_LOCAL_MODEL_HOST_ID?.trim(),allowedHost:env.JHADINA_LOCAL_MODEL_ALLOWED_HOST?.trim(),
    token:env.JHADINA_LOCAL_MODEL_GATEWAY_TOKEN?.trim(),
    accessClientId:env.JHADINA_LOCAL_MODEL_ACCESS_CLIENT_ID?.trim(),
    accessClientSecret:env.JHADINA_LOCAL_MODEL_ACCESS_CLIENT_SECRET?.trim(),
@@ -43,6 +47,9 @@ export function resolveLocalModelConnection(env?:{
 }
 
 export function validateLocalModelEndpoint(connection:LocalModelConnection):URL {
+ const host=assessLocalModelHost(connection.hostId)
+ if(!host.permittedForCandidateConfiguration)
+  throw Error(host.readiness==="AUDIT_REPAIR_PENDING"?"LOCAL_MODEL_HOST_AUDIT_HOLD":"LOCAL_MODEL_HOST_ID_REQUIRED")
  if(!/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,119}$/.test(connection.model))throw Error("LOCAL_MODEL_NAME_INVALID")
  let target:URL
  try{target=new URL(connection.baseUrl)}catch{throw Error("LOCAL_MODEL_URL_INVALID")}
