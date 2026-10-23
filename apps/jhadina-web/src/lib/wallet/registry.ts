@@ -26,7 +26,10 @@ export function loadRegisteredWallets(): RegisteredWallet[] {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as unknown
-    return Array.isArray(parsed) ? (parsed as RegisteredWallet[]) : []
+    return Array.isArray(parsed) ? (parsed as RegisteredWallet[]).filter(item =>
+      item && typeof item.address === 'string' && item.provider === 'phantom'
+    ).map(item => ({...item, connectionState: 'connected-unverified' as const,
+      tradingEnabled: false as const})) : []
   } catch {
     return []
   }
@@ -60,19 +63,9 @@ export function registerWallet(input: {
   return wallet
 }
 
-export function markWalletOwnershipVerified(walletId: string, now = new Date().toISOString()): RegisteredWallet | null {
-  const wallet = loadRegisteredWallets().find((item) => item.walletId === walletId)
-  if (!wallet || typeof window === 'undefined') return wallet ?? null
-
-  const updated: RegisteredWallet = {
-    ...wallet,
-    connectionState: 'ownership-verified',
-    lastSeenAt: now,
-  }
-  const wallets = loadRegisteredWallets().map((item) => item.walletId === walletId ? updated : item)
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(wallets))
-  return updated
-}
+// A browser-local flag or stale signature is NEVER an ownership credential.
+// Server confirmation is only shown in live component state after an authenticated
+// GET/POST to /api/wallet/ownership; durable proof lives in Supabase exclusively.
 
 export function removeRegisteredWallet(walletId: string): void {
   if (typeof window === 'undefined') return
