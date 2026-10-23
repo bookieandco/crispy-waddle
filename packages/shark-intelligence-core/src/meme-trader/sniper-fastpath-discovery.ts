@@ -74,11 +74,12 @@ export class SniperFastpathDiscoveryIntake {
     }
     if(this.seen.has(key))return finish('DUPLICATE',['IDENTICAL_CHAIN_EVENT'])
     if(this.seen.size>=(this.config.maxKeys??4096))return finish('DROPPED_CAPACITY',['DISCOVERY_DEDUPE_CAPACITY'])
-    this.seen.set(key,receivedMs+ttl)
+    // A malformed local clock must not poison deduplication for the provider retry.
     const endMonotonic=meta.nowMonotonicMs?.()??meta.finishedMonotonicMs
     if(!Number.isFinite(endMonotonic)||endMonotonic<meta.startedMonotonicMs){
       return finish('INVALID',['CLOCK_INVALID'])
     }
+    this.seen.set(key,receivedMs+ttl)
     const receipt:FastpathDiscoveryReceipt=Object.freeze({
       version:SNIPER_DISCOVERY_VERSION,observationId:launch.observation.observationId,
       mint:launch.observation.tokenAddress,signature:event.signature,slot:event.slot,
@@ -88,7 +89,13 @@ export class SniperFastpathDiscoveryIntake {
       evidenceIds:Object.freeze([...launch.observation.evidenceIds]),
       verification:'PROVISIONAL_UNVERIFIED',authority:'DISCOVERY_EVIDENCE_ONLY',canTrade:false,
     })
-    this.config.onObserved?.(receipt,launch)
+    try{
+      this.config.onObserved?.(receipt,launch)
+    }catch(error){
+      // An observer failure must not suppress the same event on redelivery.
+      this.seen.delete(key)
+      throw error
+    }
     return finish('OBSERVED',[],receipt)
   }
 }
