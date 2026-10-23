@@ -75,7 +75,10 @@ jobs:
         run: pnpm --filter @jhadina/money-core test
 
       - name: Money product-boundary tests
-        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/money/command-center-model.test.ts src/lib/money/governed-account-read-runtime.test.ts src/lib/money/live-operations-product-model.test.ts src/lib/money/shark-coffer-opportunity-repository.test.ts src/lib/money/shark-coffer-runtime-repository.test.ts src/lib/money/shark-coffer-runtime-worker.test.ts src/lib/money/shark-coffer-commissioning.test.ts src/lib/money/phantom-ownership-proof.test.ts src/lib/money/phantom-wallet.test.ts src/app/api/money/wallet-connections/route.test.ts src/app/api/money/wallet-connections/challenge/route.test.ts
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/money/command-center-model.test.ts src/lib/money/governed-account-read-runtime.test.ts src/lib/money/live-operations-product-model.test.ts src/lib/money/shark-coffer-opportunity-repository.test.ts src/lib/money/shark-coffer-runtime-repository.test.ts src/lib/money/shark-coffer-runtime-worker.test.ts src/lib/money/shark-coffer-commissioning.test.ts src/lib/money/phantom-ownership-proof.test.ts src/lib/money/phantom-wallet.test.ts src/app/api/money/wallet-connections/route.test.ts src/app/api/money/wallet-connections/challenge/route.test.ts src/lib/money/wallet-readonly-observer.test.ts src/app/api/money/wallet-observation/route.test.ts
+
+      - name: Phantom observer to SHARK paper and rug-risk regression (no signing)
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/shark/sniper-paper-cycle.test.ts src/lib/shark/sniper-intel-fusion.test.ts
 
       - name: Money web type-check
         run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.money.json

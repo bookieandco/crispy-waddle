@@ -7,6 +7,13 @@ import {
 } from '@/lib/money/phantom-wallet'
 
 type SavedConnection={address:string;status:'ACTIVE'|'DISCONNECTED'|'REVOKED'}
+type ChainObservation={
+ address:string;observedAt:string;balanceLamports:string;balanceSlot:number;
+ recentTransactions:readonly {signature:string;slot:number;blockTime:number|null;failed:boolean}[];
+ source:'SOLANA_MAINNET_RPC';authority:'OBSERVATION_ONLY';canSign:false;canTrade:false;
+}
+type ChainReply={success:boolean;data?:{observation:ChainObservation};error?:string}
+const solAmount=(lamports:string)=>{const n=BigInt(lamports);return (n/1000000000n).toString()+'.'+(n%1000000000n).toString().padStart(9,'0').replace(/0+$/,'').padEnd(1,'0')}
 type WalletReply={
  success:boolean
  data?:{connections?:SavedConnection[];challengeId?:string;message?:string;expiresAt?:string;address?:string}
@@ -39,6 +46,9 @@ export function PhantomWalletCard({savedConnection}:{savedConnection?:SavedConne
  const [busy,setBusy]=useState(false)
  const [stage,setStage]=useState('')
  const [error,setError]=useState('')
+ const [chain,setChain]=useState<ChainObservation|null>(null)
+ const [chainBusy,setChainBusy]=useState(false)
+ const [chainError,setChainError]=useState('')
  const connected=Boolean(saved&&active===saved)
 
  const refresh=useCallback(async()=>{
@@ -50,6 +60,7 @@ export function PhantomWalletCard({savedConnection}:{savedConnection?:SavedConne
   ])
   const stored=wallets.connections?.find(x=>x.status==='ACTIVE')
   setSaved(stored?.address??null)
+  setChain(previous=>previous?.address===stored?.address?previous:null)
   setActive(local??null)
  },[])
 
@@ -77,6 +88,24 @@ export function PhantomWalletCard({savedConnection}:{savedConnection?:SavedConne
   }
  },[refresh])
 
+ const refreshChain=async()=>{
+  if(!saved)return
+  setChainBusy(true);setChainError('')
+  try{
+   const response=await fetch('/api/money/wallet-observation',{
+    method:'GET',credentials:'same-origin',cache:'no-store',
+   })
+   const result=await response.json() as ChainReply
+   if(!response.ok||!result.success||!result.data?.observation){
+    throw new Error(result.error??'Read-only wallet observation unavailable')
+   }
+   if(result.data.observation.address!==saved)throw new Error('Wallet changed during observation')
+   setChain(result.data.observation)
+  }catch(e){
+   setChain(null)
+   setChainError(e instanceof Error?readable(e.message):'Wallet observation unavailable')
+  }finally{setChainBusy(false)}
+ }
  const connect=async()=>{
   setBusy(true);setError('')
   try{
@@ -96,7 +125,7 @@ export function PhantomWalletCard({savedConnection}:{savedConnection?:SavedConne
      challengeId:challenge.challengeId,signatureBase64,
     }),
    })
-   setSaved(connection.address);setActive(connection.address)
+   setSaved(connection.address);setActive(connection.address);setChain(null)
   }catch(e){setError(readable(e instanceof Error?e.message:'Could not verify Phantom'))}
   finally{setStage('');setBusy(false)}
  }
@@ -110,7 +139,7 @@ export function PhantomWalletCard({savedConnection}:{savedConnection?:SavedConne
     method:'DELETE',body:JSON.stringify({address:saved}),
    })
    if(active===saved)await disconnectPhantomSolana().catch(()=>{})
-   setSaved(null);setActive(null)
+   setSaved(null);setActive(null);setChain(null);setChainError('')
   }catch(e){setError(readable(e instanceof Error?e.message:'Could not disconnect Phantom'))}
   finally{setBusy(false)}
  }
@@ -135,7 +164,23 @@ export function PhantomWalletCard({savedConnection}:{savedConnection?:SavedConne
    </button>}
    {saved&&<button type="button" onClick={disconnect} disabled={busy||initializing} style={secondaryButton}>Disconnect</button>}
    {!providerAvailable&&<button type="button" onClick={open} disabled={busy} style={secondaryButton}>Open in Phantom</button>}
+   {saved&&<button type="button" onClick={refreshChain} disabled={busy||initializing||chainBusy} style={secondaryButton}>
+    {chainBusy?'Reading Solana…':'Refresh SOL & recent activity'}
+   </button>}
   </div>
+  {chainError&&<p role="alert" style={alert}>Chain read unavailable: {chainError}. Your verified wallet connection is unchanged.</p>}
+  {chain&&saved===chain.address&&<section aria-label="Read-only Solana activity" style={{borderTop:'1px solid #dce2dd',paddingTop:12,display:'grid',gap:6}}>
+   <strong style={{fontSize:20}}>{solAmount(chain.balanceLamports)} SOL</strong>
+   <small style={fine}>Confirmed Solana RPC balance at slot {chain.balanceSlot}; observed {new Date(chain.observedAt).toLocaleString()}.</small>
+   <div style={muted}>Recent signature records ({chain.recentTransactions.length}, up to 10):</div>
+   {chain.recentTransactions.length===0?<small style={fine}>No recent signatures reported.</small>:
+    <ul style={{margin:0,paddingLeft:18}}>
+     {chain.recentTransactions.map(tx=><li key={tx.signature} style={fine}>
+      <code>{short(tx.signature)}</code> · slot {tx.slot} · {tx.failed?'failed':'reported'} · {tx.blockTime?new Date(tx.blockTime*1000).toLocaleString():'time unavailable'}
+     </li>)}
+    </ul>}
+   <small style={fine}>Observation only. Signatures do not establish transfers, token holdings, cost basis, or trading profits. SHARK/Shadow research has no signing authority.</small>
+  </section>}
   <small style={fine}>On iPhone, open Jhadina inside Phantom&apos;s in-app browser. Your seed phrase stays in Phantom. Money Core cannot sign, trade, or move funds from this connection.</small>
  </article>
 }
