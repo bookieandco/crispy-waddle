@@ -13,7 +13,10 @@ export function passkeyErrorMessage(error: unknown): string {
   if (code === "webauthn_credential_exists") return "This passkey is already registered. You can use it to sign in.";
   if (code === "webauthn_challenge_expired") return "The request expired. Please try again.";
   if (code === "webauthn_credential_not_found") return "No matching passkey was found. Sign in once to set one up.";
-  if (name === "NotAllowedError" || code === "ERROR_CEREMONY_ABORTED") return "Passkey request cancelled or timed out. You can try again.";
+  if (name === "NotAllowedError" || code === "ERROR_CEREMONY_ABORTED") return "Passkey request cancelled, timed out, or no matching passkey was available. Use your one-time email link below to get back in and set up Face ID on this device.";
+  if (name === "SecurityError") return "This browser address cannot use the registered passkey. Open Jhadina at its permanent sign-in address or use the email recovery below.";
+  if (name === "InvalidStateError" || name === "NotFoundError") return "No usable passkey was selected on this device. Sign in with email below, then add a passkey in Security Settings.";
+  if (error instanceof Error && error.message === "PASSKEY_SESSION_UNVERIFIED") return "Face ID completed but a verified session was not established. Use your email link below to sign in securely.";
   if (error instanceof Error && error.message === "PASSKEY_OWNER_REQUIRED") return "This passkey is not associated with the verified Jhadina owner account.";
   return "Could not verify your passkey. Please try again or use another sign-in method.";
 }

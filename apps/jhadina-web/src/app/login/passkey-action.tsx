@@ -48,6 +48,7 @@ export function PasskeyAction({ mode = "signin", next = "/" }: { mode?: "signin"
       <p style={{ margin: 0 }}>Use Face ID, Touch ID, or your device’s unlock code. Your biometric data stays on your device.</p>
       {supported === false && <p role="status">Passkeys are unavailable in this browser. Open Jhadina in a supported browser on your device.</p>}
       {message && <p role={success ? "status" : "alert"}>{message}</p>}
+      {message && !success && mode === "signin" && <a href="#owner-email-signin" style={{ textDecoration: "underline", fontWeight: 650 }}>Sign in with my verified email instead</a>}
     </section>
   );
 }

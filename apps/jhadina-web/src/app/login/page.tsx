@@ -4,6 +4,9 @@ import { safeAuthNext } from "@/lib/auth/passkey";
 import { login, sendOwnerSignInLink } from "./actions";
 import { JHADINA_PERSONAL_OWNER_EMAIL } from "@/lib/auth/personal-owner";
 import { authPageErrorMessage } from "@/lib/auth/login-outage";
+import { createClient } from "@/lib/supabase/server";
+import { isVerifiedPersonalOwner } from "@/lib/auth/personal-owner";
+import { redirect } from "next/navigation";
 
 type LoginPageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -13,11 +16,27 @@ function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export default function LoginPage({ searchParams = {} }: LoginPageProps) {
+export const dynamic = "force-dynamic";
+
+export default async function LoginPage({ searchParams = {} }: LoginPageProps) {
   const error = first(searchParams.error);
   const message = first(searchParams.message);
-  const next = safeAuthNext(first(searchParams.next));
+  const requestedNext = safeAuthNext(first(searchParams.next));
+  const next = requestedNext === "/login" || requestedNext.startsWith("/login?") ? "/" : requestedNext;
   const settingUpPasskey = next === "/settings/security";
+
+  // Reusing a valid owner cookie must never start a second Face ID/OTP flow.
+  // A failed Auth lookup must still fail closed and show the login form.
+  try {
+    const supabase = await createClient();
+    const { data, error: sessionError } = await supabase.auth.getUser();
+    if (!sessionError && isVerifiedPersonalOwner(data.user)) redirect(next);
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error &&
+        String(error.digest).startsWith("NEXT_REDIRECT")) throw error;
+    // No verified owner session: show the ordinary sign-in choices.
+  }
+
 
   return (
     <main className="jh-page"><div className="jh-auth-card">
@@ -28,19 +47,19 @@ export default function LoginPage({ searchParams = {} }: LoginPageProps) {
       {message && <p role="status">{message === "check_email" ? "Check your email for the confirmation link." : message === "password_changed" ? "Password updated. Sign in with your new password." : "Your request has been received."}</p>}
 
       <PasskeyAction next={next} />
-      <details open={settingUpPasskey}><summary>First visit · Set up Face ID</summary>
-      <section style={{ display: "grid", gap: 14, marginTop: 24, padding: 16, border: "1px solid #54765d", borderRadius: 16 }}>
-        <h2 style={{ margin: 0, fontSize: 20 }}>First-time access</h2>
-        <p style={{ margin: 0 }}>Use one verified email link to enter, then add Face ID in Security Settings. If Supabase has temporarily reached its email quota, wait before requesting another; existing password sign-in remains available below.</p>
+      <section id="owner-email-signin" aria-label="Email sign-in recovery" style={{ display: "grid", gap: 12, marginTop: 20, padding: 16, border: "1px solid #54765d", borderRadius: 16 }}>
+        <h2 style={{ margin: 0, fontSize: 20 }}>Face ID not working?</h2>
+        <p style={{ margin: 0 }}>Use one verified email link to enter your workspace. Once inside, open Security Settings to add or replace the Apple Passwords passkey on this device.</p>
         <form action={sendOwnerSignInLink} style={{ display: "grid", gap: 12 }}>
+          <input type="hidden" name="next" value={next} />
           <label style={{ display: "grid", gap: 6 }}>
             Owner email
             <input name="email" type="email" autoComplete="email" readOnly value={JHADINA_PERSONAL_OWNER_EMAIL} style={{ padding: 13, minHeight: 48, width: "100%" }} />
           </label>
           <button type="submit" style={{ padding: "12px 20px", minHeight: 50, borderRadius: 12, fontWeight: 700 }}>Email my one-time sign-in link</button>
         </form>
+        <p style={{ margin: 0, fontSize: 14 }}>If an email limit is reached, use your existing password below rather than requesting more links.</p>
       </section>
-      </details>
       <details style={{ marginTop: 22 }}>
         <summary style={{ cursor: "pointer", padding: "8px 0" }}>Use an existing password (optional recovery)</summary>
       <form action={login} style={{ display: "grid", gap: 14, marginTop: 24 }}>

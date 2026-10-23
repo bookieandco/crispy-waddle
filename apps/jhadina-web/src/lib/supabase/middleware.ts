@@ -95,7 +95,14 @@ export async function updateSession(request: NextRequest) {
     redirect.pathname = "/login";
     redirect.searchParams.set("next", pathname);
     if (user && !isPersonalOwner) redirect.searchParams.set("error", "owner_access_required");
-    return NextResponse.redirect(redirect);
+    // Supabase SSR may have refreshed the cookie while inspecting the request.
+    // Losing Set-Cookie on the redirect forces the next iPhone visit to re-authenticate.
+    // Carry only the response cookies to this same-origin login redirect; never
+    // allow a failed owner check to enter a private route.
+    const denied = NextResponse.redirect(redirect);
+    response.cookies.getAll().forEach((cookie) => denied.cookies.set(cookie));
+    denied.headers.set("Cache-Control", "private, no-store");
+    return denied;
   }
 
   return response;

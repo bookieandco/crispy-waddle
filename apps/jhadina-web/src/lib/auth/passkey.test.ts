@@ -60,6 +60,9 @@ describe("passkey authentication boundary", () => {
   it("shows useful cancellation/configuration errors without echoing provider details", () => {
     expect(passkeyErrorMessage({ code: "passkey_disabled" })).toContain("not enabled");
     expect(passkeyErrorMessage({ name: "NotAllowedError" })).toContain("cancelled");
+    expect(passkeyErrorMessage({ name: "SecurityError" })).toContain("browser address");
+    expect(passkeyErrorMessage({ name: "NotFoundError" })).toContain("No usable passkey");
+    expect(passkeyErrorMessage(new Error("PASSKEY_SESSION_UNVERIFIED"))).toContain("session");
     expect(passkeyErrorMessage(new Error("sensitive internal detail"))).not.toContain("sensitive");
   });
 });
