@@ -35,6 +35,14 @@ describe("Jhadina owner build entry",()=>{
   }
   expect(mocks.redirect).not.toHaveBeenCalled();
  });
+ it("shows direct email recovery when Face ID fails and preserves procurement destination",async()=>{
+  mocks.getUser.mockResolvedValueOnce({data:{user:null},error:{message:"missing owner session"}});
+  const page=await LoginPage({searchParams:{next:"/opportunity/procurement?state=CA",recover:"1"}});
+  const details=page.props.children.props.children.find((node:unknown)=>typeof node==="object"&&node!==null&&
+   "props" in node&&(node as {props:{id?:string}}).props.id==="email-signin");
+  expect(details?.props.open).toBe(true);
+  expect(mocks.redirect).not.toHaveBeenCalled();
+ });
  it("does not follow a cross-site next URL even for the valid owner",async()=>{
   mocks.getUser.mockResolvedValue({data:{user:{
    id:"owner",email:"dorianmorris8@icloud.com",
