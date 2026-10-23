@@ -83,7 +83,7 @@ export function assessRegionalPrimeChannel(input:{
  if(!o.writtenQuotesComplete)blockers.push('scope_specific_firm_quote_missing')
  const isConstruction=o.kind==='public_works_construction'
  const mayInstall=o.kind==='goods_with_possible_installation'||o.kind==='unknown'
- const isTradeRole=o.role==='licensed_general_prime'||o.role==='licensed_trade_sub'
+ const isTradeRole=input.role==='licensed_general_prime'||input.role==='licensed_trade_sub'
  if(isConstruction){
   if(!o.currentLicensesVerified)blockers.push('scope_specific_active_trade_license_missing')
   if(!o.currentDirRegistrationVerified)blockers.push('current_dir_public_works_registration_missing')
@@ -92,10 +92,10 @@ export function assessRegionalPrimeChannel(input:{
  if(mayInstall&&!o.installationAndPrevailingWageClassificationVerified)
   blockers.push('installation_may_trigger_public_works_obligations')
  if(isTradeRole&&!o.currentLicensesVerified)blockers.push('construction_prime_license_not_proven')
- if((o.role==='authorized_dealer_or_distributor'||o.role==='local_prime_teaming')&&
+ if((input.role==='authorized_dealer_or_distributor'||input.role==='local_prime_teaming')&&
    !o.partnerOrManufacturerAuthorizationVerified)
   blockers.push('manufacturer_or_prime_consent_missing')
- if(o.role==='cooperative_vehicle'&&!o.bidderRoleApprovedInTerms)
+ if(input.role==='cooperative_vehicle'&&!o.bidderRoleApprovedInTerms)
   blockers.push('cooperative_purchasing_vehicle_not_buyer_authorized')
  return {opportunityId:o.opportunityId,kind:o.kind,role:input.role,
   reviewedForHumanDecision:blockers.length===0,blockers:[...new Set(blockers)],
