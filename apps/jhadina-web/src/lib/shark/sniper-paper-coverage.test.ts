@@ -57,7 +57,7 @@ describe('CONTINUITY.14 prospective paper denominator',()=>{
  it('rejects signatures or purse authority in forged journal view',()=>{
   expect(()=>summarizeSniperPaperCoverage([
    {...receipt('evil','PAPER_RECORDED'),canTrade:true} as unknown as SniperPaperMonitorRecord,
-  ],'2026-10-23T00:01:00Z')).not.toThrow()
+  ],'2026-10-23T00:01:00Z')).toThrow('PROVENANCE_INVALID')
   expect(()=>summarizeSniperPaperCoverage([
    {...receipt('evil','PAPER_RECORDED'),canCreditPurse:true} as unknown as SniperPaperMonitorRecord,
   ],'2026-10-23T00:01:00Z')).toThrow('PROVENANCE_INVALID')
