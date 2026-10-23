@@ -115,7 +115,7 @@ export async function runSniperLivePaperTick(input:SniperPaperMonitorInput,deps:
     row=receipt(item.workId,decisionTime,'CHAIN_PROOF_REQUIRED',[
      'PUBLIC_PRICE_NOT_CHAIN_ATTESTATION','REAL_BUY_SELL_QUOTE_NOT_PROVIDED',
     ])
-   }else if(decisionTime!==candidate.canonicalPaper.now||
+   }else if(Date.parse(decisionTime)!==Date.parse(candidate.canonicalPaper.now)||
      Date.parse(decisionTime)-startMs>8000){
     // Never apply a pre-network risk/quote snapshot to a post-network fill.
     // Caller must gather fresh canonical evidence under the new cutoff.
