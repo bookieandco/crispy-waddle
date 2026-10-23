@@ -175,6 +175,23 @@ try {
     assert.equal(await page.getByRole("navigation", { name: "Primary navigation" }).count(), 0,
       "Private login must not show OS navigation")
     assert(await page.getByRole("button", { name: /Unlock with Face ID \/ passkey/ }).count() === 1)
+    // Auth regression contract: keep recovery visible, preserve safe routes,
+    // and avoid losing the login controls across a browser refresh. This does
+    // not simulate Face ID or assert possession of an owner credential.
+    const emailRecovery = page.getByRole("region", { name: "Email sign-in recovery" })
+    assert.equal(await emailRecovery.count(), 1, "Owner email recovery must not be collapsed")
+    assert.equal(await emailRecovery.getByRole("button", { name: "Email my one-time sign-in link" }).count(), 1)
+    assert.equal(await emailRecovery.locator('input[name="email"]').getAttribute("readonly"), "")
+    await page.reload({ waitUntil: "domcontentloaded" })
+    assert.equal(await page.getByRole("button", { name: /Unlock with Face ID \\/ passkey/ }).count(), 1)
+    assert.equal(await page.getByRole("region", { name: "Email sign-in recovery" }).count(), 1)
+    await visit(page, "/login?next=%2Fask-jhadina")
+    assert.equal(await page.getByRole("region", { name: "Email sign-in recovery" })
+      .locator('input[name="next"]').inputValue(), "/ask-jhadina")
+    await visit(page, "/login?next=https%3A%2F%2Fexample.org")
+    assert.equal(await page.getByRole("region", { name: "Email sign-in recovery" })
+      .locator('input[name="next"]').inputValue(), "/", "Do not honor external login destinations")
+    await visit(page, "/login")
     await noHorizontalOverflow(page, size.name + " login")
     await page.screenshot({ path: new URL(size.name + "-login.png", out).pathname })
     console.log("PASS", size.name, "App/Pages nav, menu bounds/scroll, keyboard, demo, login")
