@@ -209,6 +209,8 @@ export function reviewSniperOnchainSettlement(input:{
  if(!a||a.executionId!==i.executionId||a.walletConnectionId!==i.walletConnectionId||
    a.idempotencyKey!==i.idempotencyKey||a.inputMint!==i.inputMint||
    a.outputMint!==i.outputMint||a.inputAmountAtomic!==i.inputAmountAtomic||
+   a.leg!==i.leg||a.signerLeaseId!==i.signerLeaseId||
+   a.runLineageId!==i.runLineageId||
    a.authority!=='EXECUTION_ATTEMPT_ONLY'){
   reasons.push('ATTEMPT_NOT_RECONCILED_TO_INTENT')
  }
@@ -221,8 +223,8 @@ export function reviewSniperOnchainSettlement(input:{
    o.outputCreditAtomic<i.minimumOutputAtomic)reasons.push('ONCHAIN_DEBIT_OR_MINIMUM_OUTPUT_MISMATCH')
  if(a?.simulatedFeeLamports===undefined||o?.feeLamports!==a.simulatedFeeLamports)
   reasons.push('FEE_NOT_RECONCILED')
- if(a&&['SIGNED','SIMULATED','SUBMITTED','UNKNOWN'].includes(a.state))
-  reasons.push('CANONICAL_RUNTIME_RECONCILIATION_REQUIRED')
+ if(a&&a.state!=='RECONCILED')reasons.push('CANONICAL_RUNTIME_RECONCILIATION_REQUIRED')
+ if(o?.feeLamports!==undefined&&o.feeLamports<0n)reasons.push('NEGATIVE_ONCHAIN_FEE')
  const state:SniperSettlementReview['state']=!a||!o||!o.found||!o.confirmed?
   'PENDING_RECONCILIATION':reasons.length?'FAILED_OR_UNKNOWN':'MATCHED_OBSERVATION'
  return Object.freeze({
