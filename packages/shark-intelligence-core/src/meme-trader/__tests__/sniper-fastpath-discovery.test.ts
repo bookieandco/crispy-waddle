@@ -19,6 +19,20 @@ describe('SHARK sniper event-first intake',()=>{
   expect(intake.ingest({events:{token:{mint:'TOKEN'}}},clock).disposition).toBe('INVALID')
   expect(intake.ingest({...event,timestamp:1788307300},clock).reasonCodes).toContain('PROVIDER_TIMESTAMP_IN_FUTURE')
  })
+ it('invalid local time does not poison the following delivery',()=>{
+  const intake=new SniperFastpathDiscoveryIntake()
+  expect(intake.ingest(event,{...clock,nowMonotonicMs:()=>99}).disposition).toBe('INVALID')
+  expect(intake.ingest(event,clock).disposition).toBe('OBSERVED')
+ })
+ it('observer rejection allows provider redelivery instead of a silent duplicate',()=>{
+  let fail=true
+  const intake=new SniperFastpathDiscoveryIntake({onObserved:()=>{
+   if(fail)throw new Error('observer failed')
+  }})
+  expect(()=>intake.ingest(event,clock)).toThrow('observer failed')
+  fail=false
+  expect(intake.ingest(event,clock).disposition).toBe('OBSERVED')
+ })
  it('respects bounded deduplication capacity and TTL without assuming an executable order',()=>{
   const intake=new SniperFastpathDiscoveryIntake({maxKeys:1,dedupeTtlMs:1000})
   expect(intake.ingest(event,clock).disposition).toBe('OBSERVED')
