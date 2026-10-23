@@ -2,7 +2,7 @@ import {NextResponse} from 'next/server'
 import {createRequestIdentityVerifier} from '@/lib/auth/request-identity'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
 import {
- assessSourceCanary,assessPrimeQualification,assessBidEconomics,
+ assessSourceCanary,assessPrimeQualification,assessBidEconomics,prioritizeNationalProcurementBatch,
  type CostLine,type AdapterCanaryTrial,
 } from '@jhadina/opportunity-core'
 import {PUBLIC_PROCUREMENT_CANARY_NOTICES,readPublicProcurementCanary} from '@/lib/opportunities/procurement-public-canary-docket'
@@ -97,8 +97,25 @@ export async function GET(){
     nextDocuments:n.complianceEvidenceMissing,
     regionalPrimeOutreachAuthorized:false,proposalSubmissionAuthorized:false}
   })
+  const batch=prioritizeNationalProcurementBatch({asOf,maxBatch:3,candidates:[
+   ...PUBLIC_PROCUREMENT_CANARY_NOTICES.map(n=>({
+    id:n.id,state:'CA',buyer:n.buyer,publicNoticeUrl:n.noticeUrl,
+    listedDeadlineLocal:n.deadlineLocal,localTimeZone:'America/Los_Angeles',
+    officialBuyerVerified:true,
+    accessReviewed:sourceChecks.some(x=>x.sourceId===n.sourceId&&
+     'siteAccessApprovedInRegistry' in x&&x.siteAccessApprovedInRegistry===true),
+    parserCertified:false,fullSolicitationCertified:false,
+    licensedPrimeQualified:false,scopeSpecificPartnerConsent:false,firmQuoteVerified:false,
+   })),
+   {id:'RUSD-2026-27-11',state:'CA',buyer:'Riverside Unified School District',
+    publicNoticeUrl:'https://webapps.riversideunified.org/apps/planholdersregistration/BidsSelect.aspx',
+    listedDeadlineLocal:'2026-11-04T10:00:00',localTimeZone:'America/Los_Angeles',
+    officialBuyerVerified:true,accessReviewed:false,parserCertified:false,
+    fullSolicitationCertified:false,licensedPrimeQualified:false,
+    scopeSpecificPartnerConsent:false,firmQuoteVerified:false}
+  ]})
   return reply({ok:true,mode:'owner_only_read_only_acceptance',asOf,
-   sourceChecks,notices,
+   sourceChecks,notices,batch,
    prioritizedPaths:[
     {id:'OXNARD-PW-25-96',workstream:'California licensed Class A contractor plus pump/electrical subs',selection:'public_notice_only'},
     {id:'RUSD-2026-27-11',workstream:'Licensed truck dealer/upfitter and school RFQ registration',selection:'public_bid_list_only'},
