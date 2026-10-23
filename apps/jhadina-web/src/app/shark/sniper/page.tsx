@@ -13,6 +13,23 @@ export default function SniperPaperStatusPage(){
  const [busy,setBusy]=useState(false)
  const [result,setResult]=useState<PublicResult|null>(null)
  const [error,setError]=useState('')
+ const [signature,setSignature]=useState('')
+ const [slot,setSlot]=useState('')
+ const [chainResult,setChainResult]=useState<{status?:string;error?:string;verifiedSlot?:number;
+  independentlyCheckedMintInstruction?:boolean;observationKind?:string}|null>(null)
+ async function checkMintInstruction(){
+  setBusy(true);setError('');setChainResult(null)
+  const p=new URLSearchParams({signature:signature.trim(),mint:mint.trim(),slot:slot.trim()})
+  try{
+   const response=await fetch('/api/internal/shark/sniper/verify-chain?'+p.toString(),{
+    method:'GET',credentials:'same-origin',cache:'no-store',
+   })
+   const body=await response.json() as typeof chainResult & {error?:string}
+   if(!response.ok)throw new Error(body?.error??'Chain check unavailable')
+   setChainResult(body)
+  }catch(e){setError(e instanceof Error?e.message:'Chain check unavailable')}
+  finally{setBusy(false)}
+ }
  async function inspect(mode:'profiles'|'pair'){
   setBusy(true);setError('');setResult(null)
   const params=new URLSearchParams({mode})
@@ -63,6 +80,25 @@ export default function SniperPaperStatusPage(){
       Received: {result.pair.receivedAt}.
       Executable quote: NO. Chain proof: NO.</p>}
    </div>}
+  </section>
+  <section className="jh-card" style={{display:'grid',gap:10,marginTop:16}}>
+   <h2>Independent Solana mint-instruction check</h2>
+   <p className="jh-copy">Owner-only manual RPC verification, disabled by default.
+    Confirming a transaction does not mean a coin can be sold or profitably traded,
+    and is not evidence of 0.6-second discovery.</p>
+   <label htmlFor="sniper-signature">Transaction signature</label>
+   <input id="sniper-signature" value={signature} onChange={e=>setSignature(e.target.value)}
+    autoComplete="off" placeholder="Confirmed transaction signature"/>
+   <label htmlFor="sniper-slot">Claimed Solana slot</label>
+   <input id="sniper-slot" inputMode="numeric" value={slot} onChange={e=>setSlot(e.target.value)}
+    autoComplete="off" placeholder="Slot number"/>
+   <button type="button" disabled={busy||!mint.trim()||!signature.trim()||!slot.trim()}
+    onClick={checkMintInstruction}>Verify mint instruction · read only</button>
+   {chainResult&&<p role="status">
+    {chainResult.status??'Unknown'} · verified slot: {chainResult.verifiedSlot??'—'} ·
+    Mint initialization checked: {chainResult.independentlyCheckedMintInstruction?'Yes':'No'} ·
+    Research only; no trade authority
+   </p>}
   </section>
   <section className="jh-card" style={{marginTop:16}}>
    <h2>Trading and learning status</h2>
