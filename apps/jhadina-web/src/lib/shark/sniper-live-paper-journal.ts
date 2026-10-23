@@ -18,13 +18,13 @@ async function privateDir(directory:string){
  if(await realpath(directory)!==directory)throw Error('SNIPER_PAPER_DIR_ALIAS_INVALID')
 }
 function verify(r:SniperPaperMonitorRecord){
- if(!r.recordId.startsWith('sniper-paper:')||!r.workId.trim()||
+ if(r.recordId!=='sniper-paper:'+r.workId+':'+r.observedAt||!r.workId.trim()||
     !Number.isFinite(Date.parse(r.observedAt))||
     r.authority!=='PAPER_RESEARCH_ONLY'||r.canExecute!==false||
     r.canSign!==false||r.canCreditPurse!==false||
     !Array.isArray(r.reasonCodes)||r.reasonCodes.length>64||
     !['EXIT_REVIEW','PUBLIC_PRICE_ONLY','MISSING_PUBLIC_PAIR','CHAIN_PROOF_REQUIRED',
-      'PAPER_RECORDED','NO_TRADE'].includes(r.outcome)){
+      'PAPER_RECORDED','NO_TRADE','ENTRY_EXPIRED'].includes(r.outcome)){
   throw Error('SNIPER_PAPER_JOURNAL_RECORD_INVALID')
  }
 }
@@ -62,6 +62,12 @@ export function createFileSniperPaperMonitorStore(directory:string):SniperPaperM
    }catch(err){
     if(file){try{await file.close()}catch{}}
     if((err as NodeJS.ErrnoException).code!=='EEXIST')throw err
+    // Never follow an existing symlink or reuse an insecure/corrupt receipt.
+    // Owner-only directory permissions are necessary but not sufficient.
+    const stat=await lstat(target)
+    if(!stat.isFile()||stat.isSymbolicLink()||(stat.mode&0o077)!==0||stat.size>maxBytes){
+     throw Error('SNIPER_PAPER_JOURNAL_FILE_UNSAFE')
+    }
     const original=fromEnvelope(await readFile(target,'utf8'))
     if(original.recordId!==record.recordId||utf8(original)!==utf8(record)){
      throw Error('SNIPER_PAPER_JOURNAL_REPLAY_CONFLICT')
