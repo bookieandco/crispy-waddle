@@ -14,6 +14,12 @@ assert.equal(r.considered,4)
 assert.equal(r.skippedAfterBatch,2)
 assert.equal(r.selected[0]?.canEnterManualResearch,true)
 assert.equal(r.sourceJobsActivated,0)
+assert.equal(r.selected[0]?.publicNoticeUrl,'https://oxnard.gov/notice')
+const urgent=prioritizeNationalProcurementBatch({candidates:[
+ {...seed('Later'),listedDeadlineLocal:'2026-11-16T14:00:00'},
+ {...seed('Earlier'),listedDeadlineLocal:'2026-10-28T14:00:00'}
+],asOf:'2026-10-22T19:00:00Z'})
+assert.equal(urgent.selected[0]?.id,'Earlier')
 assert.equal(r.outreachAuthorized,false)
 assert.ok(r.selected.every(x=>x.bidSubmissionAuthorized===false&&x.paymentAuthorized===false))
 const expired=prioritizeNationalProcurementBatch({candidates:[{...seed('Old'),listedDeadlineLocal:'2026-10-20T12:00:00'}],asOf:'2026-10-22T19:00:00Z'})
