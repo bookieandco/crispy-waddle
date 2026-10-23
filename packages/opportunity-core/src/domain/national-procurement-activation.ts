@@ -28,23 +28,31 @@ export function assessSourceCanary(input:{
  if(s.adapterKey!==input.expectedAdapterKey)blockers.push('exact_parser_version_not_commissioned');
  if(input.trials.length<3)blockers.push('three_independent_live_trials_required');
  const relevant=input.trials.filter(t=>t.adapterKey===input.expectedAdapterKey);
- const distinct=new Set(relevant.map(t=>t.id));
- const instants=new Set(relevant.map(t=>t.observedAt));
  const good=relevant.filter(t=>t.httpStatus===200&&t.parseSucceeded&&
   t.accessReviewApproved&&t.provenanceComplete&&t.duplicateExternalIdCount===0&&
   t.observationCount>0&&t.stableExternalIdCount>=t.observationCount);
- if(good.length<3||distinct.size<3||instants.size<3)
+ const distinctGoodIds=new Set(good.map(t=>t.id));
+ const distinctGoodInstants=new Set(good.map(t=>t.observedAt));
+ if(good.length<3||distinctGoodIds.size<3||distinctGoodInstants.size<3)
   blockers.push('three_distinct_successful_exact_parser_trials_required');
  if(input.trials.some(t=>t.httpStatus===403))blockers.push('source_http_403_requires_access_remediation');
  if(input.trials.some(t=>t.errorCode?.startsWith('robots_')))blockers.push('robots_access_deny_requires_owner_review');
- if(!input.fullBidDocumentsVerified)blockers.push('full_buyer_planholder_bid_package_missing');
- if(!s.certifiedAt)blockers.push('source_not_commissioned');
- // A fully evidenced assessment still cannot itself authorize a DB status change.
+ // Feed parsing eligibility is separate from full bidding-package certification.
+ const bidPackageBlockers=input.fullBidDocumentsVerified?[]:['full_buyer_planholder_bid_package_missing'];
+ const sourceCommissioningBlockers=[...new Set(blockers)];
+ const registryReportsCertified=Boolean(s.certifiedAt)&&s.adapterStatus==='active';
+ const sourceCertificationEvidenceComplete=sourceCommissioningBlockers.length===0;
+ const certificationReconciled=registryReportsCertified&&sourceCertificationEvidenceComplete;
+ if(!s.certifiedAt)sourceCommissioningBlockers.push('source_not_commissioned');
+ // Still a read-only evaluation: full evidence is never authorization to set
+ // adapter_status='active', crawl a source, place bids or send outreach.
  return {sourceId:s.sourceId,readOnlyTrialCount:input.trials.length,
   successfulExactParserTrials:good.length,
   siteAccessApprovedInRegistry:['approved_public_official','approved_platform'].includes(s.accessReviewStatus),
-  sourceCertifiedNow:Boolean(s.certifiedAt)&&s.adapterStatus==='active',
-  blockers:[...new Set(blockers)],
+  registryReportsCertified,sourceCertificationEvidenceComplete,certificationReconciled,
+  sourceCertifiedNow:certificationReconciled,
+  bidPackageVerified:input.fullBidDocumentsVerified,bidPackageBlockers,
+  blockers:sourceCommissioningBlockers,
   disposition:!s.officiallyVerified?'block':'research_only',
   liveFeedActivationAuthorized:false,externalFetchAuthorized:false,
   buyerContactAuthorized:false,bidSubmissionAuthorized:false};
