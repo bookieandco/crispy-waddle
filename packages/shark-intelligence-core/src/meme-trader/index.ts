@@ -72,3 +72,8 @@ export * from './stalkchain-trader-intelligence'
 export * from './stalkchain-token-intelligence'
 export * from './stalkchain-shadow-learning'
 export * from './stalkchain-research-runtime'
+
+// Public catalyst intelligence: pure, metadata-only, paper/research outputs.
+export * from './attention-research'
+export * from './attention-position'
+export * from './attention-paper-evaluation'
