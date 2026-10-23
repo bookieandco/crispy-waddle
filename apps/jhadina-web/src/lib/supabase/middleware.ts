@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabasePublicConfig } from "./public-config";
 import { isVerifiedPersonalOwner } from "@/lib/auth/personal-owner";
+import { safeAuthNext } from "@/lib/auth/passkey";
 
 const SELF_AUTHENTICATED_MACHINE_ROUTES = new Set([
   "/api/health",
@@ -92,10 +93,16 @@ export async function updateSession(request: NextRequest) {
 
   if ((!user || !isPersonalOwner) && !isPublicRoute) {
     const redirect = request.nextUrl.clone();
+    const requestedPage = safeAuthNext(pathname + request.nextUrl.search);
     redirect.pathname = "/login";
-    redirect.searchParams.set("next", pathname);
+    redirect.search = "";
+    redirect.hash = "";
+    redirect.searchParams.set("next", requestedPage);
     if (user && !isPersonalOwner) redirect.searchParams.set("error", "owner_access_required");
-    return NextResponse.redirect(redirect);
+    return NextResponse.redirect(redirect, { headers: {
+      "Cache-Control": "private, no-store",
+      "Referrer-Policy": "no-referrer",
+    } });
   }
 
   return response;

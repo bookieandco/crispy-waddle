@@ -24,9 +24,18 @@ export async function GET(request:NextRequest){
     const batchSize=boundedParam(request.nextUrl.searchParams.get('batchSize'),10,1,25)
     const convergence=request.nextUrl.searchParams.get('mode')==='converge'
     const batches=boundedParam(request.nextUrl.searchParams.get('batches'),1,1,80)
+    const recoverIdsRaw=request.nextUrl.searchParams.get('recoverIds')
+    const recoverySourceIds=recoverIdsRaw?.split(',').map(id=>id.trim()).filter(Boolean)
+    if(recoverIdsRaw!==null){
+      if(!state||!convergence||batches!==1||!recoverySourceIds?.length||recoverySourceIds.length>20||
+         new Set(recoverySourceIds).size!==recoverySourceIds.length||
+         recoverySourceIds.some(id=>id.length>256||!/^[a-zA-Z0-9:_.-]+$/.test(id))){
+        return NextResponse.json({ok:false,error:'scoped_recovery_requires_state_converge_and_1_to_20_unique_ids'},{status:400})
+      }
+    }
     if(batches>1&&!state)return NextResponse.json({ok:false,error:'state_required_for_multi_batch'},{status:400})
     if(batches===1){
-      const result=await runPublicAdapterShadowBatch(client,{state,batchSize,convergence})
+      const result=await runPublicAdapterShadowBatch(client,{state,batchSize:recoverySourceIds?.length??batchSize,convergence,recoverySourceIds})
       return NextResponse.json({ok:true,result},{headers:{'cache-control':'no-store'}})
     }
     const started=Date.now()

@@ -98,6 +98,52 @@ describe('Supabase middleware Director certification behavior',()=>{
     expect(mocks.createServerClient).toHaveBeenCalledOnce();
   });
 
+  it('preserves the exact build destination and query on private owner login, without leaking source query fields',async()=>{
+    mocks.createServerClient.mockReturnValue({
+      auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:null}})},
+    });
+    const response=await updateSession(new NextRequest('https://example.com/opportunity/procurement?state=CA&review=well20'));
+    expect(response.status).toBe(307);
+    const destination=new URL(response.headers.get('location')!);
+    expect(destination.pathname).toBe('/login');
+    expect(destination.searchParams.get('next')).toBe('/opportunity/procurement?state=CA&review=well20');
+    expect(destination.searchParams.has('state')).toBe(false);
+    expect(destination.searchParams.has('review')).toBe(false);
+    expect(response.headers.get('cache-control')).toBe('private, no-store');
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer');
+  });
+
+  it('reuses provider-verified owner sessions across protected build pages',async()=>{
+    const getUser=vi.fn().mockResolvedValue({data:{user:{
+      id:'u',email:'dorianmorris8@icloud.com',
+      email_confirmed_at:'2026-10-20T07:00:00Z',is_anonymous:false,
+    }},error:null});
+    mocks.createServerClient.mockReturnValue({
+      auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:{sub:'u'}}}),getUser},
+    });
+    const response=await updateSession(new NextRequest('https://example.com/opportunity/procurement?state=CA'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    expect(getUser).toHaveBeenCalledOnce();
+  });
+
+  it('never grants anonymous build shortcuts or admits a wrong owner session',async()=>{
+    mocks.createServerClient.mockReturnValue({
+      auth:{
+        getClaims:vi.fn().mockResolvedValue({data:{claims:{sub:'other'}}}),
+        getUser:vi.fn().mockResolvedValue({data:{user:{
+          id:'other',email:'intruder@example.test',
+          email_confirmed_at:'2026-10-20T07:00:00Z',is_anonymous:false,
+        }},error:null}),
+      },
+    });
+    const response=await updateSession(new NextRequest('https://example.com/opportunity/procurement'));
+    expect(response.status).toBe(307);
+    const location=new URL(response.headers.get('location')!);
+    expect(location.searchParams.get('error')).toBe('owner_access_required');
+    expect(location.searchParams.get('next')).toBe('/opportunity/procurement');
+  });
+
   it('keeps the fixed Bonez voice-candidate bootstrap outside interactive auth',async()=>{
     const response=await updateSession(new NextRequest('https://example.com/api/director/bonez/voice-audition/bootstrap'));
     expect(response.status).toBe(200);

@@ -17,6 +17,7 @@ export async function requestPasswordReset(formData: FormData) {
     appUrl: process.env.NEXT_PUBLIC_APP_URL,
     vercelEnv: process.env.VERCEL_ENV,
     vercelUrl: process.env.VERCEL_URL,
+    vercelBranchUrl: process.env.VERCEL_BRANCH_URL,
   });
 
   try {

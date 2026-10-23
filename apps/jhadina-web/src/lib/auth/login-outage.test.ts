@@ -26,6 +26,20 @@ describe("phone login and signup during Supabase outages", () => {
     expect(authPageErrorMessage("recovery_rate_limited")).toContain("Too many");
   });
 
+  it("chooses only a verified project-scoped stable Git branch hostname for previews", () => {
+    const host = "crispy-waddle-jhadina-web-git-sam-cf6308-bookieandcos-projects.vercel.app";
+    expect(authConfirmationOrigin({
+      vercelEnv:"preview",vercelBranchUrl:host,vercelUrl:"old-oneoff.vercel.app",
+    })).toBe("https://"+host);
+    expect(authConfirmationOrigin({
+      vercelEnv:"preview",vercelBranchUrl:"evil-git-branch.vercel.app",
+      vercelUrl:"old-oneoff.vercel.app",
+    })).toBe("https://old-oneoff.vercel.app");
+    expect(authConfirmationOrigin({
+      vercelEnv:"production",vercelBranchUrl:host,siteUrl:"https://jhadina.example.com",
+    })).toBe("https://jhadina.example.com");
+  });
+
   it("never uses a localhost callback in Vercel production", () => {
     expect(authConfirmationOrigin({ vercelEnv: "production" }))
       .toBe("https://crispy-waddle-jhadina-web.vercel.app");

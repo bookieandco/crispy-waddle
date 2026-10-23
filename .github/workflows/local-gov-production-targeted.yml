@@ -15,6 +15,8 @@ on:
       - "apps/jhadina-web/scripts/usac-public-vertical-probe.ts"
       - "supabase/functions/jhadina-service-proxy/**"
       - "packages/opportunity-core/src/domain/public-*.ts"
+      - "packages/opportunity-core/src/domain/national-procurement-coverage*.ts"
+      - "apps/jhadina-web/src/app/api/opportunities/procurement/coverage/**"
       - "packages/scheduler-core/src/production-scheduler-contract.test.ts"
       - "supabase/migrations/*local_gov*.sql"
   workflow_dispatch:
@@ -46,6 +48,16 @@ jobs:
           pnpm --filter @jhadina/opportunity-core exec tsx src/domain/public-adapter-commissioning.test.ts
           pnpm --filter @jhadina/opportunity-core exec tsx src/domain/public-award-prime.test.ts
           pnpm --filter @jhadina/opportunity-core exec tsx src/domain/public-prime-coverage.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/procurement-commissioning.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/procurement-pilot-commission.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/national-procurement-coverage.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/national-regional-prime.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/national-procurement-expansion.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/national-procurement-route-review.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/national-procurement-acceptance.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/national-procurement-activation.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/national-procurement-batch.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/national-procurement-working-capital.test.ts
       - name: Jhadina Web typecheck
         run: pnpm --filter @jhadina/jhadina-web type-check
       - name: OIDC proxy and public procurement regressions
@@ -54,6 +66,10 @@ jobs:
           src/lib/supabase/service-role.test.ts
           src/lib/opportunities/public-source-commissioning-runtime.test.ts
           src/lib/opportunities/public-generic-adapters.test.ts
+          src/lib/opportunities/public-rusd-bids-adapter.test.ts
+          src/lib/opportunities/public-oxnard-bids-adapter.test.ts
+          src/lib/opportunities/procurement-public-canary-docket.test.ts
+          src/lib/opportunities/public-usaspending-regional-primes.test.ts
           src/lib/opportunities/public-usac-vertical-runtime.test.ts
       - name: Direct convergence runner compile probe
         run: >-
