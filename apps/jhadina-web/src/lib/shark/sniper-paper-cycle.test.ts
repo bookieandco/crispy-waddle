@@ -69,6 +69,57 @@ describe('SHARK->Money paper->Shadow/Purse coordination',()=>{
   expect(result.intel.riskDisposition).toBe('BLOCK')
   expect(result.intel.admittedEvidenceIds).toContain('chain:actor-cluster')
  })
+ it('short-lived mint is admitted to paper only while event, risk, selected quote and order are fresh',()=>{
+  const fastlane={
+   eventObservedAt:'2026-10-21T20:00:00Z',
+   serverReceivedAt:'2026-10-21T20:00:00.600Z',
+   selectedQuoteAvailableAt:'2026-10-21T20:00:03Z',
+   selectedQuoteEvidenceId:'route:1',
+   hasOpenPosition:false,unresolvedExitAttempt:false,
+   policy:{maxOpportunityAgeMs:5000,maxProviderToReceiptMs:1500,
+    maxRiskEvidenceAgeMs:2000,maxSelectedQuoteAgeMs:2000,minOrderRemainingMs:500},
+  }
+  const admitted=runSniperPaperCycle({...standard,fastlane})
+  expect(admitted.urgency?.disposition).toBe('ENTRY_WINDOW_OPEN')
+  expect(admitted.disposition).toBe('PAPER_RECORDED')
+  expect(admitted.canExecute).toBe(false)
+  const expired=runSniperPaperCycle({...standard,fastlane:{
+   ...fastlane,eventObservedAt:'2026-10-21T19:59:00Z',
+   serverReceivedAt:'2026-10-21T19:59:00.600Z',
+  }})
+  expect(expired.disposition).toBe('NO_TRADE')
+  expect(expired.paper).toBeUndefined()
+  expect(expired.reasonCodes).toContain('OPPORTUNITY_ENTRY_WINDOW_EXPIRED')
+ })
+ it('quote evidence identity mismatch cannot be substituted for selected Money route',()=>{
+  const result=runSniperPaperCycle({...standard,fastlane:{
+   eventObservedAt:'2026-10-21T20:00:00Z',
+   serverReceivedAt:'2026-10-21T20:00:00.600Z',
+   selectedQuoteAvailableAt:'2026-10-21T20:00:03Z',
+   selectedQuoteEvidenceId:'unrelated:quote',
+   hasOpenPosition:false,unresolvedExitAttempt:false,
+   policy:{maxOpportunityAgeMs:5000,maxProviderToReceiptMs:1500,
+    maxRiskEvidenceAgeMs:2000,maxSelectedQuoteAgeMs:2000,minOrderRemainingMs:500},
+  }})
+  expect(result.disposition).toBe('NO_TRADE')
+  expect(result.reasonCodes).toContain('SELECTED_ROUTE_QUOTE_MISSING')
+  expect(result.paper).toBeUndefined()
+ })
+ it('existing positions preempt new paper entries even after coin discovery deadline',()=>{
+  const result=runSniperPaperCycle({...standard,fastlane:{
+   eventObservedAt:'2026-10-21T19:59:00Z',
+   serverReceivedAt:'2026-10-21T19:59:00.600Z',
+   selectedQuoteAvailableAt:'2026-10-21T20:00:03Z',
+   selectedQuoteEvidenceId:'route:1',
+   hasOpenPosition:true,unresolvedExitAttempt:true,
+   policy:{maxOpportunityAgeMs:5000,maxProviderToReceiptMs:1500,
+    maxRiskEvidenceAgeMs:2000,maxSelectedQuoteAgeMs:2000,minOrderRemainingMs:500},
+  }})
+  expect(result.urgency?.disposition).toBe('EXIT_PRIORITY')
+  expect(result.reasonCodes).toContain('RECONCILE_UNRESOLVED_EXIT')
+  expect(result.disposition).toBe('NO_TRADE')
+  expect(result.canExecute).toBe(false)
+ })
  it('missing reverse route cannot be mistaken for a closed position',()=>{
   const result=runSniperPaperCycle({...standard,exitRouteAttested:false})
   expect(result.paper?.status).toBe('OPEN_NO_SELL_ROUTE')

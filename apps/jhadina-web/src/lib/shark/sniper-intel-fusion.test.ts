@@ -95,7 +95,7 @@ describe('SHARK + sniper + transcript/Telegram + Shadow research fusion',()=>{
   expect(()=>fuseSniperIntelligence({...base,settlementTradeId:'decision:1',settlement:settlement({tokenAddress:'other'})})).toThrow()
   expect(()=>fuseSniperIntelligence({...base,settlementTradeId:'decision:1',settlement:settlement({settledAt:'2026-10-22T18:00:00Z'})})).toThrow()
   expect(()=>fuseSniperIntelligence({...base,settlementTradeId:'wrong-decision',settlement:settlement()})).toThrow()
-  expect(()=>fuseSniperIntelligence({...base,paper:{...paper,canExecute:true} as SniperPaperTradeReceipt})).toThrow()
+  expect(()=>fuseSniperIntelligence({...base,paper:{...paper,canExecute:true} as unknown as SniperPaperTradeReceipt})).toThrow()
  })
  it('ignores after-the-fact YouTube hype and ambiguous social claims for pretrade decisions',()=>{
   const fused=fuseSniperIntelligence({...base,observations:[

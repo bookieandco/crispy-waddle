@@ -44,3 +44,48 @@ export function summarizeSniperLatency(receipts:readonly SniperLatencyReceipt[])
   count:data.length,p50Ms:data.length?pct(.5):undefined,p95Ms:data.length?pct(.95):undefined,scope:'OBSERVED_ONLY',
  })
 }
+
+/** Compares only IDENTICAL measured stage pairs. Missing hops are never filled
+ * in, and percentiles are descriptive, not a latency guarantee. */
+export type SniperStageLatencySummary=Readonly<{
+ from:SniperStage
+ to:SniperStage
+ sampleCount:number
+ p50Ms:number
+ p95Ms:number
+ p99Ms:number
+ authority:'LATENCY_RESEARCH_ONLY'
+ canExecute:false
+}>
+export function summarizeSniperStageLatency(receipts:readonly SniperLatencyReceipt[]):readonly SniperStageLatencySummary[]{
+ if(receipts.length>100000)throw new Error('SNIPER_LATENCY_SAMPLE_LIMIT')
+ const groups=new Map<string,{from:SniperStage;to:SniperStage;values:number[]}>()
+ for(const receipt of receipts){
+  if(receipt.authority!=='LATENCY_EVIDENCE_ONLY'||receipt.canExecute!==false){
+   throw new Error('SNIPER_LATENCY_RECEIPT_INVALID')
+  }
+  for(let i=1;i<receipt.stages.length;i++){
+   const previous=receipt.stages[i-1]!,current=receipt.stages[i]!
+   const ms=current.monotonicMs-previous.monotonicMs
+   if(!Number.isFinite(ms)||ms<0)throw new Error('SNIPER_LATENCY_INTERVAL_INVALID')
+   const key=previous.stage+'->'+current.stage
+   let group=groups.get(key)
+   if(!group){
+    group={from:previous.stage,to:current.stage,values:[]}
+    groups.set(key,group)
+   }
+   group.values.push(ms)
+  }
+ }
+ const percentile=(a:readonly number[],q:number)=>a[Math.ceil(q*a.length)-1]!
+ return Object.freeze([...groups.values()].sort((a,b)=>
+  order.indexOf(a.from)-order.indexOf(b.from)||order.indexOf(a.to)-order.indexOf(b.to))
+  .map(g=>{
+   const data=g.values.sort((a,b)=>a-b)
+   return Object.freeze({
+    from:g.from,to:g.to,sampleCount:data.length,
+    p50Ms:percentile(data,.50),p95Ms:percentile(data,.95),p99Ms:percentile(data,.99),
+    authority:'LATENCY_RESEARCH_ONLY' as const,canExecute:false as const,
+   })
+  }))
+}
