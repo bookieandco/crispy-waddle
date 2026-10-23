@@ -30,7 +30,8 @@ Scope: code-only review and read-only evidence; **not** production commissioning
 
 ## .10: acceptance
 - Money R13B includes deterministic tests for onchain RPC methods, malformed records, owner isolation, observer authorization and shadow no-trade invariants.
-- Money R13B additionally runs existing SHARK sniper-paper-cycle and sniper-intel-fusion risk tests on this exact head; they certify synthetic simulation/no-signing behavior, **not real wallet-backed acceptance**. Review current PR exact-head CI before merging.
+- Money R13B additionally runs existing SHARK sniper-paper-cycle and sniper-intel-fusion risk tests on this exact head; they certify synthetic simulation/no-signing behavior, **not real wallet-backed acceptance**.
+- New SHARK .10 regression: equal-timestamp independent Shadow lessons must select the same one-per-decision evidence ID regardless of incoming row order; this changes deduplication determinism, not financial authority. Review current PR exact-head CI before merging.
 - Manual private iPhone acceptance required: sign in to Jhadina, see saved wallet, open Phantom only for provider state, tap manual refresh, verify exact address in session and compare balance/signatures with a second trusted Solana explorer. Never enter seed phrase.
 - RPC 403/429, empty history, unavailable network, expired Jhadina session and account switching must be displayed as errors, never converted to success or guessed financial figures.
 
