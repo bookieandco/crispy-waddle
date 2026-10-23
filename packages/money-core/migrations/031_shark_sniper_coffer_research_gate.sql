@@ -88,7 +88,7 @@ begin
     or p_user_id is null or length(p_user_id) not between 1 and 256
     or p_permit_id is null or length(p_permit_id) not between 4 and 256
     or p_permit_action_fingerprint is null or length(p_permit_action_fingerprint) < 16
-    or p_intent_hash !~ '^[0-9a-f]{64}
+    or p_intent_hash !~ '^[0-9a-f]{64}$'
     or p_notional_minor is null or p_notional_minor <= 0
     or p_expected_canary_version is null or p_expected_canary_version < 0
     or p_observed_at is null or p_observed_at > current_timestamp
@@ -183,105 +183,6 @@ $$;
 
 revoke all on function public.money_sniper_coffer_hold_research(
   text,text,text,text,text,text,text,text,bigint,text,integer,timestamptz)
-  from public, anon, authenticated, service_role;
--- Intentionally NO GRANT to service_role. A separately approved operator
--- must commission a least-privilege private DB role AFTER isolated tests.
--- Do not create an HTTP/REST route or grant web users execution.
-commit;
-
-    or p_notional_minor is null or p_notional_minor <= 0
-    or p_expected_canary_version is null or p_expected_canary_version < 0
-    or p_observed_at is null or p_observed_at > current_timestamp
-    or p_observed_at < current_timestamp - interval '5 seconds'
-  then
-    return query select false, 'INVALID_OR_STALE_RESEARCH_REQUEST'::text, null::text;
-    return;
-  end if;
-
-  -- Lock the ONE wallet-wide row. Concurrent research holds on any day
-  -- serialize on the same policy lock, including attempts from other hosts.
-  select * into pol from public.money_sniper_coffer_research_policy
-    where wallet_connection_id = p_wallet_connection_id for update;
-  if not found or pol.user_id <> p_user_id or pol.permanently_halted
-     or not pol.research_enabled or pol.live_signing_enabled
-     or pol.policy_hash is distinct from p_expected_policy_hash
-  then
-    return query select false, 'COFFER_RESEARCH_OWNER_POLICY_DISABLED'::text, null::text;
-    return;
-  end if;
-
-  -- Canonical Money risk state must exist with fresh metrics and no
-  -- unresolved submissions; a zero balance alone never resolves a trade.
-  select * into state_row from public.money_live_canary_state
-    where provider=pol.provider and account_id=p_wallet_connection_id
-      and trading_date=(current_timestamp at time zone 'UTC')::date
-    for update;
-  if not found or state_row.currency <> pol.currency
-     or state_row.version <> p_expected_canary_version
-     or state_row.halted or cardinality(state_row.unresolved_execution_ids) <> 0
-     or state_row.risk_metric_observed_at is null
-     or state_row.risk_metric_observed_at > current_timestamp
-     or state_row.risk_metric_observed_at < current_timestamp - interval '5 seconds'
-     or state_row.realized_loss_minor >= pol.max_loss_minor
-  then
-    return query select false, 'CANONICAL_MONEY_RISK_NOT_READY'::text, null::text;
-    return;
-  end if;
-
-  -- Existing Money permit is checked but deliberately NOT consumed here.
-  -- No transition here can authorize the existing submit/signer runtime.
-  select * into permit_row from public.money_execution_permits
-    where permit_id=p_permit_id for update;
-  if not found or permit_row.state <> 'ISSUED'
-    or permit_row.user_id <> p_user_id
-    or permit_row.provider <> pol.provider
-    or permit_row.capability <> 'money.trade.submit'
-    or permit_row.expires_at <= current_timestamp
-  then
-    return query select false, 'CANONICAL_PERMIT_NOT_READY'::text, null::text;
-    return;
-  end if;
-
-  if exists(select 1 from public.money_sniper_coffer_research_holds h
-      where h.wallet_connection_id=p_wallet_connection_id
-        and h.state <> 'RECONCILED_RESEARCH')
-  then
-    return query select false, 'PREVIOUS_ORDER_UNRECONCILED'::text, null::text;
-    return;
-  end if;
-
-  select coalesce(sum(h.notional_minor),0), count(*) into used_minor,used_count
-    from public.money_sniper_coffer_research_holds h
-    where h.wallet_connection_id=p_wallet_connection_id
-      and h.trading_day=(current_timestamp at time zone 'UTC')::date;
-  if p_notional_minor > pol.max_order_minor
-    or greatest(used_minor,state_row.submitted_notional_minor::numeric) +
-        p_notional_minor > pol.max_daily_minor
-    or used_count+1 > pol.max_order_count
-  then
-    return query select false, 'RESEARCH_EXPOSURE_CAP'::text, null::text;
-    return;
-  end if;
-
-  insert into public.money_sniper_coffer_research_holds(
-    hold_id,wallet_connection_id,idempotency_key,execution_id,permit_id,
-    user_id,provider,trading_day,currency,notional_minor,intent_hash,policy_hash
-  ) values (
-    p_hold_id,p_wallet_connection_id,p_idempotency_key,p_execution_id,p_permit_id,
-    p_user_id,pol.provider,(current_timestamp at time zone 'UTC')::date,pol.currency,
-    p_notional_minor,p_intent_hash,pol.policy_hash
-  ) on conflict do nothing;
-
-  if not found then
-    return query select false, 'DUPLICATE_OR_CONFLICTING_RESEARCH_ORDER'::text, null::text;
-    return;
-  end if;
-  return query select true, 'RESEARCH_ONLY_NO_SIGN_AUTHORITY'::text,p_hold_id;
-end;
-$$;
-
-revoke all on function public.money_sniper_coffer_hold_research(
-  text,text,text,text,text,text,text,bigint,text,integer,timestamptz)
   from public, anon, authenticated, service_role;
 -- Intentionally NO GRANT to service_role. A separately approved operator
 -- must commission a least-privilege private DB role AFTER isolated tests.
