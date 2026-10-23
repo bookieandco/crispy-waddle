@@ -129,6 +129,7 @@ export async function decodeSignerMessage(input:{
  if(r.position!==bytes.length)throw Error('SIGNER_WIRE_TRAILING_BYTES')
  if(new Set(lookups.map(x=>x.address)).size!==lookups.length)
   throw Error('SIGNER_WIRE_DUPLICATE_LOOKUP_TABLE')
+ let resolvedSlot:number|undefined
  const loadedWritable:string[]=[],loadedReadonly:string[]=[],evidence:string[]=[]
  for(const lookup of lookups){
   const proof=await input.rpc.readLookupTable(lookup.address,input.minContextSlot)
@@ -140,6 +141,9 @@ export async function decodeSignerMessage(input:{
      !Number.isSafeInteger(proof.lastExtendedSlot)||
      proof.lastExtendedSlot>=proof.contextSlot||!proof.evidenceIds.length)
    throw Error('SIGNER_ALT_INDEPENDENT_PROOF_REQUIRED')
+  if(resolvedSlot!==undefined&&proof.contextSlot!==resolvedSlot)
+   throw Error('SIGNER_ALT_INCONSISTENT_CONTEXT_SLOT')
+  resolvedSlot=proof.contextSlot
   for(const ix of lookup.writable){
    if(ix>=proof.addresses.length||!SOLANA_KEY.test(proof.addresses[ix]!))
     throw Error('SIGNER_ALT_WRITABLE_INDEX_INVALID')
