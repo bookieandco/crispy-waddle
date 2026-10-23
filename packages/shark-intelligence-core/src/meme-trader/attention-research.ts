@@ -169,7 +169,7 @@ export function assessPublicAttention(input:Readonly<{
   const events=new Set<string>()
   const claims=new Map<string,{hosts:Set<string>;count:number;retracted:boolean;latest:string}>()
   const competitors=new Map<string,{marketCap:number;volume:number;ids:string[]}>()
-  const metrics=new Map<string;PublicAttentionEvidence[]>()
+  const metrics=new Map<string,PublicAttentionEvidence[]>()
   const alerts:AttentionResearchAlert[]=[]
   const addAlert=(e:PublicAttentionEvidence,code:AttentionResearchAlert['code'],severity:AttentionResearchAlert['severity'],url:string)=>{
     alerts.push(Object.freeze({id:'attention:'+e.mint+':'+code+':'+e.eventId,mint:e.mint,code,severity,
