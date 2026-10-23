@@ -1,0 +1,28 @@
+name: SHARK GoodCrypto paper-only acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'ops/meme/shark_goodcrypto_paper.py'
+      - 'ops/meme/test_shark_goodcrypto_paper.py'
+      - 'docs/architecture/SHARK-GOODCRYPTO-01-05-2026-10-23.md'
+      - '.github/workflows/shark-goodcrypto-paper.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hermetic-paper-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile source and tests
+        run: python -m py_compile ops/meme/shark_goodcrypto_paper.py ops/meme/test_shark_goodcrypto_paper.py
+      - name: Offline acceptance
+        working-directory: ops/meme
+        run: python -m unittest -v test_shark_goodcrypto_paper.py
