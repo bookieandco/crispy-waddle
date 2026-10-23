@@ -46,7 +46,7 @@ export function compareAttentionPaperPairs(rows:readonly AttentionPaperPair[]):A
        ids.has(r.caseId)||!MINT.test(r.subjectMint)||
        r.netReturnBasis!=='HYPOTHETICAL_PAPER_COST_ASSUMPTIONS'||
        !Array.isArray(r.evidenceIds)||!r.evidenceIds.length||
-       r.evidenceIds.some(x=>typeof x!=='string'||!x||x.length>256)||
+       r.evidenceIds.some((x:unknown)=>typeof x!=='string'||!x||x.length>256)||
        !ret(r.baselineNetReturnBps)||!ret(r.attentionNetReturnBps))
       throw new Error('ATTENTION_PAPER_CASE_INVALID')
     const feature=millis(r.featureAvailableAt),decision=millis(r.decisionAt),
