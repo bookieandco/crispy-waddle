@@ -66,7 +66,7 @@ test('only canonical RECONCILED attempt plus chain matching is an observation',a
  assert.equal(r.canSubmit,false)
 })
 test('RPC timeout, missing attempts or failed settlement cannot be considered a safe replacement',async()=>{
- const missing=await reviewSniperCofferRecovery(host(undefined))
+ const missing=await reviewSniperCofferRecovery({...host(),attemptStore:{getByIdempotencyKey:async()=>undefined}})
  assert.equal(missing.status,'NO_KNOWN_ATTEMPT')
  assert.equal(missing.canRetry,false)
  const p=host()
