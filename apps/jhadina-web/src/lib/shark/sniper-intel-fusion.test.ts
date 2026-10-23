@@ -59,6 +59,11 @@ describe('SHARK + sniper + transcript/Telegram + Shadow research fusion',()=>{
   expect(fused.historicalIndependentDecisions).toBe(2)
   expect(fused.historicalLessonIds).toEqual(['l2','l3'])
   expect(fused.historicalLessonIds).not.toContain('future')
+  // Source/DB row order must not change same-timestamp lesson deduplication.
+  const reversed=fuseSniperIntelligence({...base,priorShadowLessons:[
+   lesson('d2','l3','1H'),lesson('d1','l2','1H'),lesson('d1','l1','15M'),
+  ],priorLessonProofs:[proof('d2','l3'),proof('d1','l2'),proof('d1','l1')]})
+  expect(reversed.historicalLessonIds).toEqual(['l2','l3'])
  })
  it('rejects ungraded, unsupported or legacy wrong-basis Shadow memories even if they claim profitability',()=>{
    const record=lesson('d1','legacy','15M')
