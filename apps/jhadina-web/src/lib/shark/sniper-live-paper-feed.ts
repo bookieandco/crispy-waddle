@@ -42,15 +42,15 @@ async function fixedGet(url:string,deps:SniperPublicDeps):Promise<unknown>{
   if(!r.ok)denied('HTTP_'+r.status)
   const raw=await r.text()
   if(raw.length>MAX_BYTES)denied('PAYLOAD_TOO_LARGE')
-  try{return JSON.parse(raw) as unknown}catch{denied('INVALID_JSON')}
+  try{return JSON.parse(raw) as unknown}catch{throw Error('SNIPER_PUBLIC_INVALID_JSON')}
  }finally{clearTimeout(timer)}
 }
 export async function readPublicSniperProfilesOnce(deps:SniperPublicDeps):Promise<readonly SniperPublicProfile[]>{
  const body=await fixedGet(PROFILE,deps)
- if(!Array.isArray(body)||body.length>MAX_PROFILES)denied('PROFILE_SCHEMA_INVALID')
+ if(!Array.isArray(body)||body.length>MAX_PROFILES)throw Error('SNIPER_PUBLIC_PROFILE_SCHEMA_INVALID')
  const receivedAt=deps.now();validTime(receivedAt)
  const mints=new Set<string>()
- for(const item of body){
+ for(const item of body as unknown[]){
   if(object(item)&&item.chainId==='solana'&&address(text(item.tokenAddress)))mints.add(text(item.tokenAddress))
  }
  return Object.freeze([...mints].slice(0,MAX_PROFILES).map(mint=>Object.freeze({
@@ -63,8 +63,8 @@ export async function readPublicSniperPairOnce(input:{
  if(!address(input.mint)||!address(input.originalPairAddress))denied('ADDRESS_INVALID')
  const body=await fixedGet(ORIGIN+'/token-pairs/v1/solana/'+input.mint,deps)
  const receivedAt=deps.now(),now=validTime(receivedAt)
- if(!Array.isArray(body)||body.length>100)denied('PAIR_SCHEMA_INVALID')
- const row=body.find(x=>object(x)&&x.chainId==='solana'&&
+ if(!Array.isArray(body)||body.length>100)throw Error('SNIPER_PUBLIC_PAIR_SCHEMA_INVALID')
+ const row=(body as unknown[]).find((x:unknown)=>object(x)&&x.chainId==='solana'&&
   x.pairAddress===input.originalPairAddress&&object(x.baseToken)&&
   x.baseToken.address===input.mint)
  const base={mint:input.mint,receivedAt,authority:'PUBLIC_RESEARCH_ONLY' as const,
