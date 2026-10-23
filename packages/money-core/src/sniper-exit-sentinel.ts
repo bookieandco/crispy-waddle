@@ -61,11 +61,13 @@ export function evaluateSniperExit(input:{
   version:SNIPER_EXIT_SENTINEL_VERSION,positionId:p.positionId,action,reasonCodes:Object.freeze(reasons),
   latestRoute,authority:'EXIT_RESEARCH_ONLY',canSign:false,canBroadcast:false,canExecute:false,
  })
+ // Unresolved submissions/settlements outrank a zero-inventory snapshot:
+ // a missing balance is not independent proof that an earlier exit settled.
+ if(input.unresolvedPreviousExit)return result('UNRESOLVED_PREVIOUS_ATTEMPT',['EXIT_SETTLEMENT_RECONCILIATION_REQUIRED'])
  if(p.openTokenAmountAtomic===0n)return result('NO_POSITION',['NO_OPEN_INVENTORY'])
  if(!p.entryConfirmedAt||!Number.isFinite(Date.parse(p.entryConfirmedAt))||Date.parse(p.entryConfirmedAt)>now){
   throw new Error('SNIPER_EXIT_UNCONFIRMED_POSITION')
  }
- if(input.unresolvedPreviousExit)return result('UNRESOLVED_PREVIOUS_ATTEMPT',['EXIT_SETTLEMENT_RECONCILIATION_REQUIRED'])
  const reasons:string[]=[]
  if((now-Date.parse(p.entryConfirmedAt))/1000>=policy.maxHoldSeconds)reasons.push('MAX_HOLD_EXPIRED')
  if(p.markedReturnBps>=policy.profitTakeBps)reasons.push('PROFIT_TARGET')
