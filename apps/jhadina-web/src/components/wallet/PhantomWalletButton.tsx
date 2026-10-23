@@ -95,9 +95,15 @@ export function PhantomWalletButton() {
     try {
       // Revoke server ownership observation before removing browser registration.
       await walletRequest('DELETE',{address:wallet.address})
-      await disconnectPhantom()
+      // Remote proof is already revoked. A provider UI disconnect failure
+      // must never leave a stale "verified" state displayed or cached.
       removeRegisteredWallet(wallet.walletId)
       setWallet(null)
+      try {
+        await disconnectPhantom()
+      } catch {
+        setError('Wallet observation was revoked. Disconnect Phantom manually in the wallet app.')
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to revoke wallet connection.')
     } finally {setBusy(false)}
