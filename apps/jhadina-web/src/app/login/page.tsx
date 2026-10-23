@@ -21,7 +21,8 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({ searchParams = {} }: LoginPageProps) {
   const error = first(searchParams.error);
   const message = first(searchParams.message);
-  const next = safeAuthNext(first(searchParams.next));
+  const requestedNext = safeAuthNext(first(searchParams.next));
+  const next = requestedNext === "/login" || requestedNext.startsWith("/login?") ? "/" : requestedNext;
   const settingUpPasskey = next === "/settings/security";
 
   // Reusing a valid owner cookie must never start a second Face ID/OTP flow.
