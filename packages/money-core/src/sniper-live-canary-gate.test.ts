@@ -95,9 +95,11 @@ const review=():SniperEntryReviewInput=>({
   authority:'SNIPER_LIVE_REVIEW_POLICY'},
  now:time,
 })
-test('independently presented healthy fixture is only REVIEW_READY: never permission to sign',()=>{
+test('even an apparently healthy fixture is BLOCKED without semantic byte verification',()=>{
  const result=reviewSniperLiveEntry(review())
- assert.equal(result.status,'REVIEW_READY',result.reasonCodes.join(','))
+ assert.equal(result.status,'BLOCKED')
+ assert.ok(result.reasonCodes.includes('UNSIGNED_TRANSACTION_BYTE_AUDIT_REQUIRED'))
+ assert.ok(result.reasonCodes.includes('TRANSACTION_SEMANTIC_DECODER_NOT_COMMISSIONED'))
  assert.equal(result.canSign,false)
  assert.equal(result.canSubmit,false)
  assert.equal(result.canTrade,false)
@@ -135,6 +137,25 @@ test('block stale quotes, slippage, price impact, excess tips, bad lease, unknow
   assert.ok(r.reasonCodes.includes(code),code+': '+r.reasonCodes.join(','))
   assert.equal(r.canSubmit,false)
  }
+})
+test('a forged true instructionsVerified boolean cannot bypass the byte-verified gate',()=>{
+ const base=review()
+ const forged=reviewSniperLiveEntry({...base,quote:{
+  ...base.quote!,transactionInstructionsVerified:true,
+  instructionReviewEvidenceIds:['fabricated:independent'],
+  byteAudit:{
+   version:'SHARK-SNIPER.LIVE-GATE.31',orderRequestId:base.quote!.order.requestId,
+   transactionSha256:'0'.repeat(64),format:'V0',status:'STRUCTURE_OBSERVED',
+   reasonCodes:[],feePayer:address,signerCount:1,staticAccounts:2,
+   instructionCount:1,programIds:['arbitrary:program'],
+   semanticAuthorized:false,altResolved:false,canSign:false,
+   canSubmit:false,canTrade:false,authority:'UNSIGNED_TRANSACTION_STRUCTURE_ONLY',
+  },
+ }})
+ assert.equal(forged.status,'BLOCKED')
+ assert.ok(forged.reasonCodes.includes('UNSIGNED_TRANSACTION_BYTE_BINDING_INVALID'))
+ assert.ok(forged.reasonCodes.includes('TRANSACTION_SEMANTIC_DECODER_NOT_COMMISSIONED'))
+ assert.equal(forged.canSign,false)
 })
 test('never accept original owner as Jupiter taker or a substituted quote',()=>{
  const base=review()
