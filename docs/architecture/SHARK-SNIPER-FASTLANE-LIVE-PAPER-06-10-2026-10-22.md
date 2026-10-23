@@ -70,6 +70,20 @@ session. A public token-pairs GET was not verified end-to-end in this session.
   require further integration tests before continuous production use.
   Do not claim recovered records = verified onchain fills.
 
+### Owner-private iPhone canary surface (off unless separately commissioned)
+- `/shark/sniper` is a **manual** source-status/pair inspection panel; it
+  does not run a listener, place paper or real orders, authenticate Phantom,
+  display live SHARK risk verdicts or report actual realized return.
+- `GET /api/internal/shark/sniper/public-canary` requires a valid Supabase
+  session, exact `JHADINA_OWNER_USER_ID` match, and explicit
+  `SHARK_SNIPER_PUBLIC_CANARY_ENABLED=true`. Default is OFF (503).
+  No browser service-role key, public RPC credential, buy/sell method or
+  background scheduler is introduced.
+- This gated page/endpoint has NOT been privately deployed or accepted on an
+  iPhone. It needs the protected preview owner QA and actual provider read
+  once separately approved. The public DEX profile GET observed during
+  research cannot certify this newly authored endpoint as working in prod.
+
 ### .10 — Release acceptance
 - Targeted tests cover public GET contracts, mismatched chain/pair,
   finite quotes, owner-only record/replay, tamper detection, exit-first
