@@ -60,11 +60,15 @@ Files:
   32-byte hex nonce and 5-minute expiry, and binds the challenge to the
   authenticated owner in a new service-only table. POST verify checks the
   stored exact message, owner, wallet, unexpired unused nonce and real
-  Ed25519 signature before an atomic one-use update and durable upsert.
+  Ed25519 signature before an atomic service-only transaction that consumes the nonce and writes
+  durable ownership together. The database transaction serializes by
+  owner/wallet against revocation; on failure it rolls back both.
   Replay/expiry/owner mismatch cannot promote ownership. If persistence
   fails after nonce consumption, the owner must request a new challenge.
-- GET status reads only the authenticated owner's address; DELETE revokes
-  the owner's server-recorded observation binding.
+- GET status reads only the authenticated owner's address; DELETE uses a
+  second invoker-only service RPC to atomically revoke both the ownership
+  binding and all unconsumed challenges for that owner/wallet, so an old
+  challenge cannot immediately re-enable a disconnected wallet.
 - `PhantomWalletButton` signs exactly the server message, checks account
   key before and after signing, and only displays verified after server
   confirmation. Browser localStorage always downgrades old
@@ -77,7 +81,9 @@ Files:
   infrastructure or tables are unavailable. It does not create a
   Money/Coffer signer lease, capability or spending authorization.
 - Vitest uses generated in-memory Ed25519 test keys, wrong address,
-  tampered nonce/domain, altered message and invalid format cases.
+  tampered nonce/domain, altered message and invalid format cases. Route-level
+  mocks additionally test same-origin, owner-session denial, valid signature,
+  atomic RPC identity binding, replay refusal, revocation, storage outage.
 
 ## Holds / gaps before production
 
@@ -107,3 +113,12 @@ Do not deploy the new code automatically: Railway is still pinned to
 `3eb33ce62e1f347fcc402ead62d3b2a5ebf118b3` (disabled process).
 All numerical costs from `hypothetical_round_trip` are assumed scenario
 arithmetic, not proof of achievable fills or actual profits.
+
+## Later exact-head acceptance note
+- Existing PR #1507 earlier exact head `23f9bbc` had all 11 workflows PASS.
+- This updated security review changes head SHA, so rerun exact-head CI;
+  do not reuse the older pass as certification of new commit.
+- Live Jhadina Supabase project `kqbkaozfjubkjevdfvic` checked; owner-proof
+  tables/migration were NOT present. The new migration is still proposed,
+  NOT applied. The owner must separately approve protected migration and
+  live iPhone sign-message testing after preview acceptance.
