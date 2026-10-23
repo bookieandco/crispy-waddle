@@ -168,6 +168,13 @@ test('matching chain snapshot never directly settles or releases execution autho
  const pending=reviewSniperOnchainSettlement({intent:i,attempt,onchain:undefined})
  assert.equal(pending.state,'PENDING_RECONCILIATION')
  assert.equal(pending.canRetryOrder,false)
+ const failed=reviewSniperOnchainSettlement({intent:i,attempt:{...attempt,state:'FAILED'},onchain})
+ assert.equal(failed.state,'FAILED_OR_UNKNOWN')
+ assert.ok(failed.reasonCodes.includes('CANONICAL_RUNTIME_RECONCILIATION_REQUIRED'))
+ const wrongLease=reviewSniperOnchainSettlement({intent:i,
+  attempt:{...attempt,signerLeaseId:'unexpected-lease'},onchain})
+ assert.equal(wrongLease.state,'FAILED_OR_UNKNOWN')
+ assert.ok(wrongLease.reasonCodes.includes('ATTEMPT_NOT_RECONCILED_TO_INTENT'))
 })
 test('Money exit sentinel controls fast exits; unknown settlement blocks duplicate sell',()=>{
  const p={positionId:'p:1',tokenAddress:inputMint,entryConfirmedAt:'2026-10-23T11:59:00Z',
