@@ -123,6 +123,10 @@ test('block stale quotes, slippage, price impact, excess tips, bad lease, unknow
   [{killSwitchActive:true},'KILL_SWITCH_ACTIVE'],
   [{riskDisposition:'BLOCK'},'SHARK_RISK_NOT_ACCEPTED'],
   [{onchainMintAttested:false},'CHAIN_MINT_NOT_ATTESTED'],
+  [{signerObservation:{...base.signerObservation,
+    observedAt:'2026-10-23T11:59:00Z'}},'SIGNER_OBSERVATION_STALE'],
+  [{canaryState:{...base.canaryState!,updatedAt:'2026-10-23T11:59:00Z'}},'CANARY_RISK_METRIC_STALE'],
+  [{signerPolicy:{...base.signerPolicy,allowedAssets:[inputMint]}},'SIGNER_OUTPUT_MINT_NOT_ALLOWED'],
   [{quote:{...base.quote!,instructionReviewEvidenceIds:[]}},'TRANSACTION_INSTRUCTION_ATTESTATION_REQUIRED'],
  ]
  for(const [patch,code] of cases){
