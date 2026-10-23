@@ -1,7 +1,8 @@
 import {createHash} from 'node:crypto'
 import {open,readFile,readdir,lstat,realpath,rename,unlink} from 'node:fs/promises'
 import {isAbsolute,join,resolve} from 'node:path'
-import {assertDexSwapIntent,hashDexRuntime,type DexSwapIntent} from './solana-dex-runtime-contracts.js'
+import {assertDexSwapIntent,hashDexRuntime,type DexSwapIntent,type DexExecutionAttempt,type DexOnchainReceipt} from './solana-dex-runtime-contracts.js'
+import {reviewSniperOnchainSettlement} from './sniper-live-canary-gate.js'
 
 /** COFFER-ACCEPT.42-.43: crash-conservative single-writer RESEARCH receipts.
  * This is NOT a cross-host distributed transaction, signer permission, Money
@@ -138,6 +139,7 @@ export async function reserveSniperCofferResearch(input:{
   const {intent:i,guard:g,policy:p}=input
   const now=Date.parse(input.now),observed=Date.parse(g.observedAt)
   try{assertDexSwapIntent(i)}catch{return result('BUDGET_OR_GUARD_BLOCKED',['INVALID_MONEY_INTENT'])}
+  if(i.leg!=='ENTRY')return result('BUDGET_OR_GUARD_BLOCKED',['ENTRY_ONLY_COFFFER_RESEARCH'])
   if(!Number.isFinite(now)||!Number.isFinite(observed)||now<observed||
      !Number.isSafeInteger(p.maxObservationAgeMs)||p.maxObservationAgeMs<1||
      p.maxSingleMinor<=0n||p.maxDailySubmittedMinor<=0n||p.maxDailyLossMinor<=0n||
@@ -183,6 +185,42 @@ export async function markSniperCofferUnknown(input:{
   const next={...r,state:'UNKNOWN_NEEDS_RECONCILIATION' as const,updatedAt:input.now}
   await persist(input.root,next)
   return Object.freeze(next)
+ })
+}
+/** Canonical runtime must ALREADY have reconciled the entry/exit.
+ * This stores a read-only observation, never releases permits or credits
+ * funds. A confirmed RPC view can still be rolled back; separately require
+ * true finality for real custody release. */
+export async function recordSniperCofferSettlementObservation(input:{
+ root:string;intent:DexSwapIntent;attempt:DexExecutionAttempt
+ onchain:DexOnchainReceipt;now:string
+}):Promise<CofferResearchReceipt>{
+ return exclusive(input.root,async()=>{
+  if(await getHalt(input.root))throw Error('COFFER_RESEARCH_HALTED')
+  const receipt=await loadRecord(input.root,filename(input.intent.idempotencyKey))
+  if(receipt.state!=='RESERVED_RESEARCH'&&
+     receipt.state!=='UNKNOWN_NEEDS_RECONCILIATION')
+   throw Error('COFFER_RESEARCH_SETTLEMENT_REPLAY_BLOCKED')
+  if(receipt.executionId!==input.intent.executionId||
+     receipt.intentHash!==hashDexRuntime(input.intent)||
+     receipt.walletConnectionId!==input.intent.walletConnectionId)
+   throw Error('COFFER_RESEARCH_ORIGINAL_INTENT_MISMATCH')
+  const review=reviewSniperOnchainSettlement({
+   intent:input.intent,attempt:input.attempt,onchain:input.onchain,
+  })
+  if(review.state!=='MATCHED_OBSERVATION'||review.reasonCodes.length>0||
+     input.attempt.state!=='RECONCILED'||!Number.isSafeInteger(input.onchain.slot)||
+     (input.onchain.slot??0)<=0||!input.onchain.evidenceIds.length||
+     !Number.isFinite(Date.parse(input.now))||
+     Date.parse(input.now)<Date.parse(receipt.updatedAt))
+   throw Error('COFFER_RESEARCH_CANONICAL_SETTLEMENT_UNVERIFIED')
+  const updated:CofferResearchReceipt=Object.freeze({
+   ...receipt,state:'OBSERVED_RECONCILED',updatedAt:input.now,
+   signature:input.onchain.signature,
+   settlementEvidenceIds:Object.freeze([...input.onchain.evidenceIds]),
+  })
+  await persist(input.root,updated)
+  return updated
  })
 }
 export async function haltSniperCofferResearch(input:{
