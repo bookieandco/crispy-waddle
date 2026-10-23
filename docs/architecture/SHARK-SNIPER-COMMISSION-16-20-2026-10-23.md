@@ -23,6 +23,12 @@ onchain entry/exit or approved trading authority.**
   iPhone acceptance and access denial to another user before claiming ready.
 - A green CI "Growth Vercel Prebuilt Preview" is a *build check*, not by
   itself a deployed protected Jhadina app.
+- New `GET /api/internal/shark/sniper/verify-chain` is separately
+  default-OFF via `SHARK_SNIPER_RPC_CANARY_ENABLED`; owner-only Supabase
+  JWT sub, no service-role browser credential and no third-party redirect.
+  The iPhone `/shark/sniper` page exposes manual signature/mint/slot
+  research verification with explicit no-trade status. Its request timestamp
+  is the MANUAL RPC check time, **not** the original Helius event receipt.
 - Never disable user login or preview protection merely for testing.
 
 ### .17 Source identity and stage verification
