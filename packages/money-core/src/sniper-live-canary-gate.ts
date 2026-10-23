@@ -23,7 +23,7 @@ export type SniperLiveGatePolicy=Readonly<{
 export type SniperExecutableQuoteReview=Readonly<{
  quoteId:string;order:DexManagedOrder
  observedAt:string;expiresAt:string
- priceImpactBps:number;estimatedPriorityFeeLamports:bigint
+ priceImpactBps:number;instructionReviewEvidenceIds:readonly string[];estimatedPriorityFeeLamports:bigint
  estimatedJitoTipLamports:bigint;estimatedBaseFeeLamports:bigint
  source:'JUPITER_ORDER_CANDIDATE'
  /** Strictly false until a separate transaction-instruction decoder
@@ -76,6 +76,10 @@ export function reviewSniperLiveEntry(input:SniperEntryReviewInput):SniperLiveEn
   throw Error('SNIPER_LIVE_OBSERVATION_INVALID')
  }
  try{assertDexSwapIntent(i)}catch{reasons.push('CANONICAL_MONEY_APPROVAL_REQUIRED')}
+ safeReason(reasons,'ENTRY_INTENT_REQUIRED',i.leg!=='ENTRY')
+ safeReason(reasons,'ORDER_INFORMATION_CUTOFF_STALE',
+  !Number.isFinite(ms(i.informationCutoff))||ms(i.informationCutoff)>now||
+  now-ms(i.informationCutoff)>p.maxOrderAgeMs)
  try{assertCanaryPolicy(input.canaryPolicy)}catch{reasons.push('MONEY_CANARY_POLICY_INVALID')}
  safeReason(reasons,'OWNER_COFFER_WALLET_NOT_ISOLATED',
   !input.ownerWalletConnectionId.trim()||i.walletConnectionId!==input.cofferWalletConnectionId||
@@ -116,6 +120,10 @@ export function reviewSniperLiveEntry(input:SniperEntryReviewInput):SniperLiveEn
   reasons.push('CANARY_ACCOUNT_STATE_MISSING')
  }else{
   if(state.halted)reasons.push('CANARY_HALTED')
+  if(state.submittedNotionalMinor<0n||state.realizedLossMinor<0n||
+     state.grossExposureMinor<0n||state.submittedOrders<0){
+   reasons.push('CANARY_STATE_INVALID')
+  }
   if(state.unresolvedExecutionIds.length)reasons.push('CANARY_UNKNOWN_ATTEMPT')
   if(state.submittedNotionalMinor+i.notionalMinor>cp.maxDailySubmittedNotionalMinor||
      i.notionalMinor>cp.maxOrderNotionalMinor||
@@ -145,7 +153,12 @@ export function reviewSniperLiveEntry(input:SniperEntryReviewInput):SniperLiveEn
    !order.takerAddress.trim()){
    reasons.push('JUPITER_ORDER_BINDING_MISMATCH')
   }
-  if(!q.transactionInstructionsVerified)reasons.push('TRANSACTION_INSTRUCTION_ATTESTATION_REQUIRED')
+  if(!q.transactionInstructionsVerified||!q.instructionReviewEvidenceIds.length)
+   reasons.push('TRANSACTION_INSTRUCTION_ATTESTATION_REQUIRED')
+  if(input.entryClock.selectedQuoteAvailableAt!==q.observedAt||
+     input.entryClock.entryOrderExpiresAt!==q.expiresAt){
+   reasons.push('FASTLANE_SELECTED_QUOTE_NOT_BOUND')
+  }
   if(!validNonnegative(q.priceImpactBps)||q.priceImpactBps>p.maxPriceImpactBps){
    reasons.push('PRICE_IMPACT_LIMIT')
   }
