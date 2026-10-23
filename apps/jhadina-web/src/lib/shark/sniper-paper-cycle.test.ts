@@ -132,7 +132,7 @@ describe('SHARK->Money paper->Shadow/Purse coordination',()=>{
     policy:{maxOpportunityAgeMs:5000,maxProviderToReceiptMs:1500,
       maxRiskEvidenceAgeMs:2000,maxSelectedQuoteAgeMs:2000,minOrderRemainingMs:500},
   }}
-  const written:any[]=[]
+  const written:unknown[]=[]
   const tick=await runSniperLivePaperTick({
     now,work:[{workId:'paper:one',kind:'RESEARCH_ENTRY',queuedAt:'2026-10-21T20:00:03Z'}],
     exits:[],entries:[{workId:'paper:one',mint:tokenAddress,
