@@ -1,7 +1,7 @@
 import {beforeEach,describe,expect,it,vi} from 'vitest'
 import {generateKeyPairSync,sign} from 'node:crypto'
 import {NextRequest} from 'next/server'
-import {buildOwnershipChallenge} from '../../../lib/wallet/server-proof'
+import {buildOwnershipChallenge} from '@/lib/wallet/server-proof'
 import {createClient} from '@/lib/supabase/server'
 import {createRuntimeServiceRoleClient} from '@/lib/supabase/service-role'
 
