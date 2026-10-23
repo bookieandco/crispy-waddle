@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'ops/telegram-cloud/**'
+      - 'ops/meme/shark_public_source_gate.py'
+      - 'ops/meme/test_shark_public_source_gate.py'
+      - 'docs/architecture/TELEGRAM-SHARK-BOUNDARY-20-23-2026-10-23.md'
       - '.github/workflows/telegram-cloud-railway-stage.yml'
       - 'docs/architecture/TELEGRAM-CLOUD-RAILWAY-STAGE-16-19-2026-10-22.md'
   workflow_dispatch:
@@ -25,6 +28,7 @@ jobs:
           python3 -m compileall -q ops/telegram-cloud
           sh -n ops/telegram-cloud/entrypoint.sh
           python3 -m unittest discover -s ops/telegram-cloud -p 'test_*.py' -v
+          python3 -m unittest discover -s ops/meme -p 'test_shark_public_source_gate.py' -v
       - name: Assert Railway source cannot activate Telegram
         run: |
           python3 - <<'PY'
