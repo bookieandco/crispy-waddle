@@ -17,7 +17,10 @@ async function privateDir(directory:string){
  if(typeof process.getuid==='function'&&s.uid!==process.getuid())throw Error('SNIPER_PAPER_DIR_OWNER_INVALID')
  if(await realpath(directory)!==directory)throw Error('SNIPER_PAPER_DIR_ALIAS_INVALID')
 }
+const allowed=new Set(['recordId','workId','observedAt','outcome','reasonCodes',
+ 'exitAction','paperRunId','authority','canExecute','canSign','canCreditPurse'])
 function verify(r:SniperPaperMonitorRecord){
+ if(Object.keys(r).some(key=>!allowed.has(key)))throw Error('SNIPER_PAPER_JOURNAL_RECORD_INVALID')
  if(r.recordId!=='sniper-paper:'+r.workId+':'+r.observedAt||!r.workId.trim()||
     !Number.isFinite(Date.parse(r.observedAt))||
     r.authority!=='PAPER_RESEARCH_ONLY'||r.canExecute!==false||
