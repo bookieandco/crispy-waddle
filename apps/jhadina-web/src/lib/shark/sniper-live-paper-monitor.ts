@@ -101,7 +101,7 @@ export async function runSniperLivePaperTick(input:SniperPaperMonitorInput,deps:
     }
     const result=runSniperPaperCycle(candidate.canonicalPaper)
     row=receipt(item.workId,input.now,result.disposition==='PAPER_RECORDED'?'PAPER_RECORDED':'NO_TRADE',
-      result.reasonCodes,...(result.paper? [{paperRunId:result.paper.runId}]:[]))
+      result.reasonCodes,result.paper?{paperRunId:result.paper.runId}:{})
    }
   }
   // Commit one result at a time, so a crash cannot falsely acknowledge later
