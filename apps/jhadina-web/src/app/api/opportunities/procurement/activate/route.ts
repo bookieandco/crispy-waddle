@@ -100,7 +100,7 @@ export async function GET(){
   })
   const batch=prioritizeNationalProcurementBatch({asOf,maxBatch:3,candidates:[
    ...PUBLIC_PROCUREMENT_CANARY_NOTICES.map(n=>({
-    id:n.id,state:'CA',buyer:n.buyer,publicNoticeUrl:n.noticeUrl,
+    id:n.id,state:'CA',buyer:n.buyer,title:n.title,publicNoticeUrl:n.noticeUrl,
     listedDeadlineLocal:n.deadlineLocal,localTimeZone:'America/Los_Angeles',
     officialBuyerVerified:true,
     accessReviewed:sourceChecks.some(x=>x.sourceId===n.sourceId&&
@@ -109,8 +109,23 @@ export async function GET(){
     licensedPrimeQualified:false,scopeSpecificPartnerConsent:false,firmQuoteVerified:false,
    })),
    {id:'RUSD-2026-27-11',state:'CA',buyer:'Riverside Unified School District',
+    title:'Nutrition Services Vented Box Truck — supply or installation terms to verify',
     publicNoticeUrl:'https://webapps.riversideunified.org/apps/planholdersregistration/BidsSelect.aspx',
     listedDeadlineLocal:'2026-11-04T10:00:00',localTimeZone:'America/Los_Angeles',
+    officialBuyerVerified:true,accessReviewed:false,parserCertified:false,
+    fullSolicitationCertified:false,licensedPrimeQualified:false,
+    scopeSpecificPartnerConsent:false,firmQuoteVerified:false},
+   {id:'RUSD-2026-27-09',state:'CA',buyer:'Riverside Unified School District',
+    title:'Nutrition Services Roof Restoration — source-list research only',
+    publicNoticeUrl:'https://webapps.riversideunified.org/apps/planholdersregistration/BidsSelect.aspx',
+    listedDeadlineLocal:'2026-11-09T10:00:00',localTimeZone:'America/Los_Angeles',
+    officialBuyerVerified:true,accessReviewed:false,parserCertified:false,
+    fullSolicitationCertified:false,licensedPrimeQualified:false,
+    scopeSpecificPartnerConsent:false,firmQuoteVerified:false},
+   {id:'RUSD-2026-27-12',state:'CA',buyer:'Riverside Unified School District',
+    title:'Chemawa and Rivera Public Address System Replacement — source-list research only',
+    publicNoticeUrl:'https://webapps.riversideunified.org/apps/planholdersregistration/BidsSelect.aspx',
+    listedDeadlineLocal:'2026-11-10T10:30:00',localTimeZone:'America/Los_Angeles',
     officialBuyerVerified:true,accessReviewed:false,parserCertified:false,
     fullSolicitationCertified:false,licensedPrimeQualified:false,
     scopeSpecificPartnerConsent:false,firmQuoteVerified:false}
