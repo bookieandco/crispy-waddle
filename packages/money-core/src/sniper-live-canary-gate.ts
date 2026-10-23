@@ -1,5 +1,6 @@
-import {assertDexSwapIntent,type DexSwapIntent,type DexManagedOrder,type DexRuntimeReadinessReport,
+import {assertDexSwapIntent,type DexSwapIntent,type DexManagedOrder,
  type DexExecutionAttempt,type DexOnchainReceipt} from './solana-dex-runtime-contracts.js'
+import type {DexRuntimeReadinessReport} from './dex-runtime-readiness.js'
 import {assessSniperFastlane,type SniperFastlaneInput} from './sniper-opportunity-clock.js'
 import {assertCanaryPolicy,type LiveCanaryPolicy,type LiveCanaryState} from './live-canary-contracts.js'
 import {assertSignerLeaseMayPrepare,type SignerLease,type SignerLeasePolicy,
@@ -44,7 +45,7 @@ export type SniperEntryReviewInput=Readonly<{
  confirmedMintSignature?:string;onchainMintAttested:boolean
  riskDisposition:'PAPER_CANDIDATE'|'BLOCK'|'REVIEW'
  riskEvidenceAvailableAt:string
- ownerWalletConnectionId:string;cofferWalletConnectionId:string
+ ownerWalletConnectionId:string;cofferWalletConnectionId:string;cofferWalletAddress:string
  signerPolicy:SignerLeasePolicy;signerLease:SignerLease
  signerObservation:SignerRollingObservation
  readiness:DexRuntimeReadinessReport
@@ -79,6 +80,7 @@ export function reviewSniperLiveEntry(input:SniperEntryReviewInput):SniperLiveEn
  safeReason(reasons,'OWNER_COFFER_WALLET_NOT_ISOLATED',
   !input.ownerWalletConnectionId.trim()||i.walletConnectionId!==input.cofferWalletConnectionId||
   input.ownerWalletConnectionId===input.cofferWalletConnectionId||
+  !input.cofferWalletAddress.trim()||
   input.signerPolicy.walletConnectionId!==input.cofferWalletConnectionId)
  safeReason(reasons,'RUNTIME_NOT_CERTIFIED',
   !input.readiness.ready||input.readiness.status!=='READY_FOR_CONTROLLED_CANARY'||
@@ -105,7 +107,7 @@ export function reviewSniperLiveEntry(input:SniperEntryReviewInput):SniperLiveEn
   assertSignerLeaseMayPrepare({
    policy:input.signerPolicy,lease:input.signerLease,observation:input.signerObservation,
    intent:{amountMinor:i.notionalMinor,assetId:i.inputMint,
-    destinationAddress:input.cofferWalletConnectionId,now:input.now},
+    destinationAddress:input.cofferWalletAddress,now:input.now},
   })
  }catch{reasons.push('SIGNER_LEASE_POLICY_NOT_SATISFIED')}
  const state=input.canaryState,cp=input.canaryPolicy
@@ -139,7 +141,7 @@ export function reviewSniperLiveEntry(input:SniperEntryReviewInput):SniperLiveEn
    !order.evidenceIds.length||!q.quoteId.trim()||q.quoteId!==order.requestId||
    order.inputMint!==i.inputMint||order.outputMint!==i.outputMint||
    order.inputAmountAtomic!==i.inputAmountAtomic||
-   order.takerAddress===input.ownerWalletConnectionId||
+   order.takerAddress!==input.cofferWalletAddress||
    !order.takerAddress.trim()){
    reasons.push('JUPITER_ORDER_BINDING_MISMATCH')
   }
@@ -204,7 +206,7 @@ export function reviewSniperOnchainSettlement(input:{
  if(a&&o&&o.signature!==a.primarySignature)reasons.push('SIGNATURE_MISMATCH')
  if(o?.inputDebitAtomic!==i.inputAmountAtomic||o?.outputCreditAtomic===undefined||
    o.outputCreditAtomic<i.minimumOutputAtomic)reasons.push('ONCHAIN_DEBIT_OR_MINIMUM_OUTPUT_MISMATCH')
- if(!a?.simulatedFeeLamports||o?.feeLamports!==a.simulatedFeeLamports)
+ if(a?.simulatedFeeLamports===undefined||o?.feeLamports!==a.simulatedFeeLamports)
   reasons.push('FEE_NOT_RECONCILED')
  if(a&&['SIGNED','SIMULATED','SUBMITTED','UNKNOWN'].includes(a.state))
   reasons.push('CANONICAL_RUNTIME_RECONCILIATION_REQUIRED')
