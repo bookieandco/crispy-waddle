@@ -19,6 +19,10 @@ type PublicCanary={id:string;title:string;specification:string;buyer:string;noti
  biddingCompanies:Array<{name:string;currentTeamingConsent:false;qualifiedForCurrentScope:false}>;namedSubcontractors:string[]}}
 type CanaryListResponse={ok:boolean;canaries?:PublicCanary[];error?:string}
 type ActivationResponse={ok:boolean;asOf?:string;
+ batch?:{considered:number;skippedAfterBatch:number;selected:Array<{id:string;title:string;buyer:string;
+  publicNoticeUrl:string|null;listedDeadlineLocal:string|null;deadlineState:string;blockers:string[];
+  reviewScore:number;canEnterManualResearch:boolean;bidReady:false}>};
+
  buyerStructureReviews?:Array<{opportunityId:string;kind:string;role:string;blockers:string[];reviewedForHumanDecision:boolean;noBidAuthorized:true}>;
  cashBridges?:Array<{knownSchedule:boolean;peakUnfundedCashNeedUsd:number|null;additionalCashRequiredUsd:number|null;fundsCoverModeledPeak:boolean;blockers:string[];noBidAuthorized:true}>;
  sourceChecks?:Array<{sourceId:string;name:string;status:string;sourceCertifiedNow:boolean;
@@ -418,6 +422,14 @@ export default function GovernmentProcurementWorkspace(){
        <ul style={{...dim,fontSize:12}}>{n.economics.blockers.map(x=><li key={x}>{x.replace(/_/g," ")}</li>)}</ul>
       </details>
       {n.historicalBidders.map(p=><p key={p.providerName} style={{...dim,fontSize:12}}>{p.providerName} · {p.priorRole.replace(/_/g," ")} · {p.blockers.length} qualification gaps · no current consent or quote</p>)}
+     </article>)}
+     <h3 style={{margin:"18px 0 6px",fontSize:16}}>Next official-source research priorities</h3>
+     <p style={{...dim,fontSize:12}}>Showing the next {activation.batch?.selected.length??0} of {activation.batch?.considered??0} current research leads. Other official notices remain in a backlog; deadline order is based on buyer-local published times and must be confirmed in the portal.</p>
+     {activation.batch?.selected.map((c,i)=><article key={c.id} style={{margin:"10px 0",background:"#182432",padding:12,borderRadius:10}}>
+      <strong>{i+1}. {c.title}</strong>
+      <p style={{...dim,fontSize:12}}>Buyer: {c.buyer} · Listed cutoff {c.listedDeadlineLocal?.replace("T"," ")??"not verified"} · {c.deadlineState.replace(/_/g," ")} · {c.blockers.length} unresolved evidence requirements</p>
+      {c.publicNoticeUrl&&<SourceLink href={c.publicNoticeUrl}>View official buyer notice</SourceLink>}
+      <p style={{...dim,fontSize:12}}>Manual research only. No supplier outreach, bidding or payments authorized.</p>
      </article>)}
      <h3 style={{margin:"18px 0 6px",fontSize:16}}>Regional prime/dealer structure and project cash bridge</h3>
      {activation.buyerStructureReviews?.map((route,i)=>{
