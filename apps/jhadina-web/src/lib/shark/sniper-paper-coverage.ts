@@ -23,7 +23,10 @@ export type SniperPaperCoverage=Readonly<{
  canCreditPurse:false
  canTrade:false
 }>
+const allowed=new Set(['recordId','workId','observedAt','outcome','reasonCodes',
+ 'exitAction','paperRunId','authority','canExecute','canSign','canCreditPurse'])
 const inspect=(record:SniperPaperMonitorRecord,cutoff:number)=>{
+ if(Object.keys(record).some(key=>!allowed.has(key)))throw Error('SNIPER_PAPER_COVERAGE_PROVENANCE_INVALID')
  const time=Date.parse(record.observedAt)
  if(!Number.isFinite(time)||time>cutoff||
   record.recordId!=='sniper-paper:'+record.workId+':'+record.observedAt||
