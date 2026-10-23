@@ -119,7 +119,8 @@ export async function certifySniperSignerCandidate(input:{
   allow(!start.existingIdempotencyKeys.includes(i.idempotencyKey),
    reasons,'DUPLICATE_ORDER_BLOCKED')
   allow(c.accountId===i.walletConnectionId&&c.provider===i.provider&&
-    c.currency===i.currency&&fresh(firstNow,c.updatedAt,p.maxEvidenceAgeMs),
+    c.currency===i.currency&&c.riskMetricEvidenceIds.length>0&&
+    fresh(firstNow,c.updatedAt,p.maxEvidenceAgeMs),
    reasons,'COFFER_RISK_STATE_INVALID')
   allow(start.solFeeReserveLamports>=p.minSolReserveLamports,
    reasons,'SOL_FEE_RESERVE_INSUFFICIENT')
@@ -196,8 +197,26 @@ export async function certifySniperSignerCandidate(input:{
    finish.unresolvedExecutionIds.length>0||
    finish.canary.unresolvedExecutionIds.length>0||
    finish.existingIdempotencyKeys.includes(i.idempotencyKey)||
+   finish.solFeeReserveLamports!==start.solFeeReserveLamports||
+   finish.canary.updatedAt!==start.canary.updatedAt||
+   finish.canary.submittedOrders!==start.canary.submittedOrders||
+   finish.canary.submittedNotionalMinor!==start.canary.submittedNotionalMinor||
+   finish.canary.grossExposureMinor!==start.canary.grossExposureMinor||
+   finish.canary.realizedLossMinor!==start.canary.realizedLossMinor||
+   finish.signer.leaseId!==start.signer.leaseId||
+   finish.signer.spent24hMinor!==start.signer.spent24hMinor||
+   finish.signer.transactionCount24h!==start.signer.transactionCount24h||
    !Number.isFinite(secondNow)||!fresh(secondNow,finish.observedAt,p.maxEvidenceAgeMs)){
   reasons.push('GUARD_CHANGED_OR_UNVERIFIED_AFTER_SIMULATION')
+ }
+ if(finish&&Number.isFinite(secondNow)){
+  try{
+   assertSignerLeaseMayPrepare({
+    policy:input.signerPolicy,lease:input.signerLease,observation:finish.signer,
+    intent:{amountMinor:i.notionalMinor,assetId:i.inputMint,
+     destinationAddress:p.cofferAddress,now:new Date(secondNow).toISOString()},
+   })
+  }catch{reasons.push('LEASE_EXPIRED_OR_REVOKED_AFTER_SIMULATION')}
  }
  // This remains read-only even for a clean simulated route. A genuine
  // signer needs a separately approved atomic state/permit reservation and
