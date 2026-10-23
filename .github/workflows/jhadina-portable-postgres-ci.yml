@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "packages/money-core/migrations/**"
+      - "scripts/shark-sniper-coffer-postgres-smoke.sh"
       - "infrastructure/portable/**"
       - "docs/JHADINA_PORTABLE_INFRASTRUCTURE.md"
       - "scripts/jhadina-portable-runpod-postgres.py"
@@ -19,6 +20,7 @@ on:
       - main
     paths:
       - "packages/money-core/migrations/**"
+      - "scripts/shark-sniper-coffer-postgres-smoke.sh"
       - "infrastructure/portable/**"
       - "docs/JHADINA_PORTABLE_INFRASTRUCTURE.md"
       - "scripts/jhadina-portable-runpod-postgres.py"
@@ -137,6 +139,11 @@ jobs:
           SELECT 'PORTABLE_MONEY_POSTGRES_REPLAY_PASS' AS certification;
           SQL
 
+
+      - name: Verify isolated sniper Coffer CAS concurrency and privilege denial
+        env:
+          SNIPER_ISOLATED_POSTGRES_CI: "true"
+        run: bash scripts/shark-sniper-coffer-postgres-smoke.sh
 
   memory-schema:
     name: Replay Memory schema on vanilla PostgreSQL
