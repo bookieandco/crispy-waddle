@@ -68,7 +68,7 @@ export async function runPrivateSniperPaperHost(input:Start,deps:Dependencies){
       throw Error('SNIPER_HOST_SNAPSHOT_CLOCK_MISMATCH')
     }
     const outcome=await runSniperLivePaperTick(requested,{
-     readPublicPair:deps.readPublicPair,store,
+     readPublicPair:deps.readPublicPair,store,now:deps.now,
     })
     lastTickRecords=outcome.records.length
    },
