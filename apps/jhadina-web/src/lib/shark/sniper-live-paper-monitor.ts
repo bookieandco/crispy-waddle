@@ -95,7 +95,7 @@ export async function runSniperLivePaperTick(input:SniperPaperMonitorInput,deps:
    }else{
     if(candidate.canonicalPaper.tokenAddress!==candidate.mint||
       candidate.canonicalPaper.now!==input.now||
-      candidate.canonicalPaper.fastlane.selectedQuoteAvailableAt===publicRead.pair.receivedAt &&
+      candidate.canonicalPaper.fastlane.selectedQuoteEvidenceId.startsWith('dex-public:')||
       candidate.canonicalPaper.fastlane.selectedQuoteEvidenceId===publicRead.pair.evidenceId){
       throw new Error('SNIPER_PAPER_IDENTITY_OR_PUBLIC_QUOTE_SUBSTITUTION')
     }
