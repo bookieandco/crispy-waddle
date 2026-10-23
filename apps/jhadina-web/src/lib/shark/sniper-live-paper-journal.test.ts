@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest'
-import {mkdtemp,rm,writeFile,chmod} from 'node:fs/promises'
+import {mkdtemp,rm,writeFile,chmod,readdir,unlink,symlink} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {createFileSniperPaperMonitorStore,recoverSniperPaperMonitorJournal} from './sniper-live-paper-journal'
@@ -43,6 +43,46 @@ describe('LIVE-PAPER.09 owner-only fsynced local journal',()=>{
    const files=await import('node:fs/promises').then(x=>x.readdir(dir))
    await writeFile(join(dir,files[0]!),'{}')
    await expect(recoverSniperPaperMonitorJournal(dir)).rejects.toThrow('CORRUPT')
+  }finally{await rm(dir,{recursive:true,force:true})}
+ })
+ it('preserves an expired coin in the recovered missed-launch denominator',async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'jh-sniper-paper-'))
+  try{
+   const receipt:SniperPaperMonitorRecord={...rec('late'),outcome:'ENTRY_EXPIRED',
+    reasonCodes:['ENTRY_EXPIRED_IN_QUEUE','NO_ORDER_OR_PAPER_FILL'],exitAction:undefined}
+   const store=createFileSniperPaperMonitorStore(dir)
+   expect(await store.append(receipt)).toBe('INSERTED')
+   expect(await createFileSniperPaperMonitorStore(dir).append(receipt)).toBe('REPLAY_IDENTICAL')
+   const recovered=await recoverSniperPaperMonitorJournal(dir)
+   expect(recovered.records[0]?.outcome).toBe('ENTRY_EXPIRED')
+   expect(recovered.records[0]?.canCreditPurse).toBe(false)
+  }finally{await rm(dir,{recursive:true,force:true})}
+ })
+ it('refuses a symlink occupying a receipt filename during duplicate retry',async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'jh-sniper-paper-'))
+  try{
+   const store=createFileSniperPaperMonitorStore(dir)
+   await store.append(rec('exit1'))
+   await store.append(rec('exit2'))
+   const files=(await readdir(dir)).sort()
+   // Identify receipt belonging to exit1 by temporarily replaying its
+   // content, then replace it with a symlink to an existing exit2 receipt.
+   const {readFile}=await import('node:fs/promises')
+   const first=JSON.parse(await readFile(join(dir,files[0]!),'utf8')) as {record:{workId:string}}
+   const original=first.record.workId==='exit1'?files[0]!:files[1]!
+   const other=original===files[0]?files[1]!:files[0]!
+   await unlink(join(dir,original))
+   await symlink(join(dir,other),join(dir,original))
+   await expect(store.append(rec('exit1'))).rejects.toThrow('JOURNAL_FILE_UNSAFE')
+   await expect(recoverSniperPaperMonitorJournal(dir)).rejects.toThrow('JOURNAL_FILE_UNSAFE')
+  }finally{await rm(dir,{recursive:true,force:true})}
+ })
+ it('requires deterministic work-and-time identity in every receipt',async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'jh-sniper-paper-'))
+  try{
+   await expect(createFileSniperPaperMonitorStore(dir).append({
+    ...rec('exit'),recordId:'sniper-paper:unrelated:2026-10-22T20:00:01Z',
+   })).rejects.toThrow('JOURNAL_RECORD_INVALID')
   }finally{await rm(dir,{recursive:true,force:true})}
  })
  it('rejects insecure world-readable journal directories',async()=>{
