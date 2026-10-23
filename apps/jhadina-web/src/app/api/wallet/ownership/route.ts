@@ -98,20 +98,13 @@ export async function POST(request:NextRequest){
       return fail('challenge_expired_or_invalid',409)
     if(!validOwnershipSignature(challenge.challenge_text,address,body.signatureBase64))
       return fail('wallet_proof_signature_invalid',403)
-    // Atomic consume; a parallel verification/replay can succeed at most once.
-    const {data:claimed,error:claimError}=await admin.from('money_wallet_owner_challenges')
-      .update({consumed_at:new Date().toISOString()})
-      .eq('id',challenge.id).eq('owner_id',user.id)
-      .is('consumed_at',null).gt('expires_at',new Date().toISOString())
-      .select('id').maybeSingle()
-    if(claimError)return fail('wallet_proof_storage_unavailable',503)
-    if(!claimed)return fail('challenge_already_consumed',409)
-    const {error:storeError}=await admin.from('money_wallet_verified_ownership').upsert({
-      owner_id:user.id,wallet_address:address,challenge_id:challenge.id,
-      verified_at:new Date().toISOString(),provider:'phantom',
-      can_sign:false,trading_enabled:false,
-    },{onConflict:'owner_id,wallet_address'})
-    if(storeError)return fail('wallet_proof_persistence_failed_retry_new_challenge',503)
+    // One transaction for challenge consumption + verified proof persistence.
+    // The invoker-only service RPC also serializes against owner disconnect.
+    const {data:committed,error:commitError}=await admin.rpc('jhadina_wallet_commit_owner_proof',{
+      p_owner_id:user.id,p_wallet_address:address,p_challenge_id:challenge.id,
+    })
+    if(commitError)return fail('wallet_proof_persistence_unavailable',503)
+    if(committed!==true)return fail('challenge_already_consumed_or_revoked',409)
     return success({address,verified:true,authority:'OWNER_WALLET_OBSERVATION_ONLY'})
   }catch{return fail('wallet_proof_unavailable',503)}
 }
@@ -124,9 +117,11 @@ export async function DELETE(request:NextRequest){
     const clients=await ownerClients()
     if(!clients)return fail('owner_auth_required',401)
     if(!clients.admin)return fail('wallet_proof_storage_unavailable',503)
-    const {error}=await clients.admin.from('money_wallet_verified_ownership')
-      .delete().eq('owner_id',clients.user.id).eq('wallet_address',body.address)
+    const {data:revoked,error}=await clients.admin.rpc('jhadina_wallet_revoke_owner_proof',{
+      p_owner_id:clients.user.id,p_wallet_address:body.address,
+    })
     if(error)return fail('wallet_proof_storage_unavailable',503)
+    if(revoked!==true)return fail('wallet_proof_revoke_failed',503)
     return success({revoked:true})
   }catch{return fail('wallet_proof_unavailable',503)}
 }
