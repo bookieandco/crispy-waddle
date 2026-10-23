@@ -62,7 +62,11 @@ export async function runPrivateSniperPaperHost(input:Start,deps:Dependencies){
     const requested=await deps.loadCanonicalPaperWork()
     // Source work is independent, not discovered from the outcome journal.
     // A clock cutoff cannot drift after work was assembled.
-    if(requested.now!==deps.now())throw Error('SNIPER_HOST_SNAPSHOT_CLOCK_MISMATCH')
+    const snapshot=Date.parse(requested.now),clock=Date.parse(deps.now())
+    if(!Number.isFinite(snapshot)||!Number.isFinite(clock)||
+       snapshot>clock||clock-snapshot>5000){
+      throw Error('SNIPER_HOST_SNAPSHOT_CLOCK_MISMATCH')
+    }
     const outcome=await runSniperLivePaperTick(requested,{
      readPublicPair:deps.readPublicPair,store,
     })
