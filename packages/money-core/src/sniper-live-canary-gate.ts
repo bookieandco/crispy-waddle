@@ -107,6 +107,12 @@ export function reviewSniperLiveEntry(input:SniperEntryReviewInput):SniperLiveEn
   input.unresolvedExitCount>p.maxUnresolvedExits||input.unresolvedExitCount>0)
  safeReason(reasons,'KILL_SWITCH_ACTIVE',input.killSwitchActive||input.canaryState?.halted===true)
  safeReason(reasons,'SOL_FEE_RESERVE_INSUFFICIENT',input.solFeeReserveLamports<p.minSolFeeReserveLamports)
+ safeReason(reasons,'SIGNER_OBSERVATION_STALE',
+   !Number.isFinite(ms(input.signerObservation.observedAt))||
+   ms(input.signerObservation.observedAt)>now||
+   now-ms(input.signerObservation.observedAt)>input.canaryPolicy.maxRiskMetricAgeSeconds*1000)
+ safeReason(reasons,'SIGNER_OUTPUT_MINT_NOT_ALLOWED',
+   !input.signerPolicy.allowedAssets.includes(i.outputMint))
  try{
   assertSignerLeaseMayPrepare({
    policy:input.signerPolicy,lease:input.signerLease,observation:input.signerObservation,
@@ -120,6 +126,10 @@ export function reviewSniperLiveEntry(input:SniperEntryReviewInput):SniperLiveEn
   reasons.push('CANARY_ACCOUNT_STATE_MISSING')
  }else{
   if(state.halted)reasons.push('CANARY_HALTED')
+  if(!state.riskMetricEvidenceIds.length||!Number.isFinite(ms(state.updatedAt))||
+     ms(state.updatedAt)>now||now-ms(state.updatedAt)>cp.maxRiskMetricAgeSeconds*1000){
+   reasons.push('CANARY_RISK_METRIC_STALE')
+  }
   if(state.submittedNotionalMinor<0n||state.realizedLossMinor<0n||
      state.grossExposureMinor<0n||state.submittedOrders<0){
    reasons.push('CANARY_STATE_INVALID')
