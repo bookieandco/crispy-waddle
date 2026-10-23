@@ -43,7 +43,7 @@ export function prioritizeNationalProcurementBatch(input:{
   const reviewScore=(c.officialBuyerVerified?25:0)+(c.accessReviewed?10:0)+(c.parserCertified?20:0)+
     (c.fullSolicitationCertified?15:0)+(c.licensedPrimeQualified?10:0)+
     (c.scopeSpecificPartnerConsent?10:0)+(c.firmQuoteVerified?10:0)
-  return {id:c.id,buyer:c.buyer,state:c.state,title:c.title??c.id,listedDeadlineLocal:c.listedDeadlineLocal,reviewScore,deadlineState,
+  return {id:c.id,buyer:c.buyer,state:c.state,title:c.title??c.id,publicNoticeUrl:c.publicNoticeUrl,listedDeadlineLocal:c.listedDeadlineLocal,reviewScore,deadlineState,
     blockers,canEnterManualResearch:c.officialBuyerVerified&&deadlineState==='future_listed',
     bidReady:false,sourceFetchAuthorized:false,contractorContactAuthorized:false,
     bidSubmissionAuthorized:false,paymentAuthorized:false}
