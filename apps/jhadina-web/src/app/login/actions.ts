@@ -93,7 +93,7 @@ export async function signup(formData: FormData) {
  */
 export async function sendOwnerSignInLink(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
-  const next = safeAuthNext(formData.get("next"));
+  const next = safeAuthNext(formData.get("next") ?? "/settings/security");
   if (!isPersonalOwnerEmail(email)) {
     // Do not disclose whether an arbitrary email has an account.
     redirect(`/login?message=check_email&next=${encodeURIComponent(next)}`);
