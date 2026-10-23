@@ -3,7 +3,7 @@
  * bounded *review*, never authorizes source fetch, contact, bidding or writes.
  */
 export type NationalPursuitSeed={
- id:string;state:string;buyer:string;publicNoticeUrl:string|null
+ id:string;state:string;buyer:string;title?:string;publicNoticeUrl:string|null
  listedDeadlineLocal:string|null;localTimeZone:string|null
  officialBuyerVerified:boolean;accessReviewed:boolean;parserCertified:boolean
  fullSolicitationCertified:boolean;licensedPrimeQualified:boolean
@@ -43,13 +43,16 @@ export function prioritizeNationalProcurementBatch(input:{
   const reviewScore=(c.officialBuyerVerified?25:0)+(c.accessReviewed?10:0)+(c.parserCertified?20:0)+
     (c.fullSolicitationCertified?15:0)+(c.licensedPrimeQualified?10:0)+
     (c.scopeSpecificPartnerConsent?10:0)+(c.firmQuoteVerified?10:0)
-  return {id:c.id,buyer:c.buyer,state:c.state,reviewScore,deadlineState,
+  return {id:c.id,buyer:c.buyer,state:c.state,title:c.title??c.id,listedDeadlineLocal:c.listedDeadlineLocal,reviewScore,deadlineState,
     blockers,canEnterManualResearch:c.officialBuyerVerified&&deadlineState==='future_listed',
     bidReady:false,sourceFetchAuthorized:false,contractorContactAuthorized:false,
     bidSubmissionAuthorized:false,paymentAuthorized:false}
  })
  const ranked=pending.sort((a,b)=>Number(b.canEnterManualResearch)-Number(a.canEnterManualResearch)||
-  b.reviewScore-a.reviewScore||a.id.localeCompare(b.id))
+  b.reviewScore-a.reviewScore||
+  (a.deadlineState==='future_listed'&&b.deadlineState==='future_listed'?
+   (a.listedDeadlineLocal??'').localeCompare(b.listedDeadlineLocal??''):0)||
+  a.id.localeCompare(b.id))
  return {asOf:input.asOf,selected:ranked.slice(0,maxBatch),considered:ranked.length,
   skippedAfterBatch:Math.max(0,ranked.length-maxBatch),
   sourceJobsActivated:0,automatedCrawlerActivated:false,
