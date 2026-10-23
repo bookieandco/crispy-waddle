@@ -55,7 +55,7 @@ jobs:
       - name: SHARK tests
         run: pnpm --filter @jhadina/shark-intelligence-core test
       - name: Money sniper urgency, exit and latency regression
-        run: pnpm --filter @jhadina/money-core exec tsx --test src/sniper-opportunity-clock.test.ts src/sniper-latency-telemetry.test.ts src/sniper-exit-sentinel.test.ts
+        run: pnpm --filter @jhadina/money-core exec tsx --test src/sniper-opportunity-clock.test.ts src/sniper-latency-telemetry.test.ts src/sniper-exit-sentinel.test.ts src/sniper-live-canary-gate.test.ts
       - name: Jhadina SHARK integration type-check
         run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.shark.json
       - name: Jhadina SHARK persistence soak
