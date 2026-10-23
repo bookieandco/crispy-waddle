@@ -74,8 +74,10 @@ export async function verifySniperMintTransaction(input:{
  const requestElapsed=endedAt-startedAt
  const result=object(raw)?raw.result:undefined
  const verifiedSlot=object(result)&&Number.isSafeInteger(result.slot)&&Number(result.slot)>0?Number(result.slot):undefined
- const failed=object(result)&&object(result.meta)&&result.meta.err!==null
- const matched=verifiedSlot===input.slot&&hasMintInitialization(result,input.mint)
+ const meta=object(result)&&object(result.meta)?result.meta:undefined
+ const failed=meta!==undefined&&meta.err!==null
+ const confirmedSuccess=meta!==undefined&&meta.err===null
+ const matched=confirmedSuccess&&verifiedSlot===input.slot&&hasMintInitialization(result,input.mint)
  const status:SniperChainReceipt['status']=result==null?'UNAVAILABLE':
   failed?'FAILED_TRANSACTION':matched?'CONFIRMED_MINT_INSTRUCTION':'NOT_MATCHED'
  return Object.freeze({
@@ -83,8 +85,8 @@ export async function verifySniperMintTransaction(input:{
   claimedSlot:input.slot,receivedAt:input.receivedAt,status,
   ...(verifiedSlot===undefined?{}:{verifiedSlot}),
   rpcLatencyMs:requestElapsed,
-  confirmation:matched&&!failed?'CONFIRMED':'UNVERIFIED',
-  independentlyCheckedMintInstruction:matched&&!failed,
+  confirmation:matched?'CONFIRMED':'UNVERIFIED',
+  independentlyCheckedMintInstruction:matched,
   sourceTimestampResolution:'SECONDS_OR_UNAVAILABLE',
   authority:'CHAIN_IDENTITY_RESEARCH_ONLY',canTrade:false,canSign:false,
  })
