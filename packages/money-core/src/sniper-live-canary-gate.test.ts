@@ -176,7 +176,7 @@ test('Money exit sentinel controls fast exits; unknown settlement blocks duplica
  const policy={maxHoldSeconds:30,profitTakeBps:300,trailingGivebackBps:100,
   maxDrawdownBps:1000,maxQuoteAgeMs:300}
  const quote={quoteId:'exit-route:1',tokenAddress:inputMint,sellAmountAtomic:100n,
-  quotedAt:quoteAt,expiresAt,minimumProceedsLamports:1000n,
+  quotedAt:quoteAt,expiresAt:expires,minimumProceedsLamports:1000n,
   evidenceIds:['sell:1'],verifiedSellPath:true}
  const candidate=reviewSniperCofferExit({position:p,quote,policy,now:time,
   entryReconciled:true,hasUnknownExitAttempt:false,killSwitchActive:false})
