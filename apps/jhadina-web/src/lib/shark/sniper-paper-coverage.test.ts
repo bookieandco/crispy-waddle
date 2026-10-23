@@ -37,7 +37,7 @@ describe('CONTINUITY.14 prospective paper denominator',()=>{
   expect(r.recordedDecisions).toBe(1)
   expect(r.recordedNoTrades).toBe(1)
   expect(r.recordedMissingProofs).toBe(0)
-  expect(r.latestPaperReceiptAt).toBe(later)
+  expect(r.latestPaperReceiptAt).toBe(new Date(later).toISOString())
  })
  it('rejects incompatible identical receipt replay and future evidence',()=>{
   const base=receipt('a','ENTRY_EXPIRED')
