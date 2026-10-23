@@ -25,6 +25,29 @@ const complete=assessSourceCanary({source:{...source,adapterKey:'oxnard-public-p
 assert.equal(complete.blockers.length,0)
 assert.equal(complete.sourceCertifiedNow,true)
 assert.equal(complete.liveFeedActivationAuthorized,false)
+assert.equal(complete.sourceCertificationEvidenceComplete,true)
+assert.equal(complete.certificationReconciled,true)
+assert.equal(complete.bidPackageVerified,true)
+const feedOnly=assessSourceCanary({
+ source:{...source,adapterKey:'oxnard-public-project-bids-v1'},expectedAdapterKey:'oxnard-public-project-bids-v1',
+ trials:positive,accessEvidenceRefs:['official-terms-receipt'],fullBidDocumentsVerified:false})
+assert.equal(feedOnly.sourceCertificationEvidenceComplete,true)
+assert.equal(feedOnly.sourceCertifiedNow,false)
+assert.deepEqual(feedOnly.bidPackageBlockers,['full_buyer_planholder_bid_package_missing'])
+assert.ok(feedOnly.blockers.includes('source_not_commissioned'))
+const duplicateSuccessful=assessSourceCanary({
+ source:{...source,adapterKey:'oxnard-public-project-bids-v1'},
+ expectedAdapterKey:'oxnard-public-project-bids-v1',
+ trials:[positive[0]!,positive[0]!,positive[0]!,{
+  ...positive[1]!,httpStatus:403,parseSucceeded:false
+ },{
+  ...positive[2]!,httpStatus:404,parseSucceeded:false
+ }],
+ accessEvidenceRefs:['access-reviewed'],fullBidDocumentsVerified:false})
+assert.equal(duplicateSuccessful.sourceCertificationEvidenceComplete,false)
+assert.equal(duplicateSuccessful.successfulExactParserTrials,3)
+assert.ok(duplicateSuccessful.blockers.includes('three_distinct_successful_exact_parser_trials_required'))
+
 assert.equal(PRIME_QUALIFICATION_GATES.length,12)
 const bidder=assessPrimeQualification({opportunityId:'OXNARD-PW-25-96',
  providerName:'Historical bid tab participant',priorRole:'historical_bidder',evidence:[],asOf:'2026-10-22T20:00:00Z'})
