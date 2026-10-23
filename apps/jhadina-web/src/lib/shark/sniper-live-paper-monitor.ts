@@ -22,7 +22,7 @@ export type SniperEntryMonitorInput=Readonly<{
 }>
 export type SniperPaperMonitorRecord=Readonly<{
  recordId:string;workId:string;observedAt:string;
- outcome:'EXIT_REVIEW'|'PUBLIC_PRICE_ONLY'|'MISSING_PUBLIC_PAIR'|
+ outcome:'ENTRY_EXPIRED'|'EXIT_REVIEW'|'PUBLIC_PRICE_ONLY'|'MISSING_PUBLIC_PAIR'|
          'CHAIN_PROOF_REQUIRED'|'PAPER_RECORDED'|'NO_TRADE';
  reasonCodes:readonly string[];
  exitAction?:SniperExitDecision['action'];
@@ -112,6 +112,16 @@ export async function runSniperLivePaperTick(input:SniperPaperMonitorInput,deps:
   }
   // Commit one result at a time, so a crash cannot falsely acknowledge later
   // work. Retry must be idempotent; divergent same-key payload is an error.
+  await deps.store.append(row)
+  recorded.push(row)
+ }
+ // Preserve the entire launch denominator. Candidates that expired waiting in
+ // a bounded queue are real NO-ENTRY observations, never silently discarded
+ // or upgraded to hypothetical wins by retrospective backfills.
+ for(const workId of plan.expiredEntries){
+  const row=receipt(workId,input.now,'ENTRY_EXPIRED',[
+   'ENTRY_EXPIRED_IN_QUEUE','NO_ORDER_OR_PAPER_FILL',
+  ])
   await deps.store.append(row)
   recorded.push(row)
  }

@@ -48,8 +48,27 @@ describe('LIVE-PAPER.07–.08 full-path bounded paper orchestration',()=>{
    maxPerTick:2,maxEntryQueueMs:1000,
   },{readPublicPair:async()=>price(mint),store:journal})
   expect(r.expiredEntries).toEqual(['old'])
+  expect(r.records.map(x=>x.outcome)).toEqual(['EXIT_REVIEW','ENTRY_EXPIRED'])
+  expect(r.records[1]?.reasonCodes).toContain('NO_ORDER_OR_PAPER_FILL')
+  expect(r.records[1]?.canExecute).toBe(false)
   expect(r.records[0]?.outcome).toBe('EXIT_REVIEW')
   expect(r.records[0]?.exitAction).toBe('EXIT_ROUTE_MISSING')
+ })
+ it('expired opportunity is only acknowledged after durable journal append',async()=>{
+  const input={now,work:[entry('late','2026-10-22T19:00:00Z')],
+   entries:[],exits:[],maxPerTick:1,maxEntryQueueMs:1000}
+  await expect(runSniperLivePaperTick(input,{
+   readPublicPair:async()=>{throw Error('unexpected provider call')},
+   store:{append:async()=>{throw Error('journal offline')}},
+  })).rejects.toThrow('journal offline')
+  const saved:SniperPaperMonitorRecord[]=[]
+  const replay=await runSniperLivePaperTick(input,{
+   readPublicPair:async()=>{throw Error('unexpected provider call')},
+   store:{append:async row=>{saved.push(row);return 'INSERTED' as const}},
+  })
+  expect(replay.records).toHaveLength(1)
+  expect(saved[0]?.outcome).toBe('ENTRY_EXPIRED')
+  expect(replay.expiredEntries).toEqual(['late'])
  })
  it('unknown or mismatched feed cannot launder an unrelated token into the paper cycle',async()=>{
   await expect(runSniperLivePaperTick({
