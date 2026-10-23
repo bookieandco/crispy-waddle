@@ -7,6 +7,7 @@ import {
  type SniperPaperLeg,type SniperPaperTradeReceipt,type SniperLiveWiringPaperAcceptance,
  type SniperLatencyReceipt,type SniperExitDecision,
  type PurseOpportunityEnvelope,type SharkShadowDecisionTwin,
+ assessSniperFastlane,type SniperFastlaneDecision,type SniperFastlaneInput,
 } from '@jhadina/money-core'
 
 export type SniperPaperCycleResult=Readonly<{
@@ -15,6 +16,7 @@ export type SniperPaperCycleResult=Readonly<{
   intel:SniperIntelFusion
   risk:ReturnType<typeof assessSniperLiveRisk>
   route:ReturnType<typeof compareSniperLandingRoutes>
+  urgency?:SniperFastlaneDecision
   paper?:SniperPaperTradeReceipt
   acceptance?:SniperLiveWiringPaperAcceptance
   reasonCodes:readonly string[]
@@ -55,6 +57,11 @@ export function runSniperPaperCycle(input:{
  intelObservations?:readonly SniperIntelObservation[]
  priorShadowLessons?:readonly SharkShadowCounterfactualLesson[]
  priorLessonProofs?:readonly SniperIndependentOutcomeProof[]
+ /** If present, enforce one fast-entry deadline across event, risk, chosen quote and order.
+  * The corroborated quote ID MUST match Money's chosen route; no quote inference. */
+ fastlane?:Omit<SniperFastlaneInput,'now'|'riskEvidenceAvailableAt'|'entryOrderExpiresAt'> & {
+  selectedQuoteEvidenceId:string
+ }
 }):SniperPaperCycleResult{
  const risk=assessSniperLiveRisk({
   evidence:input.riskEvidence,rug:input.rugInput,now:input.now,
@@ -75,13 +82,23 @@ export function runSniperPaperCycle(input:{
   minimumNetEdgeBps:input.minimumNetEdgeBps,maxFixedCostBps:input.maxFixedCostBps,
   minLandingSamples:input.minLandingSamples,
  })
+ const selectedQuote=input.landingCandidates.find(x=>x.lane===route.selectedForPaper)
+ const urgency=input.fastlane?assessSniperFastlane({
+  ...input.fastlane,now:input.now,riskEvidenceAvailableAt:input.riskEvidence.availableAt,
+  selectedQuoteAvailableAt:selectedQuote?.evidenceId===input.fastlane.selectedQuoteEvidenceId
+   ?input.fastlane.selectedQuoteAvailableAt:undefined,
+  entryOrderExpiresAt:input.entry.order.expiresAt,
+ }):undefined
  const reasons:string[]=[]
+ if(urgency&&urgency.disposition!=='ENTRY_WINDOW_OPEN'){
+  reasons.push('FAST_ENTRY_NOT_ADMITTED',...urgency.reasonCodes)
+ }
  if(risk.disposition!=='PAPER_CANDIDATE')reasons.push('SHARK_SAFETY_VETO',...risk.reasonCodes)
  if(!route.selectedForPaper)reasons.push('NO_ADMISSIBLE_PAPER_LANDING_ROUTE')
  if(reasons.length){
   return Object.freeze({
    tokenAddress:input.tokenAddress,disposition:'NO_TRADE',
-   risk,intel:intelFor(),route,reasonCodes:Object.freeze([...new Set(reasons)]),
+   risk,intel:intelFor(),route,urgency,reasonCodes:Object.freeze([...new Set(reasons)]),
    authority:'SHARK_MONEY_PAPER_ONLY',canExecute:false,
   })
  }
@@ -97,7 +114,7 @@ export function runSniperPaperCycle(input:{
   exit:input.exitDecision,evidenceIds:input.evidenceIds,
  })
  return Object.freeze({
-  tokenAddress:input.tokenAddress,disposition:'PAPER_RECORDED',risk,intel:intelFor(paper),route,paper,acceptance,
+  tokenAddress:input.tokenAddress,disposition:'PAPER_RECORDED',risk,intel:intelFor(paper),route,urgency,paper,acceptance,
   reasonCodes:Object.freeze([...acceptance.reasonCodes]),
   authority:'SHARK_MONEY_PAPER_ONLY',canExecute:false,
  })
