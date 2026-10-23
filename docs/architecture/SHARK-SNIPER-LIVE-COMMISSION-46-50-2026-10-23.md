@@ -29,10 +29,15 @@ commissioned autonomous execution has been established.**
   consumer, not custody and not the existing canonical reservation store.**
   It must NOT be connected to the live submitter as an authority or
   reported as preventing real distributed double-spends.
-- SQL has been checked against existing Supabase column types, including
-  TEXT `trading_date`. It has **not** been applied or run in isolated
-  PostgreSQL yet; a live migration remains blocked pending approval and
-  isolated schema/RLS/ACL/concurrency tests.
+- SQL was checked against existing Supabase column types, including
+  TEXT `trading_date`. It was successfully replayed on disposable
+  PostgreSQL 17 via Jhadina Portable Postgres CI. Its isolated research
+  acceptance also passed a two-process same-wallet conflict: exactly one
+  hold admitted; RLS/ACL tests denied anon, authenticated and service_role,
+  and the original Money permits remained ISSUED.
+  **No migration was applied to connected or production Supabase**.
+  Repeating these checks with a separately reviewed private operator role,
+  signed permits and final runtime is still required.
 
 ### .47 — Coffer + signer commissioning envelope
 - Preserve main Phantom wallet as owner observation wallet. A separate
