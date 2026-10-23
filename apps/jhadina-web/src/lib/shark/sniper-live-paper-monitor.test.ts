@@ -58,6 +58,22 @@ describe('LIVE-PAPER.07–.08 full-path bounded paper orchestration',()=>{
   },{readPublicPair:async()=>price('4'.repeat(32)),store:journal}))
     .rejects.toThrow('FEED_AUTHORITY_INVALID')
  })
+ it('rejects a future-received or wrong original pair public response',async()=>{
+  const input={
+   now,work:[entry('badpair')],exits:[],
+   entries:[{workId:'badpair',mint,originalPairAddress:pair}],
+   maxPerTick:1,maxEntryQueueMs:1000,
+  }
+  await expect(runSniperLivePaperTick(input,{
+   readPublicPair:async()=>({
+    ...price(mint),pair:{...price(mint).pair!,pairAddress:'4'.repeat(32)},
+   }),store:journal,
+  })).rejects.toThrow('PAIR_OR_RECEIPT_PROVENANCE_INVALID')
+  await expect(runSniperLivePaperTick(input,{
+   readPublicPair:async()=>({...price(mint),receivedAt:'2026-10-22T20:00:05Z'}),
+   store:journal,
+  })).rejects.toThrow('PAIR_OR_RECEIPT_PROVENANCE_INVALID')
+ })
  it('does not acknowledge a cycle whose journal write failed',async()=>{
   await expect(runSniperLivePaperTick({
    now,work:[exit('fail')],exits:[{workId:'fail',position:open,policy}],
