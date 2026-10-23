@@ -368,6 +368,7 @@ export * from './solana-sniper-execution-cost.js';
 export * from './sniper-latency-telemetry.js';
 export * from './sniper-opportunity-clock.js';
 export * from './sniper-live-canary-gate.js';
+export * from './sniper-transaction-byte-audit.js';
 export * from './sniper-execution-calibration.js';
 export * from './sniper-exit-sentinel.js';
 export * from './sniper-shadow-purse-handoff.js';
