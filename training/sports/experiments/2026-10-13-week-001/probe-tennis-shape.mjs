@@ -1,5 +1,5 @@
-// Source-rights hold: do not contact the historical tennis endpoint.
-throw Error('SOURCE_RIGHTS_HOLD: online tennis shape probe disabled');
+import {SOURCE_ID,requireSourceOperation} from './source-policy.mjs';
+requireSourceOperation(SOURCE_ID,'PROBE_PROVIDER');
 const url='https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261013';
 const res=await fetch(url,{signal:AbortSignal.timeout(10000),headers:{accept:'application/json'}});
 if(!res.ok)throw Error('PROBE_HTTP_'+res.status);
