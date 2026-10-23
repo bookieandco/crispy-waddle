@@ -18,7 +18,10 @@ type PublicCanary={id:string;title:string;specification:string;buyer:string;noti
  historicalBidTab?:{priorSpecification:string;bidOpenedOn:string;officialTabulationUrl:string;priorBidIsNotAward:true;priorBidIsNotCurrentQuote:true;
  biddingCompanies:Array<{name:string;currentTeamingConsent:false;qualifiedForCurrentScope:false}>;namedSubcontractors:string[]}}
 type CanaryListResponse={ok:boolean;canaries?:PublicCanary[];error?:string}
-type ActivationResponse={ok:boolean;asOf?:string;sourceChecks?:Array<{sourceId:string;name:string;status:string;sourceCertifiedNow:boolean;
+type ActivationResponse={ok:boolean;asOf?:string;
+ buyerStructureReviews?:Array<{opportunityId:string;kind:string;role:string;blockers:string[];reviewedForHumanDecision:boolean;noBidAuthorized:true}>;
+ cashBridges?:Array<{knownSchedule:boolean;peakUnfundedCashNeedUsd:number|null;additionalCashRequiredUsd:number|null;fundsCoverModeledPeak:boolean;blockers:string[];noBidAuthorized:true}>;
+ sourceChecks?:Array<{sourceId:string;name:string;status:string;sourceCertifiedNow:boolean;
  siteAccessApprovedInRegistry?:boolean;readOnlyTrialCount?:number;successfulExactParserTrials?:number;
  blockers:string[];recentTrials?:Array<{observedAt:string;httpStatus:number|null;adapterKey:string;parseSucceeded:boolean;observationCount:number;errorCode:string|null}>}>;
  notices?:Array<{id:string;title:string;deadlineState:string;noticeUrl:string;
@@ -416,6 +419,19 @@ export default function GovernmentProcurementWorkspace(){
       </details>
       {n.historicalBidders.map(p=><p key={p.providerName} style={{...dim,fontSize:12}}>{p.providerName} · {p.priorRole.replace(/_/g," ")} · {p.blockers.length} qualification gaps · no current consent or quote</p>)}
      </article>)}
+     <h3 style={{margin:"18px 0 6px",fontSize:16}}>Regional prime/dealer structure and project cash bridge</h3>
+     {activation.buyerStructureReviews?.map((route,i)=>{
+      const cash=activation.cashBridges?.[i]
+      return <article key={route.opportunityId} style={{margin:"14px 0",background:"#192735",padding:12,borderRadius:10}}>
+       <strong>{route.opportunityId} · {route.role.replace(/_/g," ")}</strong>
+       <p style={{...dim,fontSize:12}}>Contract category: {route.kind.replace(/_/g," ")} · Buyer-verified pathway: {route.reviewedForHumanDecision?"Evidence ready for manual review":"not yet"}</p>
+       <p style={{...dim,fontSize:12}}>Verified cash funding need: {cash?.peakUnfundedCashNeedUsd===null||cash?.peakUnfundedCashNeedUsd===undefined?"not calculable without documented payment schedule":String(cash.peakUnfundedCashNeedUsd)} · Financial bridge proven: {cash?.fundsCoverModeledPeak?"yes (review only)":"no"}</p>
+       <details><summary style={{cursor:"pointer",fontSize:12}}>Buyer structure and funding evidence gaps ({route.blockers.length+(cash?.blockers.length??0)})</summary>
+        <ul style={{...dim,fontSize:12}}>{route.blockers.map(x=><li key={x}>{x.replace(/_/g," ")}</li>)}
+        {cash?.blockers.map(x=><li key={x}>{x.replace(/_/g," ")}</li>)}</ul>
+       </details>
+      </article>
+     })}
     </>
     }
    </section>
