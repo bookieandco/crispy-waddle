@@ -87,6 +87,12 @@ export async function runSniperLivePaperTick(input:SniperPaperMonitorInput,deps:
    }
    if(publicRead.status!=='READ_ONLY_OBSERVED'||!publicRead.pair){
     row=receipt(item.workId,input.now,'MISSING_PUBLIC_PAIR',['EXACT_PAIR_NOT_PUBLICLY_OBSERVED'])
+   }else if(publicRead.pair.mint!==candidate.mint||
+     publicRead.pair.pairAddress!==candidate.originalPairAddress||
+     publicRead.pair.executableQuote!==false||publicRead.pair.chainProof!==false||
+     !Number.isFinite(Date.parse(publicRead.receivedAt))||
+     Date.parse(publicRead.receivedAt)>Date.parse(input.now)){
+    throw new Error('SNIPER_PAPER_PAIR_OR_RECEIPT_PROVENANCE_INVALID')
    }else if(!candidate.canonicalPaper||!candidate.canonicalPaper.fastlane||
      candidate.canonicalPaper.riskEvidence.proof!=='CHAIN_ATTESTED'){
     row=receipt(item.workId,input.now,'CHAIN_PROOF_REQUIRED',[
