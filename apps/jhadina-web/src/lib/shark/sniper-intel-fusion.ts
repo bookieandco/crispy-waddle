@@ -155,7 +155,12 @@ export function fuseSniperIntelligence(input:{
   if(time>cutoff||time<Date.parse(proof.availableAt)||seen.has(lesson.lessonId))continue
   // Max one independent learning unit per decision, even for six horizons.
   const prev=historical.get(lesson.decisionId)
-  if(!prev||Date.parse(prev.evaluatedAt)<time)historical.set(lesson.decisionId,lesson)
+  // Same-timestamp lessons are one independent decision, reproducibly chosen
+  // regardless of input row order (selectively mirrors the fix in #1496).
+  if(!prev||Date.parse(prev.evaluatedAt)<time||
+    (Date.parse(prev.evaluatedAt)===time&&prev.lessonId<lesson.lessonId)){
+    historical.set(lesson.decisionId,lesson)
+  }
  }
  const paper=input.paper
  if(paper&&(paper.tokenAddress!==input.tokenAddress||
