@@ -18,6 +18,16 @@ type PublicCanary={id:string;title:string;specification:string;buyer:string;noti
  historicalBidTab?:{priorSpecification:string;bidOpenedOn:string;officialTabulationUrl:string;priorBidIsNotAward:true;priorBidIsNotCurrentQuote:true;
  biddingCompanies:Array<{name:string;currentTeamingConsent:false;qualifiedForCurrentScope:false}>;namedSubcontractors:string[]}}
 type CanaryListResponse={ok:boolean;canaries?:PublicCanary[];error?:string}
+type ActivationResponse={ok:boolean;asOf?:string;sourceChecks?:Array<{sourceId:string;name:string;status:string;sourceCertifiedNow:boolean;
+ siteAccessApprovedInRegistry?:boolean;readOnlyTrialCount?:number;successfulExactParserTrials?:number;
+ blockers:string[];recentTrials?:Array<{observedAt:string;httpStatus:number|null;adapterKey:string;parseSucceeded:boolean;observationCount:number;errorCode:string|null}>}>;
+ notices?:Array<{id:string;title:string;deadlineState:string;noticeUrl:string;
+ historicalBidders:Array<{providerName:string;priorRole:string;blockers:string[];qualifiedToBid:false}>;
+ economics:{complete:boolean;blockers:string[];costTotalUsd:number|null;projectedGrossContributionUsd:number|null;
+  bidSecurityFaceAmountUsd:number|null;retainageWithheldAtFullValueUsd:number|null;
+  bondFacesAreNotCashPremiums:true;retainageIsDelayedCashNotCost:true}}>;
+ error?:string}
+
 const shell:CSSProperties={minHeight:"100vh",background:"#0d131c",color:"#eff3f1",fontFamily:"system-ui,-apple-system,sans-serif",padding:"24px 14px 90px"}
 const contentWidth:CSSProperties={maxWidth:990,margin:"auto"}
 const section:CSSProperties={background:"#151f2b",border:"1px solid #334052",borderRadius:18,padding:20,marginTop:16}
@@ -210,6 +220,7 @@ function JurisdictionDirectory({state}:{state:string}){
 export default function GovernmentProcurementWorkspace(){
  const [pilot,setPilot]=useState<Pilot|null>(null)
  const [canaries,setCanaries]=useState<PublicCanary[]>([])
+ const [activation,setActivation]=useState<ActivationResponse|null>(null)
  const [canaryReviews,setCanaryReviews]=useState<Record<string,Draft>>({})
  const [reviewingCanary,setReviewingCanary]=useState<string|null>(null)
  const [sources,setSources]=useState<Source[]>([])
@@ -227,16 +238,19 @@ export default function GovernmentProcurementWorkspace(){
  async function load(){
   setLoading(true);setError("")
   try{
-   const [pilotResponse,sourceResponse,nationalResponse,canaryResponse]=await Promise.all([
+   const [pilotResponse,sourceResponse,nationalResponse,canaryResponse,activationResponse]=await Promise.all([
     fetch("/api/opportunities/procurement?mode=pilot",{cache:"no-store"}),
     fetch("/api/opportunities/procurement?state="+encodeURIComponent(selectedState)+"&limit=35",{cache:"no-store"}),
     fetch("/api/opportunities/procurement/coverage",{cache:"no-store"}),
-    fetch("/api/opportunities/procurement/canaries",{cache:"no-store"})
+    fetch("/api/opportunities/procurement/canaries",{cache:"no-store"}),
+    fetch("/api/opportunities/procurement/activate",{cache:"no-store"})
    ])
    const a=await pilotResponse.json() as PilotResponse
    const b=await sourceResponse.json() as SourceResponse
    const n=await nationalResponse.json() as NationalResponse
    const k=await canaryResponse.json() as CanaryListResponse
+   const activationData=await activationResponse.json() as ActivationResponse
+   setActivation(activationResponse.ok&&activationData.ok?activationData:null)
    if(canaryResponse.ok&&k.ok)setCanaries(k.canaries??[])
    else{setCanaries([]);setError("Public notice packets unavailable. No-send review remains protected.")}
    if(nationalResponse.ok&&n.ok){setCoverage(n.report??null);setExpansionCatalogs(n.expansionCatalogs??[])}
@@ -375,6 +389,35 @@ export default function GovernmentProcurementWorkspace(){
       <ul style={{...dim,fontSize:12}}>{c.complianceEvidenceMissing.map(x=><li key={x}>{x}</li>)}</ul>
      </details>
     </article>)}
+   </section>
+   <section style={section}>
+    <div style={mini}>Controlled activation · no external action</div>
+    <h2 style={boxTitle}>Source, contractor and real-cost acceptance</h2>
+    <p style={dim}>These checks read actual commissioning records. Public access approval is separate from a successful parser, a registered bidder is separate from a consenting prime, and bond face values are separate from premiums. Neither source collection nor procurement submissions are activated here.</p>
+    {!activation?<p role="status" style={dim}>Live commissioning receipts unavailable. Treat all source, provider and cost certifications as blocked.</p>:
+    <>
+     <div style={{display:"grid",gap:10}}>
+      {activation.sourceChecks?.map(c=><article key={c.sourceId} style={{background:"#1c2935",padding:12,borderRadius:10}}>
+       <strong>{c.name}</strong> · {c.sourceCertifiedNow?"Recorded as certified":"Not certified"}
+       <p style={{...dim,fontSize:12,margin:"6px 0"}}>Registered access approval: {c.siteAccessApprovedInRegistry?"yes":"not verified"} · Trial records: {c.readOnlyTrialCount??0} · Successful exact-parser trials: {c.successfulExactParserTrials??0}/3</p>
+       <details><summary style={{cursor:"pointer",fontSize:12}}>Trial evidence and blockers ({c.blockers.length})</summary>
+        <ul style={{...dim,fontSize:12}}>{c.blockers.map(x=><li key={x}>{x.replace(/_/g," ")}</li>)}</ul>
+        {c.recentTrials?.map((t,i)=><p key={i} style={{...dim,fontSize:12}}>HTTP {t.httpStatus??"unknown"} · {t.adapterKey} · parsed {String(t.parseSucceeded)} · observations {t.observationCount} · {t.errorCode??"no error reported"}</p>)}
+       </details>
+      </article>)}
+     </div>
+     <h3 style={{margin:"18px 0 6px",fontSize:16}}>Bid economics and prime qualification — evidence only</h3>
+     {activation.notices?.map(n=><article key={n.id} style={{margin:"14px 0",borderTop:"1px solid #364b60",paddingTop:12}}>
+      <strong>{n.id} · {n.title}</strong>
+      <p style={{...dim,fontSize:12}}>Deadline: {n.deadlineState.replace(/_/g," ")} · Actual pricing: {n.economics.complete?"fully evidenced":"incomplete; no profit estimate"}</p>
+      <p style={{...dim,fontSize:12}}>Cost: {n.economics.costTotalUsd===null?"not proven":String(n.economics.costTotalUsd)} · Gross contribution: {n.economics.projectedGrossContributionUsd===null?"not calculated":String(n.economics.projectedGrossContributionUsd)}. Bid security and 100% bond faces are not fees. Retainage affects cash flow, not contract cost.</p>
+      <details><summary style={{cursor:"pointer",fontSize:12}}>Missing commercial inputs ({n.economics.blockers.length})</summary>
+       <ul style={{...dim,fontSize:12}}>{n.economics.blockers.map(x=><li key={x}>{x.replace(/_/g," ")}</li>)}</ul>
+      </details>
+      {n.historicalBidders.map(p=><p key={p.providerName} style={{...dim,fontSize:12}}>{p.providerName} · {p.priorRole.replace(/_/g," ")} · {p.blockers.length} qualification gaps · no current consent or quote</p>)}
+     </article>)}
+    </>
+    }
    </section>
    <JurisdictionDirectory state={selectedState}/>
    <section style={section}>
