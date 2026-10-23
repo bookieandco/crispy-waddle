@@ -151,6 +151,33 @@ describe('SHARK->Money paper->Shadow/Purse coordination',()=>{
   expect(tick.records[0]?.paperRunId).toBe('run:1')
   expect(tick.records[0]?.canCreditPurse).toBe(false)
   expect(written).toHaveLength(1)
+  // A canonical snapshot assembled before the await must not be used to
+  // invent a paper fill after a genuine public provider response arrives.
+  let clockSamples=0
+  const networkReceivedAt='2026-10-21T20:00:05Z'
+  const postIo=await runSniperLivePaperTick({
+   now,work:[{workId:'paper:post-io',kind:'RESEARCH_ENTRY',
+    queuedAt:'2026-10-21T20:00:03Z'}],
+   exits:[],entries:[{workId:'paper:post-io',mint:tokenAddress,
+    originalPairAddress:'3'.repeat(32),canonicalPaper:candidates}],
+   maxPerTick:1,maxEntryQueueMs:2000,
+  },{
+   now:()=>++clockSamples===1?now:networkReceivedAt,
+   readPublicPair:async mint=>({
+    status:'READ_ONLY_OBSERVED',mint,receivedAt:networkReceivedAt,
+    pair:{mint,pairAddress:'3'.repeat(32),dexId:'test',priceUsd:.0001,
+     reportedLiquidityUsd:1000,receivedAt:networkReceivedAt,
+     observedAt:networkReceivedAt,evidenceId:'dex-public:distinct-new',
+     chainProof:false,executableQuote:false,verifiedSellPath:false,
+     source:'DEXSCREENER_PUBLIC_PRICE_ONLY'},
+    authority:'PUBLIC_RESEARCH_ONLY',canSign:false,canTrade:false,
+   }),
+   store:{append:async row=>{written.push(row);return 'INSERTED' as const}},
+  })
+  expect(postIo.records[0]?.outcome).toBe('NO_TRADE')
+  expect(postIo.records[0]?.paperRunId).toBeUndefined()
+  expect(postIo.records[0]?.reasonCodes).toContain('PAPER_SNAPSHOT_STALE_AFTER_SOURCE_READ')
+  expect(postIo.records[0]?.canExecute).toBe(false)
  })
  it('missing reverse route cannot be mistaken for a closed position',()=>{
   const result=runSniperPaperCycle({...standard,exitRouteAttested:false})

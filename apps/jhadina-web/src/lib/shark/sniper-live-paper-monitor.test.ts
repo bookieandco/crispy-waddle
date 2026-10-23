@@ -93,6 +93,35 @@ describe('LIVE-PAPER.07–.08 full-path bounded paper orchestration',()=>{
    store:journal,
   })).rejects.toThrow('PAIR_OR_RECEIPT_PROVENANCE_INVALID')
  })
+ it('accepts a genuine public receipt arriving after tick start, but still forbids fills',async()=>{
+  const before='2026-10-22T20:00:04Z',after='2026-10-22T20:00:05Z'
+  let calls=0
+  const nowClock=()=>++calls===1?before:after
+  const readPublicPair=async (token:string)=>{
+   const p=price(token)
+   return {...p,receivedAt:after,pair:{...p.pair!,receivedAt:after,observedAt:after}}
+  }
+  const saved:SniperPaperMonitorRecord[]=[]
+  const r=await runSniperLivePaperTick({
+   now:before,work:[entry('new','2026-10-22T20:00:04Z')],
+   exits:[],entries:[{workId:'new',mint,originalPairAddress:pair}],
+   maxPerTick:1,maxEntryQueueMs:2000,
+  },{readPublicPair,now:nowClock,
+   store:{append:async row=>{saved.push(row);return 'INSERTED' as const}}})
+  expect(r.records[0]?.outcome).toBe('CHAIN_PROOF_REQUIRED')
+  expect(r.records[0]?.observedAt).toBe(after)
+  expect(saved[0]?.canExecute).toBe(false)
+ })
+ it('never accepts a clock going backward during a real market request',async()=>{
+  let calls=0
+  const reversed=()=>++calls===1?'2026-10-22T20:00:04Z':'2026-10-22T20:00:03Z'
+  await expect(runSniperLivePaperTick({
+   now,work:[entry('new')],exits:[],
+   entries:[{workId:'new',mint,originalPairAddress:pair}],
+   maxPerTick:1,maxEntryQueueMs:1000,
+  },{readPublicPair:async()=>price(mint),now:reversed,store:journal}))
+    .rejects.toThrow('CLOCK_REGRESSED')
+ })
  it('does not acknowledge a cycle whose journal write failed',async()=>{
   await expect(runSniperLivePaperTick({
    now,work:[exit('fail')],exits:[{workId:'fail',position:open,policy}],

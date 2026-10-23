@@ -53,6 +53,9 @@ const receipt=(workId:string,now:string,outcome:SniperPaperMonitorRecord['outcom
 export async function runSniperLivePaperTick(input:SniperPaperMonitorInput,deps:{
  readPublicPair:(mint:string,pairAddress:string)=>Promise<SniperPublicRead>
  store:SniperPaperMonitorStore
+ /** Production host must sample time after each awaited provider request.
+  * Defaults to input.now only for deterministic hermetic tests. */
+ now?:()=>string
 }){
  if(input.work.length>512||input.exits.length>512||input.entries.length>512){
   throw new Error('SNIPER_PAPER_TICK_BOUNDS_INVALID')
@@ -62,7 +65,18 @@ export async function runSniperLivePaperTick(input:SniperPaperMonitorInput,deps:
  })
  const exits=own(input.exits),entries=own(input.entries)
  const recorded:SniperPaperMonitorRecord[]=[]
+ const startMs=Date.parse(input.now)
+ if(!Number.isFinite(startMs))throw Error('SNIPER_PAPER_CLOCK_INVALID')
+ let lastMs=startMs
+ const sampleTime=()=>{
+  const value=deps.now?.()??input.now
+  const t=Date.parse(value)
+  if(!Number.isFinite(t)||t<lastMs)throw Error('SNIPER_PAPER_CLOCK_REGRESSED')
+  lastMs=t
+  return value
+ }
  for(const item of plan.ready){
+  let decisionTime=sampleTime()
   let row:SniperPaperMonitorRecord
   if(item.kind!=='RESEARCH_ENTRY'){
    const position=exits.get(item.workId)
@@ -70,9 +84,9 @@ export async function runSniperLivePaperTick(input:SniperPaperMonitorInput,deps:
    if(position.position.tokenAddress.trim()==='')throw new Error('SNIPER_PAPER_EXIT_TOKEN_INVALID')
    const decision=evaluateSniperExit({
     position:position.position,quote:position.quote,policy:position.policy,
-    unresolvedPreviousExit:position.unresolvedPreviousExit,now:input.now,
+    unresolvedPreviousExit:position.unresolvedPreviousExit,now:decisionTime,
    })
-   row=receipt(item.workId,input.now,'EXIT_REVIEW',decision.reasonCodes,{
+   row=receipt(item.workId,decisionTime,'EXIT_REVIEW',decision.reasonCodes,{
     exitAction:decision.action,
    })
   }else{
@@ -81,22 +95,32 @@ export async function runSniperLivePaperTick(input:SniperPaperMonitorInput,deps:
     throw new Error('SNIPER_PAPER_ENTRY_STATE_REQUIRED')
    }
    const publicRead=await deps.readPublicPair(candidate.mint,candidate.originalPairAddress)
+   // The caller's input.now predates the awaited network request.
+   // Comparing real receivedAt to that earlier time rejects valid observations.
+   decisionTime=sampleTime()
    if(publicRead.mint!==candidate.mint||publicRead.canTrade!==false||
      publicRead.authority!=='PUBLIC_RESEARCH_ONLY'){
     throw new Error('SNIPER_PAPER_FEED_AUTHORITY_INVALID')
    }
    if(publicRead.status!=='READ_ONLY_OBSERVED'||!publicRead.pair){
-    row=receipt(item.workId,input.now,'MISSING_PUBLIC_PAIR',['EXACT_PAIR_NOT_PUBLICLY_OBSERVED'])
+    row=receipt(item.workId,decisionTime,'MISSING_PUBLIC_PAIR',['EXACT_PAIR_NOT_PUBLICLY_OBSERVED'])
    }else if(publicRead.pair.mint!==candidate.mint||
      publicRead.pair.pairAddress!==candidate.originalPairAddress||
      publicRead.pair.executableQuote!==false||publicRead.pair.chainProof!==false||
      !Number.isFinite(Date.parse(publicRead.receivedAt))||
-     Date.parse(publicRead.receivedAt)>Date.parse(input.now)){
+     Date.parse(publicRead.receivedAt)>Date.parse(decisionTime)){
     throw new Error('SNIPER_PAPER_PAIR_OR_RECEIPT_PROVENANCE_INVALID')
    }else if(!candidate.canonicalPaper||!candidate.canonicalPaper.fastlane||
      candidate.canonicalPaper.riskEvidence.proof!=='CHAIN_ATTESTED'){
-    row=receipt(item.workId,input.now,'CHAIN_PROOF_REQUIRED',[
+    row=receipt(item.workId,decisionTime,'CHAIN_PROOF_REQUIRED',[
      'PUBLIC_PRICE_NOT_CHAIN_ATTESTATION','REAL_BUY_SELL_QUOTE_NOT_PROVIDED',
+    ])
+   }else if(Date.parse(decisionTime)!==Date.parse(candidate.canonicalPaper.now)||
+     Date.parse(decisionTime)-startMs>8000){
+    // Never apply a pre-network risk/quote snapshot to a post-network fill.
+    // Caller must gather fresh canonical evidence under the new cutoff.
+    row=receipt(item.workId,decisionTime,'NO_TRADE',[
+     'PAPER_SNAPSHOT_STALE_AFTER_SOURCE_READ','NO_ORDER_OR_PAPER_FILL',
     ])
    }else{
     if(candidate.canonicalPaper.tokenAddress!==candidate.mint||
@@ -106,7 +130,7 @@ export async function runSniperLivePaperTick(input:SniperPaperMonitorInput,deps:
       throw new Error('SNIPER_PAPER_IDENTITY_OR_PUBLIC_QUOTE_SUBSTITUTION')
     }
     const result=runSniperPaperCycle(candidate.canonicalPaper)
-    row=receipt(item.workId,input.now,result.disposition==='PAPER_RECORDED'?'PAPER_RECORDED':'NO_TRADE',
+    row=receipt(item.workId,decisionTime,result.disposition==='PAPER_RECORDED'?'PAPER_RECORDED':'NO_TRADE',
       result.reasonCodes,result.paper?{paperRunId:result.paper.runId}:{})
    }
   }
@@ -119,7 +143,7 @@ export async function runSniperLivePaperTick(input:SniperPaperMonitorInput,deps:
  // a bounded queue are real NO-ENTRY observations, never silently discarded
  // or upgraded to hypothetical wins by retrospective backfills.
  for(const workId of plan.expiredEntries){
-  const row=receipt(workId,input.now,'ENTRY_EXPIRED',[
+  const row=receipt(workId,sampleTime(),'ENTRY_EXPIRED',[
    'ENTRY_EXPIRED_IN_QUEUE','NO_ORDER_OR_PAPER_FILL',
   ])
   await deps.store.append(row)
