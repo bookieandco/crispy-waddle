@@ -17,7 +17,7 @@ const success = (body:Record<string,unknown>) =>
 async function ownerClients() {
   const supabase = await createClient()
   const {data:{user},error} = await supabase.auth.getUser()
-  if (error || !isVerifiedPersonalOwner(user)) return null
+  if (error || !user || !isVerifiedPersonalOwner(user)) return null
   const admin = await createRuntimeServiceRoleClient()
   if (!admin) return {user,admin:null}
   return {user,admin}
