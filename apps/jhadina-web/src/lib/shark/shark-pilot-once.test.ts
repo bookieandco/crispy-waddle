@@ -21,7 +21,8 @@ describe('SHARK-PILOT.34 manually invoked canonical bridge',()=>{
   expect(noStage.assessmentInvoked).toBe(false)
   const noFee=await runSharkPublicPilotOnce({...common,stage},{fetcher,executeCycle:execute})
   expect(noFee.assessmentInvoked).toBe(false)
-  expect(noFee.reason).toBe('REVIEW')
+  // The canonical bridge intentionally returns different shapes on MATCH / REVIEW.
+  expect('reason' in noFee ? noFee.reason : undefined).toBe('REVIEW')
   expect(execute).not.toHaveBeenCalled()
  })
  it('uses canonical intelligence cycle once on a match and never grants trade authority',async()=>{
