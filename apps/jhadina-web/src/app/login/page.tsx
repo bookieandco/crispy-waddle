@@ -24,6 +24,7 @@ export default async function LoginPage({ searchParams = {} }: LoginPageProps) {
   const message = first(searchParams.message);
   const next = safeAuthNext(first(searchParams.next));
   const settingUpPasskey = next === "/settings/security";
+  const emailRecoveryRequested = first(searchParams.recover) === "1";
   // A validated owner session has already unlocked this browser/origin.
   // Never force another passkey, OTP or password ceremony merely because
   // the user visited /login directly or followed an old email link.
@@ -47,8 +48,9 @@ export default async function LoginPage({ searchParams = {} }: LoginPageProps) {
       {message && <p role="status">{message === "check_email" ? "Check your email for the confirmation link." : message === "password_changed" ? "Password updated. Sign in with your new password." : "Your request has been received."}</p>}
 
       <PasskeyAction next={next} />
-      <p style={{ marginTop: 4, fontSize: 14 }}>On this device and site address, a valid owner session will take you straight back to your workspace without signing in again. A new browser, expired session, or different preview address may require Face ID.</p>
-      <details open={settingUpPasskey}><summary>First visit · Set up Face ID</summary>
+      <p style={{ marginTop: 4, fontSize: 14 }}>A verified owner session stays active on this site. If Face ID cannot verify your existing passkey, use the one-time email link below to unlock once, then set up a passkey for this exact website address.</p>
+      <p><Link href={`/login?next=${encodeURIComponent(next)}&recover=1#email-signin`} style={{ fontWeight: 700 }}>Face ID not working? Open email sign-in</Link></p>
+      <details id="email-signin" open={settingUpPasskey || emailRecoveryRequested}><summary>Unlock with owner email / Set up Face ID</summary>
       <section style={{ display: "grid", gap: 14, marginTop: 24, padding: 16, border: "1px solid #54765d", borderRadius: 16 }}>
         <h2 style={{ margin: 0, fontSize: 20 }}>First-time access</h2>
         <p style={{ margin: 0 }}>One verified email link can open the exact Jhadina page you requested. Add Face ID in <Link href="/settings/security">Security Settings</Link> when convenient; that setup is not required to view your current build page. Avoid repeatedly requesting email links if Supabase reports a temporary rate limit.</p>
