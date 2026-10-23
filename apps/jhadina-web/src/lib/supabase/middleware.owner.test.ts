@@ -34,6 +34,30 @@ describe("Face ID owner-only protected middleware", () => {
     const res = await updateSession(new NextRequest("https://private.vercel.app/ask-jhadina"));
     expect(res.headers.get("location")).toContain("/login");
   });
+  it("retains rotated auth cookies on a denied redirect without allowing owner bypass", async () => {
+    mocks.getClaims.mockResolvedValue({ data: { claims: null } });
+    mocks.createServerClient.mockImplementation((_url: unknown, _key: unknown, options: {
+      cookies: { setAll: (items: Array<{ name: string; value: string; options: { path: string; httpOnly: boolean } }>, headers: Record<string, string>) => void }
+    }) => ({
+      auth: {
+        getClaims: async () => {
+          options.cookies.setAll([{
+            name: "sb-test-auth-token",
+            value: "rotated",
+            options: { path: "/", httpOnly: true },
+          }], {});
+          return { data: { claims: null } };
+        },
+        getUser: mocks.getUser,
+      },
+    }));
+    const res = await updateSession(new NextRequest("https://private.vercel.app/ask-jhadina"));
+    expect(res.headers.get("location")).toContain("/login");
+    expect(res.cookies.get("sb-test-auth-token")?.value).toBe("rotated");
+    expect(res.cookies.get("sb-test-auth-token")?.httpOnly).toBe(true);
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+    expect(mocks.getUser).not.toHaveBeenCalled();
+  });
   it("does not change existing machine-route bearer authorization", async () => {
     const res = await updateSession(new NextRequest("https://private.vercel.app/api/health"));
     expect(res.status).toBe(200);
