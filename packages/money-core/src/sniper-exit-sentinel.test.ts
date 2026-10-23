@@ -30,3 +30,13 @@ test('full position sell mismatch never counts as verified exit',()=>{
  const result=evaluateSniperExit({position,policy,now,quote:{...quote,sellAmountAtomic:10n}})
  assert.equal(result.action,'EXIT_ROUTE_MISSING')
 })
+
+test('zero reported inventory never resolves a previous unsettled sell attempt',()=>{
+ const empty={...position,openTokenAmountAtomic:0n}
+ const pending=evaluateSniperExit({position:empty,policy,now,unresolvedPreviousExit:true})
+ assert.equal(pending.action,'UNRESOLVED_PREVIOUS_ATTEMPT')
+ assert.ok(pending.reasonCodes.includes('EXIT_SETTLEMENT_RECONCILIATION_REQUIRED'))
+ assert.equal(pending.canBroadcast,false)
+ const independentlyReconciled=evaluateSniperExit({position:empty,policy,now,unresolvedPreviousExit:false})
+ assert.equal(independentlyReconciled.action,'NO_POSITION')
+})
