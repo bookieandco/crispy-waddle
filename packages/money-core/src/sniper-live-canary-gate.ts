@@ -1,3 +1,4 @@
+import {sha256UnsignedTransaction,type SniperTransactionByteAudit} from './sniper-transaction-byte-audit.js'
 import {assertDexSwapIntent,type DexSwapIntent,type DexManagedOrder,
  type DexExecutionAttempt,type DexOnchainReceipt} from './solana-dex-runtime-contracts.js'
 import type {DexRuntimeReadinessReport} from './dex-runtime-readiness.js'
@@ -23,6 +24,9 @@ export type SniperLiveGatePolicy=Readonly<{
 export type SniperExecutableQuoteReview=Readonly<{
  quoteId:string;order:DexManagedOrder
  observedAt:string;expiresAt:string
+ /** Derived from independent decoding of the exact provider order bytes.
+  * This is structural research ONLY and cannot grant signing authority. */
+ byteAudit?:SniperTransactionByteAudit
  priceImpactBps:number;instructionReviewEvidenceIds:readonly string[];estimatedPriorityFeeLamports:bigint
  estimatedJitoTipLamports:bigint;estimatedBaseFeeLamports:bigint
  source:'JUPITER_ORDER_CANDIDATE'
@@ -165,6 +169,28 @@ export function reviewSniperLiveEntry(input:SniperEntryReviewInput):SniperLiveEn
   }
   if(!q.transactionInstructionsVerified||!q.instructionReviewEvidenceIds.length)
    reasons.push('TRANSACTION_INSTRUCTION_ATTESTATION_REQUIRED')
+  // Caller flags and evidence IDs alone must never upgrade bytes into a
+  // safe transaction. A byte-level scan can bind the quote's *structure*,
+  // but it does not authenticate CPIs, token movements or router semantics.
+  const audit=q.byteAudit
+  if(!audit){
+   reasons.push('UNSIGNED_TRANSACTION_BYTE_AUDIT_REQUIRED')
+  }else{
+   let sameBytes=false
+   try{sameBytes=audit.transactionSha256===sha256UnsignedTransaction(order.unsignedTransactionBase64)}
+   catch{sameBytes=false}
+   if(audit.orderRequestId!==order.requestId||!sameBytes||
+      audit.feePayer!==input.cofferWalletAddress||
+      audit.authority!=='UNSIGNED_TRANSACTION_STRUCTURE_ONLY'||
+      audit.status!=='STRUCTURE_OBSERVED'||audit.reasonCodes.length>0||
+      audit.canSign!==false||audit.canSubmit!==false||audit.canTrade!==false){
+    reasons.push('UNSIGNED_TRANSACTION_BYTE_BINDING_INVALID')
+   }
+  }
+  // The structural parser deliberately cannot validate swap instruction
+  // semantics, address lookup tables or hidden CPI. Source-only review stays
+  // BLOCKED until a separate trusted semantic verifier is commissioned.
+  reasons.push('TRANSACTION_SEMANTIC_DECODER_NOT_COMMISSIONED')
   if(input.entryClock.selectedQuoteAvailableAt!==q.observedAt||
      input.entryClock.entryOrderExpiresAt!==q.expiresAt){
    reasons.push('FASTLANE_SELECTED_QUOTE_NOT_BOUND')
