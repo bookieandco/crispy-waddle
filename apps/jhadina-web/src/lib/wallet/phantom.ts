@@ -37,20 +37,21 @@ export async function disconnectPhantom(): Promise<void> {
   await provider.disconnect()
 }
 
-export function createOwnershipChallenge(walletAddress: string, now = new Date().toISOString()): string {
-  return [
-    'Jhadina wallet ownership verification',
-    `Wallet: ${walletAddress}`,
-    `Issued at: ${now}`,
-    'Purpose: prove control of this public wallet address.',
-    'This signature does not authorize a transaction or transfer.',
-  ].join('\n')
-}
-
-export async function signOwnershipChallenge(walletAddress: string): Promise<Uint8Array> {
+/** Sign ONLY a fresh server-issued, owner-bound, single-use message. */
+export async function signOwnershipChallenge(walletAddress: string, message: string): Promise<Uint8Array> {
   const provider = getPhantomProvider()
   if (!provider?.signMessage) throw new Error('This Phantom provider does not expose message signing.')
-  const message = new TextEncoder().encode(createOwnershipChallenge(walletAddress))
-  const result = await provider.signMessage(message, 'utf8')
+  if (typeof message !== 'string' || message.length < 40 || message.length > 900
+      || !message.includes('Wallet: ' + walletAddress)
+      || !message.includes('This message does not authorize trades')) {
+    throw new Error('Invalid server wallet ownership challenge.')
+  }
+  if (provider.publicKey?.toString() !== walletAddress)
+    throw new Error('Connected Phantom account changed. Reconnect first.')
+  const result = await provider.signMessage(new TextEncoder().encode(message), 'utf8')
+  if (result.publicKey?.toString() !== walletAddress)
+    throw new Error('Phantom signature account differs from the requested wallet.')
+  if (!(result.signature instanceof Uint8Array) || result.signature.length !== 64)
+    throw new Error('Phantom returned an invalid signature.')
   return result.signature
 }
