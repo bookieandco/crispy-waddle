@@ -3,6 +3,7 @@ import {createRequestIdentityVerifier} from '@/lib/auth/request-identity'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
 import {
  assessSourceCanary,assessPrimeQualification,assessBidEconomics,prioritizeNationalProcurementBatch,
+ assessPublicContractCashBridge,assessRegionalPrimeChannel,
  type CostLine,type AdapterCanaryTrial,
 } from '@jhadina/opportunity-core'
 import {PUBLIC_PROCUREMENT_CANARY_NOTICES,readPublicProcurementCanary} from '@/lib/opportunities/procurement-public-canary-docket'
@@ -114,8 +115,41 @@ export async function GET(){
     fullSolicitationCertified:false,licensedPrimeQualified:false,
     scopeSpecificPartnerConsent:false,firmQuoteVerified:false}
   ]})
+  // Keep dealer/supply contracts separate from public-works construction.
+  // The truck RFQ public heading does not resolve installation, registration
+  // or prevailing-wage obligations; those require buyer-confirmed specifications.
+  const buyerStructureReviews=[
+   ...PUBLIC_PROCUREMENT_CANARY_NOTICES.map(n=>assessRegionalPrimeChannel({
+    opportunity:{opportunityId:n.id,kind:'public_works_construction',
+     kindDeterminationOfficial:true,bidderRegistrationVerified:false,
+     fullBuyerTermsRead:false,bidderRoleApprovedInTerms:false,
+     subcontractingOrResaleRulesVerified:false,currentLicensesVerified:false,
+     currentDirRegistrationVerified:false,installationAndPrevailingWageClassificationVerified:false,
+     partnerOrManufacturerAuthorizationVerified:false,writtenQuotesComplete:false,
+     evidenceRefs:[n.noticeUrl]},
+    role:'licensed_general_prime',
+   })),
+   assessRegionalPrimeChannel({
+    opportunity:{opportunityId:'RUSD-2026-27-11',kind:'goods_with_possible_installation',
+     kindDeterminationOfficial:false,bidderRegistrationVerified:false,
+     fullBuyerTermsRead:false,bidderRoleApprovedInTerms:false,
+     subcontractingOrResaleRulesVerified:false,currentLicensesVerified:false,
+     currentDirRegistrationVerified:false,installationAndPrevailingWageClassificationVerified:false,
+     partnerOrManufacturerAuthorizationVerified:false,writtenQuotesComplete:false,
+     evidenceRefs:['https://webapps.riversideunified.org/apps/planholdersregistration/BidsSelect.aspx']},
+    role:'authorized_dealer_or_distributor'
+   }),
+  ]
+  // No personal banking or private wallet information read; without a
+  // contract-specific, sourced payment timeline Jhadina cannot claim the
+  // cash bridge will fund mobilization, labor or delayed retainage.
+  const cashBridges=buyerStructureReviews.map(c=>assessPublicContractCashBridge({
+   opportunityId:c.opportunityId,periods:[],verifiedUnrestrictedFundsUsd:null,
+   fundingEvidenceRefs:[],drawScheduleComplete:false,paymentTermsVerified:false,
+   retentionReleaseDateVerified:false,
+  }))
   return reply({ok:true,mode:'owner_only_read_only_acceptance',asOf,
-   sourceChecks,notices,batch,
+   sourceChecks,notices,batch,buyerStructureReviews,cashBridges,
    prioritizedPaths:[
     {id:'OXNARD-PW-25-96',workstream:'California licensed Class A contractor plus pump/electrical subs',selection:'public_notice_only'},
     {id:'RUSD-2026-27-11',workstream:'Licensed truck dealer/upfitter and school RFQ registration',selection:'public_bid_list_only'},
