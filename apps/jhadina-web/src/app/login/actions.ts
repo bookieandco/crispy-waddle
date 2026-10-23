@@ -119,5 +119,5 @@ export async function sendOwnerSignInLink(formData: FormData) {
     failure = "service_unavailable";
   }
   if (failure) redirect(`/login?error=${encodeURIComponent(failure)}&next=${encodeURIComponent(next)}`);
-  redirect("/login?message=check_email");
+  redirect(`/login?message=check_email&next=${encodeURIComponent(next)}`);
 }
