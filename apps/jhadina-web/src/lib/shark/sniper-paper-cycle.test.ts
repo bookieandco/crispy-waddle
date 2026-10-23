@@ -1,5 +1,6 @@
 import {describe,expect,it} from 'vitest'
 import {runSniperPaperCycle} from './sniper-paper-cycle'
+import {runSniperLivePaperTick} from './sniper-live-paper-monitor'
 
 const now='2026-10-21T20:00:04Z'
 const tokenAddress='MINT'
@@ -119,6 +120,37 @@ describe('SHARK->Money paper->Shadow/Purse coordination',()=>{
   expect(result.reasonCodes).toContain('RECONCILE_UNRESOLVED_EXIT')
   expect(result.disposition).toBe('NO_TRADE')
   expect(result.canExecute).toBe(false)
+ })
+ it('LIVE-PAPER.08 integrates public research with separately proven canonical Money paper fill',async()=>{
+  const now='2026-10-21T20:00:04Z'
+  const candidates={...standard,fastlane:{
+    eventObservedAt:'2026-10-21T20:00:00Z',
+    serverReceivedAt:'2026-10-21T20:00:00.600Z',
+    selectedQuoteAvailableAt:'2026-10-21T20:00:03Z',
+    selectedQuoteEvidenceId:'route:1',
+    hasOpenPosition:false,unresolvedExitAttempt:false,
+    policy:{maxOpportunityAgeMs:5000,maxProviderToReceiptMs:1500,
+      maxRiskEvidenceAgeMs:2000,maxSelectedQuoteAgeMs:2000,minOrderRemainingMs:500},
+  }}
+  const written:any[]=[]
+  const tick=await runSniperLivePaperTick({
+    now,work:[{workId:'paper:one',kind:'RESEARCH_ENTRY',queuedAt:'2026-10-21T20:00:03Z'}],
+    exits:[],entries:[{workId:'paper:one',mint:tokenAddress,
+      originalPairAddress:'3'.repeat(32),canonicalPaper:candidates}],
+    maxPerTick:1,maxEntryQueueMs:2000,
+  },{readPublicPair:async mint=>({
+    status:'READ_ONLY_OBSERVED',mint,receivedAt:now,
+    pair:{mint,pairAddress:'3'.repeat(32),dexId:'test',
+      priceUsd:.0001,reportedLiquidityUsd:1000,
+      receivedAt:now,observedAt:now,evidenceId:'dex-public:distinct',
+      chainProof:false,executableQuote:false,verifiedSellPath:false,
+      source:'DEXSCREENER_PUBLIC_PRICE_ONLY'},
+    authority:'PUBLIC_RESEARCH_ONLY',canSign:false,canTrade:false,
+  }),store:{append:async row=>{written.push(row);return 'INSERTED' as const}}})
+  expect(tick.records[0]?.outcome).toBe('PAPER_RECORDED')
+  expect(tick.records[0]?.paperRunId).toBe('run:1')
+  expect(tick.records[0]?.canCreditPurse).toBe(false)
+  expect(written).toHaveLength(1)
  })
  it('missing reverse route cannot be mistaken for a closed position',()=>{
   const result=runSniperPaperCycle({...standard,exitRouteAttested:false})
