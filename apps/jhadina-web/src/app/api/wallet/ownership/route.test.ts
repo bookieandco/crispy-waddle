@@ -34,13 +34,13 @@ function request(method:'POST'|'DELETE',body:Record<string,unknown>,origin=BASE)
   })
 }
 function readChallenge() {
-  const query={
-    select:vi.fn(()=>query),eq:vi.fn(()=>query),
-    maybeSingle:vi.fn(async()=>({data:{
+  const query={} as {select:ReturnType<typeof vi.fn>,eq:ReturnType<typeof vi.fn>,maybeSingle:ReturnType<typeof vi.fn>}
+  query.select=vi.fn(()=>query)
+  query.eq=vi.fn(()=>query)
+  query.maybeSingle=vi.fn(async()=>({data:{
       id:challengeId,wallet_address:ADDRESS,challenge_text:MESSAGE,
       expires_at:expiresAt,consumed_at:null,
-    },error:null})),
-  }
+    },error:null}))
   return query
 }
 describe('wallet ownership route: owner + signature + replay/revocation guards',()=>{
