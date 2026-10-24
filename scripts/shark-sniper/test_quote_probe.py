@@ -1,8 +1,10 @@
-"""Hermetic proof of disabled-by-default and provenance-safe quote timing."""
+"""Hermetic Jupiter V2 quote-only host contract, rate pacing and failure coverage."""
 import io
 import json
 import unittest
+import urllib.error
 from contextlib import redirect_stderr
+from unittest.mock import patch
 import quote_probe as p
 
 
@@ -14,86 +16,156 @@ class Response:
     def read(self, size): return self.data[:size]
 
 
-class Tests(unittest.TestCase):
-    def test_default_requires_opt_in(self):
+def valid(**changes):
+    data = {
+        "inputMint": p.SOL,
+        "outputMint": p.USDC,
+        "inAmount": "100",
+        "outAmount": "250",
+        "requestId": "fake-test-id-only",
+        "router": "metis",
+        "mode": "ultra",
+        "feeBps": 10,
+        "routePlan": [{"swapInfo": {}}],
+        "transaction": None,
+        "taker": None,
+    }
+    data.update(changes)
+    return data
+
+
+class QuoteV2Tests(unittest.TestCase):
+    def test_no_network_by_default(self):
         with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             p.main([])
 
-    def test_valid_quote_and_exact_amount(self):
-        expected = {"inputMint": p.SOL, "outputMint": p.USDC, "inAmount": "100",
-                    "outAmount": "250", "routePlan": [{"swapInfo": {}}], "contextSlot": 300}
-        result = p.read_quote(p.SOL, p.USDC, 100, opener=lambda *_args, **_kwargs: Response(expected),
-                              clock=iter([0, .12]).__next__)
-        self.assertEqual(result["elapsedMs"], 120)
+    def test_fixed_get_no_taker_no_slippage_no_execute(self):
+        captured = []
+        def fake(req, timeout):
+            captured.append(req)
+            self.assertEqual(req.get_method(), "GET")
+            self.assertTrue(req.full_url.startswith("https://api.jup.ag/swap/v2/order?"))
+            self.assertNotIn("taker=", req.full_url)
+            self.assertNotIn("slippageBps=", req.full_url)
+            self.assertNotIn("execute", req.full_url)
+            self.assertEqual(req.headers["Accept"], "application/json")
+            return Response(valid())
+        result = p.read_quote(p.SOL, p.USDC, 100, opener=fake,
+                              clock=iter((0, .08)).__next__)
+        self.assertEqual(result["elapsedMs"], 80)
         self.assertEqual(result["outAmount"], 250)
+        self.assertEqual(result["router"], "metis")
+        self.assertFalse(result["contextSlotAvailable"])
+        self.assertEqual(len(captured), 1)
 
-    def test_reject_wrong_pair_empty_route_and_oversize(self):
-        for changed in ({"outputMint": p.SOL}, {"routePlan": []}, {"contextSlot": None}):
-            obj = {"inputMint": p.SOL, "outputMint": p.USDC, "inAmount": "100",
-                   "outAmount": "200", "routePlan": [{"swapInfo": {}}], "contextSlot": 123}
-            obj.update(changed)
-            with self.assertRaises(p.QuoteFailure):
-                p.read_quote(p.SOL, p.USDC, 100, opener=lambda *_a, **_k: Response(obj))
+    def test_rfq_without_v1_context_slot_or_route_plan(self):
+        result = p.parse_v2_quote(valid(router="jupiterz", routePlan=None), p.SOL, p.USDC, 100)
+        self.assertEqual(result["outAmount"], 250)
+        self.assertIsNone(result["providerContextSlot"])
+        self.assertFalse(result["routePlanPresent"])
 
-    def test_pacing_percentiles_and_no_trade_authority(self):
-        clock = [0]
-        def now(): return clock[0]
-        def sleep(t): clock[0] += t
-        records = []
-        def quote(mint_in, mint_out, amount, timeout_s):
-            clock[0] += .08
-            return {"elapsedMs": 80, "outAmount": 200, "contextSlot": 150}
-        out = p.run_probe(2, 2.5, 5, p.SOL, p.USDC, 100, quote=quote,
-                          clock=now, sleeper=sleep, emit=lambda x: records.append(json.loads(x)))
-        self.assertEqual(out["successfulPairs"], 2)
-        self.assertEqual(out["forwardHttpMs"]["p99"], 80)
-        self.assertFalse(out["canTrade"])
-        self.assertEqual(out["deadlineStatus"], "INSUFFICIENT_PROSPECTIVE_HOST_DATA")
-        self.assertGreaterEqual(records[0]["pairWallMs"], 2500)
+    def test_reject_transaction_taker_wrong_mint_and_amount(self):
+        for changed in (
+            {"transaction": "base64-not-allowed"},
+            {"transaction": ""},
+            {"transaction": "MISSING"},
+            {"taker": p.SOL},
+            {"outputMint": p.SOL},
+            {"inAmount": "101"},
+            {"outAmount": "0"},
+            {"outAmount": "Infinity"},
+            {"requestId": ""},
+            {"errorCode": 123},
+            {"error": "bad"},
+        ):
+            with self.subTest(changed=changed), self.assertRaises(p.QuoteFailure):
+                p.parse_v2_quote(valid(**changed), p.SOL, p.USDC, 100)
 
-    def test_error_not_success_and_address_validation(self):
-        with self.assertRaises(ValueError): p.validate_mint("https://evil.example/")
-        def fail(*_args): raise p.QuoteFailure("PROVIDER_RATE_LIMIT")
-        data = p.run_probe(1, 2.5, 5, p.SOL, p.USDC, 100, quote=fail, emit=lambda _: None)
-        self.assertEqual(data["successfulPairs"], 0)
-        self.assertEqual(data["failures"], {"PROVIDER_RATE_LIMIT": 1})
+    def test_reject_untrusted_router_mode_fee_and_route(self):
+        for changed in (
+            {"router": "unknown"}, {"router": []}, {"mode": []},
+            {"mode": "unsafe"}, {"feeBps": float("nan")},
+            {"feeBps": 10001}, {"routePlan": "not-list"},
+        ):
+            with self.subTest(changed=changed), self.assertRaises(p.QuoteFailure):
+                p.parse_v2_quote(valid(**changed), p.SOL, p.USDC, 100)
 
+    def test_http_rate_limit_and_auth_required(self):
+        for code, expected in ((429, "PROVIDER_RATE_LIMIT"), (401, "PROVIDER_AUTH_REQUIRED"),
+                               (403, "PROVIDER_AUTH_REQUIRED"), (500, "PROVIDER_HTTP_ERROR")):
+            def fail(_request, timeout):
+                raise urllib.error.HTTPError(p.BASE, code, "redacted", {}, None)
+            with self.subTest(code=code), self.assertRaisesRegex(p.QuoteFailure, expected):
+                p.read_quote(p.SOL, p.USDC, 100, opener=fail)
 
-    def test_partial_reverse_failure_keeps_forward_latency(self):
+    def test_pacing_does_not_fake_trading(self):
         clock = [0.0]
         records = []
         def now(): return clock[0]
-        def sleep(value): clock[0] += value
-        def quote(mint_in, _mint_out, _amount, _timeout):
-            clock[0] += 0.14 if mint_in == p.SOL else 0.42
-            if mint_in == p.USDC:
+        def sleep(t): clock[0] += t
+        def quote(_a, _b, _amt, _timeout):
+            clock[0] += .08
+            return {"outAmount": 200, "elapsedMs": 80, "router": "metis", "feeBps": 1}
+        out = p.run_probe(2, 2.5, 5, p.SOL, p.USDC, 100,
+                          quote=quote, clock=now, sleeper=sleep,
+                          emit=lambda line: records.append(json.loads(line)))
+        self.assertEqual(out["successfulPairs"], 2)
+        self.assertEqual(out["forwardHttpMs"]["p99"], 80)
+        self.assertGreaterEqual(records[0]["pairWallMs"], 2500)
+        self.assertFalse(out["canTrade"])
+        self.assertFalse(out["canBroadcast"])
+        self.assertEqual(out["observedTrades"], 0)
+
+    def test_reverse_failure_keeps_both_attempt_durations(self):
+        clock = [0.0]
+        records = []
+        def now(): return clock[0]
+        def sleep(t): clock[0] += t
+        def quote(src, _dest, _amt, _timeout):
+            clock[0] += 0.14 if src == p.SOL else .42
+            if src == p.USDC:
                 raise p.QuoteFailure("PROVIDER_UNREACHABLE")
-            return {"outAmount": 200, "elapsedMs": 140, "contextSlot": 100}
-        outcome = p.run_probe(1, 2.5, 5, p.SOL, p.USDC, 100,
+            return {"outAmount": 250, "elapsedMs": 140, "router": "metis", "feeBps": 10}
+        summary = p.run_probe(1, 2.5, 5, p.SOL, p.USDC, 100,
                               quote=quote, clock=now, sleeper=sleep,
                               emit=lambda line: records.append(json.loads(line)))
-        self.assertEqual(outcome["successfulPairs"], 0)
-        self.assertEqual(outcome["requestAttempts"], {"forward": 1, "reverse": 1})
-        self.assertEqual(outcome["forwardAttemptMsIncludingErrors"]["p99"], 140)
-        self.assertEqual(outcome["reverseAttemptMsIncludingErrors"]["p99"], 420)
-        self.assertEqual(outcome["failuresByStage"]["reverse"], 1)
+        self.assertEqual(summary["successfulPairs"], 0)
+        self.assertEqual(summary["requestAttempts"], {"forward": 1, "reverse": 1})
+        self.assertEqual(summary["forwardAttemptMsIncludingErrors"]["p99"], 140)
+        self.assertEqual(summary["reverseAttemptMsIncludingErrors"]["p99"], 420)
+        self.assertEqual(summary["failuresByStage"]["reverse"], 1)
         self.assertEqual(records[0]["status"], "NO_QUOTE")
-        self.assertEqual(records[0]["failureStage"], "reverse")
-        self.assertFalse(records[0]["canSign"])
 
-    def test_nonfinite_policy_and_unusable_reverse_amount_fail_closed(self):
-        for pause, timeout in ((float("nan"), 5), (2.5, float("inf")), (float("inf"), 5)):
+    def test_invalid_rate_policy_and_mint(self):
+        for pause, timeout in ((float("nan"), 5), (2.5, float("inf")), (2.4, 5)):
             with self.assertRaises(ValueError):
                 p.run_probe(1, pause, timeout, p.SOL, p.USDC, 100, emit=lambda _: None)
-        calls = []
-        def quote(mint_in, _mint_out, _amount, _timeout):
-            calls.append(mint_in)
-            return {"outAmount": 10**20, "elapsedMs": 5, "contextSlot": 150}
-        report = p.run_probe(1, 2.5, 5, p.SOL, p.USDC, 100, quote=quote, emit=lambda _: None)
-        self.assertEqual(calls, [p.SOL])
-        self.assertEqual(report["requestAttempts"], {"forward": 1, "reverse": 0})
-        self.assertEqual(report["failuresByStage"]["forward"], 1)
-        self.assertEqual(report["successfulPairs"], 0)
+        with self.assertRaises(ValueError):
+            p.validate_mint("https://malicious.example/")
+        with self.assertRaises(ValueError):
+            p.read_quote(p.SOL, p.USDC, 0)
+
+    def test_forward_unusable_output_skips_reverse(self):
+        called = []
+        def quote(src, _dst, _amt, _timeout):
+            called.append(src)
+            return {"outAmount": 10**20, "elapsedMs": 1, "router": "metis", "feeBps": 1}
+        summary = p.run_probe(1, 2.5, 5, p.SOL, p.USDC, 100,
+                              quote=quote, emit=lambda _: None)
+        self.assertEqual(called, [p.SOL])
+        self.assertEqual(summary["failuresByStage"]["forward"], 1)
+        self.assertEqual(summary["requestAttempts"]["reverse"], 0)
+
+    def test_api_key_optional_and_never_in_url(self):
+        key = "example-key-from-test"
+        def fake(req, timeout):
+            self.assertEqual(req.headers["X-api-key"], key)
+            self.assertNotIn(key, req.full_url)
+            return Response(valid())
+        p.read_quote(p.SOL, p.USDC, 100, opener=fake, api_key=key)
+        with self.assertRaises(ValueError):
+            p.read_quote(p.SOL, p.USDC, 100, opener=fake, api_key="bad\nkey")
 
 
-if __name__ == "__main__": unittest.main()
+if __name__ == "__main__":
+    unittest.main()
