@@ -1,0 +1,76 @@
+name: PupsonStuff CF Public Preview Diagnostic
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/pupsonstuff-cf-live-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-smoke:
+    name: Diagnose public view-only Cloudflare preview (GET only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Confirm public Worker response without uploading or secrets
+        env:
+          PUPSON_PUBLIC_PREVIEW_URL: https://pupsonstuff-preview-free.pupsonstuff.workers.dev
+        run: |
+          node --input-type=module <<'NODE'
+          const origin = process.env.PUPSON_PUBLIC_PREVIEW_URL;
+          const expected = new URL('https://pupsonstuff-preview-free.pupsonstuff.workers.dev');
+          if (new URL(origin).origin !== expected.origin) throw Error('Unexpected host');
+          const endpoints = [
+            { path: '/api/health', expectedStatus: 503, contentType: 'application/json' },
+            { path: '/', expectedStatus: 200, contentType: 'text/html' },
+            { path: '/api/checkout', expectedStatus: 503, contentType: 'application/json' },
+          ];
+          let pass = false;
+          for (let attempt = 1; attempt <= 6; attempt++) {
+            const rows = [];
+            for (const entry of endpoints) {
+              try {
+                const response = await fetch(origin + entry.path, {
+                  method: 'GET',
+                  redirect: 'manual',
+                  cache: 'no-store',
+                  headers: { 'accept': entry.contentType },
+                  signal: AbortSignal.timeout(12_000)
+                });
+                const type = response.headers.get('content-type') || '';
+                const content = await response.text();
+                let state = null;
+                if (type.includes('application/json')) {
+                  try {
+                    const value = JSON.parse(content.slice(0, 4096));
+                    state = Object.fromEntries(['service','status','database','environment','fulfillmentMode','commit','error'].filter(k=>typeof value[k]==='string').map(k=>[k,value[k]]));
+                  } catch {}
+                }
+                rows.push({path:entry.path, status:response.status, type:type.split(';')[0], state, expected:entry.expectedStatus,
+                  ok:response.status===entry.expectedStatus && type.includes(entry.contentType)});
+              } catch (error) {
+                rows.push({path:entry.path,ok:false,error:String(error.cause?.code || error.name).slice(0,100)});
+              }
+            }
+            console.log(JSON.stringify({attempt,rows}));
+            if (rows.every(row=>row.ok) &&
+                rows[0].state?.service==='pupsonstuff' &&
+                rows[0].state?.status==='degraded' &&
+                rows[0].state?.database==='not_configured' &&
+                rows[0].state?.environment==='preview' &&
+                rows[0].state?.fulfillmentMode==='dry_run' &&
+                rows[2].state?.error==='PupsonStuff preview is read-only.') {
+              console.log('PASS: Public boutique, health and checkout preview guards verified.');
+              pass = true;
+              break;
+            }
+            if (attempt < 6) await new Promise(resolve => setTimeout(resolve,8000));
+          }
+          if (!pass) {
+            console.error('Remote preview NOT certified. Check HTTP status and safe keys above. No resource mutation performed.');
+            process.exitCode = 1;
+          }
+          NODE
