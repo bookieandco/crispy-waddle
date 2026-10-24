@@ -122,6 +122,11 @@ def evaluate_jsonl(raw):
     return {
         "kind": "SHARK_QUOTE_V2_SMOKE_AUDIT",
         "structuralCheck": "PASS",
+        "networkEvidenceDisposition": (
+            "ALL_HYPOTHETICAL_PAIRS_REPORTED_UNVERIFIED" if successes == n else
+            "PARTIAL_HYPOTHETICAL_PAIRS_WITH_FAILURES" if successes else
+            "NO_COMPLETE_PAIR_OBSERVED"
+        ),
         "sampleCount": n,
         "hypotheticalCompletePairs": successes,
         "failedPairs": n-successes,
