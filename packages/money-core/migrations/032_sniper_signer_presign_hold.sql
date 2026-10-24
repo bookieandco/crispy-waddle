@@ -135,8 +135,99 @@ revoke all on function public.money_sniper_signer_stage_presign(
  text,text,text,text,text,text,text,text,text,text
 ) from public,anon,authenticated,service_role;
 
--- No function to transition to SIGNING_UNKNOWN or consume the Money permit
--- exists in this migration. A real isolated signer must own an independently
--- reviewed atomic permit+budget+nonce reservation before signing and MUST
--- persist SIGNING_UNKNOWN before any external signing call.
+-- .52 FUTURE signer-owned atomic gate. Disabled by immutable CHECK in .46:
+-- money_sniper_coffer_research_policy.live_signing_enabled MUST be false.
+-- Also completely revoked from app roles; no signer integration is provided.
+-- If eventually re-reviewed under independent owner approval, this one
+-- transaction consumes one original permit, books canonical risk exposure
+-- AND persists SIGNING_UNKNOWN BEFORE an external signing call can begin.
+-- No attempt is ever automatically reset to PRE_SIGN, even on timeout.
+create or replace function public.money_sniper_signer_atomic_begin(
+ p_presign_id text,p_permit_nonce text,p_expected_risk_version integer
+) returns table(acquired boolean, reason text)
+language plpgsql security invoker set search_path = ''
+as $
+declare
+ hold_row public.money_sniper_signer_presign_intents%rowtype;
+ policy_row public.money_sniper_coffer_research_policy%rowtype;
+ lease_row public.money_signer_leases%rowtype;
+ permit_row public.money_execution_permits%rowtype;
+ risk_row public.money_live_canary_state%rowtype;
+ budget_minor bigint;
+begin
+ -- Read presign identity first, but do not trust its state until locked.
+ select * into hold_row from public.money_sniper_signer_presign_intents
+  where presign_id=p_presign_id;
+ if not found or hold_row.state<>'PRESIGN_HELD'
+ then return query select false,'NO_DURABLE_UNSIGNED_HOLD'::text;return;end if;
+ select * into policy_row from public.money_sniper_coffer_research_policy
+  where wallet_connection_id=hold_row.wallet_connection_id for update;
+ -- This can NEVER pass the .46 CHECK constraint. A future separate
+ -- schema/owner authorization review is required to enable this path.
+ if not found or policy_row.permanently_halted
+    or not policy_row.live_signing_enabled
+ then return query select false,'OWNER_LIVE_SIGNER_NOT_COMMISSIONED'::text;return;end if;
+ select * into lease_row from public.money_signer_leases
+  where lease_id=hold_row.signer_lease_id for update;
+ if not found or lease_row.state<>'ACTIVE'
+    or lease_row.expires_at<=current_timestamp
+    or lease_row.wallet_connection_id<>hold_row.wallet_connection_id
+ then return query select false,'SIGNER_LEASE_REVOKED'::text;return;end if;
+ select * into permit_row from public.money_execution_permits
+  where permit_id=hold_row.permit_id for update;
+ if not found or permit_row.state<>'ISSUED'
+    or permit_row.nonce is distinct from p_permit_nonce
+    or permit_row.expires_at<=current_timestamp
+    or permit_row.user_id<>hold_row.owner_user_id
+    or permit_row.capability<>'money.trade.submit'
+ then return query select false,'MONEY_PERMIT_NOT_AVAILABLE'::text;return;end if;
+ select * into risk_row from public.money_live_canary_state
+  where provider='jupiter-ultra' and account_id=hold_row.wallet_connection_id
+    and trading_date=(current_timestamp at time zone 'UTC')::date::text for update;
+ if not found or risk_row.halted or risk_row.version<>p_expected_risk_version
+    or cardinality(risk_row.unresolved_execution_ids)<>0
+    or risk_row.risk_metric_observed_at is null
+    or risk_row.risk_metric_observed_at<current_timestamp-interval '5 seconds'
+ then return query select false,'RISK_STATE_STALE_OR_UNKNOWN'::text;return;end if;
+ select * into hold_row from public.money_sniper_signer_presign_intents
+  where presign_id=p_presign_id for update;
+ if not found or hold_row.state<>'PRESIGN_HELD'
+ then return query select false,'PRESIGN_CONCURRENT_CONSUMPTION'::text;return;end if;
+ select h.notional_minor into budget_minor from public.money_sniper_coffer_research_holds h
+  where h.hold_id=hold_row.research_hold_id and h.state='RESEARCH_HELD';
+ if not found or budget_minor<=0 or budget_minor>policy_row.max_order_minor
+    or budget_minor>lease_row.per_transaction_cap_minor
+    or risk_row.submitted_notional_minor+budget_minor>policy_row.max_daily_minor
+    or risk_row.realized_loss_minor>=policy_row.max_loss_minor
+ then return query select false,'OWNER_BUDGET_REVOKED_OR_EXCEEDED'::text;return;end if;
+
+ update public.money_execution_permits
+ set state='CONSUMED',consumed_at=current_timestamp,updated_at=current_timestamp
+ where permit_id=hold_row.permit_id and state='ISSUED' and nonce=p_permit_nonce;
+ if not found then raise exception 'ATOMIC_MONEY_PERMIT_CAS_FAILED';end if;
+ update public.money_live_canary_state
+ set submitted_notional_minor=submitted_notional_minor+budget_minor,
+     submitted_orders=submitted_orders+1,
+     gross_exposure_minor=gross_exposure_minor+budget_minor,
+     unresolved_execution_ids=array_append(unresolved_execution_ids,hold_row.execution_id),
+     version=version+1,updated_at=current_timestamp
+ where provider='jupiter-ultra' and account_id=hold_row.wallet_connection_id
+   and trading_date=(current_timestamp at time zone 'UTC')::date::text
+   and version=p_expected_risk_version;
+ if not found then raise exception 'ATOMIC_MONEY_RISK_CAS_FAILED';end if;
+ update public.money_sniper_signer_presign_intents
+ set state='SIGNING_UNKNOWN',updated_at=current_timestamp
+ where presign_id=p_presign_id and state='PRESIGN_HELD';
+ if not found then raise exception 'ATOMIC_PRESIGN_CAS_FAILED';end if;
+ return query select true,'ATOMIC_UNKNOWN_BEFORE_EXTERNAL_SIGN'::text;
+end;
+$;
+revoke all on function public.money_sniper_signer_atomic_begin(
+ text,text,integer
+) from public,anon,authenticated,service_role;
+
+-- Stage/atomic function privileges intentionally ungranted.
+-- A signer must re-attest current lease and exact bytes INSIDE its
+-- own isolated key boundary after PG reservation; there is no signer
+-- implementation, no broadcast command and no automatic cleanup here.
 commit;
