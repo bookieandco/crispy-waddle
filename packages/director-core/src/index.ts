@@ -216,3 +216,6 @@ export * from './local-ugc-final';
 export * from './local-ugc-canary-commissioner';
 
 export * from './colab-training-budget';
+
+export * from './ask-image-production.js';
+export * from './openmontage-local-provider.js';

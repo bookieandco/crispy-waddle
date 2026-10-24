@@ -25,6 +25,7 @@ beforeEach(() => {
   vi.stubEnv('PUPSON_LOCAL_IMAGE_WORKER_TOKEN', 'x'.repeat(40));
   vi.stubEnv('PUPSON_LOCAL_IMAGE_MODEL', 'qwen-image-edit-pinned');
   vi.stubEnv('PUPSON_OPENAI_STYLE_BACKEND', 'openai');
+  vi.stubEnv('PUPSON_CREATIVE_COST_POLICY', 'metered_default');
   vi.stubGlobal('fetch', fetchMock);
   fetchMock.mockReset();
 });
@@ -42,6 +43,14 @@ describe('Pupson local image generation boundary', () => {
     expect(resolvePupsonCreativeProvider(art).id).toBe('openai');
     vi.stubEnv('PUPSON_OPENAI_STYLE_BACKEND', 'local_worker');
     expect(resolvePupsonCreativeProvider(art).id).toBe('unsloth');
+  });
+
+  it('routes every paid image style to private ComfyUI when local-only is explicitly enabled', () => {
+    vi.stubEnv('PUPSON_CREATIVE_COST_POLICY', 'local_only');
+    expect(resolvePupsonCreativeProvider('watercolor').id).toBe('unsloth');
+    expect(resolvePupsonCreativeProvider('studio-ghibli').id).toBe('unsloth');
+    expect(resolvePupsonCreativeProvider('flux-dreamscape').id).toBe('unsloth');
+    expect(resolvePupsonCreativeProvider('ascii-art').id).toBe('local');
   });
 
   it('sends up to three reference bytes to an authenticated protocol gateway', async () => {

@@ -63,6 +63,9 @@ function getClient(accessToken: string): InferenceClient {
 export async function animatePetPortrait(
   params: AnimatePortraitParams
 ): Promise<AnimateArtResult | AnimateArtError> {
+  if (process.env.PUPSON_CREATIVE_COST_POLICY === 'local_only') {
+    return { success: false, error: 'Hosted animation blocked by local-only policy.' };
+  }
   const apiKey = process.env.HUGGINGFACE_API_KEY;
   if (!apiKey) {
     return { success: false, error: "HUGGINGFACE_API_KEY is not configured." };

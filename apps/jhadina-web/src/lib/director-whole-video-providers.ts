@@ -1,4 +1,4 @@
-import { createComfyUIHttpClient, resolveComfyUIHistoryOutputs } from '@jhadina/director-core';
+import { createComfyUIHttpClient, resolveComfyUIHistoryOutputs, OpenMontageLocalProductionProvider, type OpenMontageOperatorBridge, type OpenMontageSource } from '@jhadina/director-core';
 import { createDirectorCertificationMp4 } from '@/lib/director-certification-mp4';
 import type {
   WholeVideoProductionBrief,
@@ -12,6 +12,15 @@ type ProviderHttpConfig = { baseUrl: string; token?: string };
 
 export interface CreateConfiguredWholeVideoProvidersOptions {
   includeCertification?: boolean;
+  /**
+   * Opt-in bridge must be supplied by an authenticated, operator-owned
+   * Director composition root after independently verifying the OpenMontage
+   * agent runner. The upstream project does NOT expose a standard REST API.
+   */
+  openMontage?: {
+    bridge: OpenMontageOperatorBridge;
+    findApprovedSources: (brief: WholeVideoProductionBrief) => Promise<readonly OpenMontageSource[]>;
+  };
 }
 
 function cleanBaseUrl(value: string): string {
@@ -747,6 +756,12 @@ export function createConfiguredWholeVideoProviders(
   const providers: WholeVideoProductionProvider[] = [];
   if (options.includeCertification) {
     providers.push(new CertificationSmokeVideoProductionProvider());
+  }
+  if (options.openMontage) {
+    providers.push(new OpenMontageLocalProductionProvider(
+      options.openMontage.bridge,
+      options.openMontage.findApprovedSources,
+    ));
   }
   const comfyReferenceWorkflow = parseReferenceComfyWorkflow();
   if (process.env.DIRECTOR_COMFYUI_URL && comfyReferenceWorkflow) {
