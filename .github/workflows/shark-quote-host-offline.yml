@@ -1,0 +1,26 @@
+name: SHARK Quote Host Research — Offline
+on:
+  push:
+    paths:
+      - 'scripts/shark-sniper/**'
+      - '.github/workflows/shark-quote-host-offline.yml'
+  pull_request:
+    paths:
+      - 'scripts/shark-sniper/**'
+      - '.github/workflows/shark-quote-host-offline.yml'
+permissions:
+  contents: read
+jobs:
+  offline-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile and hermetic tests (no provider access)
+        working-directory: scripts/shark-sniper
+        run: |
+          python -m py_compile quote_probe.py test_quote_probe.py
+          python -m unittest -v test_quote_probe.py
