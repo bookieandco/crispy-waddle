@@ -33,6 +33,10 @@ def evaluate_jsonl(raw):
     if not isinstance(raw, str) or len(raw.encode("utf-8")) > 131072:
         raise InvalidCapture("SMOKE_CAPTURE_SIZE_INVALID")
     lines = raw.splitlines()
+    # The dedicated entrypoint emits exactly one non-JSON startup marker.
+    # It is not cryptographic proof of deployment identity.
+    if lines and lines[0] == "SHARK_QUOTE_WORKER_READ_ONLY_ONESHOT_STARTED":
+        lines = lines[1:]
     if len(lines) < 2 or len(lines) > 5:
         raise InvalidCapture("SMOKE_CAPTURE_LENGTH_INVALID")
     parsed = [safe_json(line) for line in lines]
