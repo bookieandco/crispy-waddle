@@ -22,5 +22,6 @@ jobs:
       - name: Compile and hermetic tests (no provider access)
         working-directory: scripts/shark-sniper
         run: |
-          python -m py_compile quote_probe.py test_quote_probe.py
-          python -m unittest -v test_quote_probe.py
+          python -m py_compile quote_probe.py test_quote_probe.py worker_once.py test_worker_once.py
+          python -m unittest -v test_quote_probe.py test_worker_once.py
+          test "$(python worker_once.py)" = "SHARK_QUOTE_WORKER_HELD_NO_NETWORK_NO_TRADES"
