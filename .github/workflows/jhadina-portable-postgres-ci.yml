@@ -5,6 +5,7 @@ on:
     paths:
       - "packages/money-core/migrations/**"
       - "scripts/shark-sniper-coffer-postgres-smoke.sh"
+      - "scripts/shark-sniper-signer-presign-smoke.sh"
       - "infrastructure/portable/**"
       - "docs/JHADINA_PORTABLE_INFRASTRUCTURE.md"
       - "scripts/jhadina-portable-runpod-postgres.py"
@@ -21,6 +22,7 @@ on:
     paths:
       - "packages/money-core/migrations/**"
       - "scripts/shark-sniper-coffer-postgres-smoke.sh"
+      - "scripts/shark-sniper-signer-presign-smoke.sh"
       - "infrastructure/portable/**"
       - "docs/JHADINA_PORTABLE_INFRASTRUCTURE.md"
       - "scripts/jhadina-portable-runpod-postgres.py"
@@ -144,6 +146,10 @@ jobs:
         env:
           SNIPER_ISOLATED_POSTGRES_CI: "true"
         run: bash scripts/shark-sniper-coffer-postgres-smoke.sh
+      - name: Verify signer pre-sign durability, revoked lease, replay and ACL denial
+        env:
+          SNIPER_ISOLATED_POSTGRES_CI: "true"
+        run: bash scripts/shark-sniper-signer-presign-smoke.sh
 
   memory-schema:
     name: Replay Memory schema on vanilla PostgreSQL
