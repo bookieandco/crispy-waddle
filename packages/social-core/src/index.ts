@@ -17,3 +17,4 @@ export * from "./talent-business.js";
 
 export * from "./reference-adaptation.js";
 export * from "./relay-workbench.js";
+export * from "./pups-drive-video-library.js";
