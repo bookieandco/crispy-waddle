@@ -1,0 +1,57 @@
+name: SHARK Attention Owner RLS Disposable Test
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/shark-attention-owner-rls-ci.yml"
+      - "supabase/migrations/20261023000200_shark_attention_owner_alerts.sql"
+      - "scripts/shark-attention-disposable-rls-*.sql"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/shark-attention-owner-rls-ci.yml"
+      - "supabase/migrations/20261023000200_shark_attention_owner_alerts.sql"
+      - "scripts/shark-attention-disposable-rls-*.sql"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  disposable-owner-rls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-only-disposable
+          POSTGRES_DB: shark_attention_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d shark_attention_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: local-only-disposable
+      PGDATABASE: shark_attention_test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Ensure local client exists
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Create disposable auth subjects
+        run: psql -v ON_ERROR_STOP=1 -f scripts/shark-attention-disposable-rls-setup.sql
+      - name: Replay alert migration twice to test idempotency (NO PROD)
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261023000200_shark_attention_owner_alerts.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261023000200_shark_attention_owner_alerts.sql
+      - name: Verify strict two-owner read isolation and denied writes
+        run: psql -v ON_ERROR_STOP=1 -f scripts/shark-attention-disposable-rls-test.sql
