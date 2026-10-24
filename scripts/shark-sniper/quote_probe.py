@@ -70,7 +70,8 @@ def parse_v2_quote(payload, input_mint, output_mint, amount):
     router = payload.get("router")
     mode = payload.get("mode")
     request_id = payload.get("requestId")
-    if (router not in ROUTERS or mode not in MODES or
+    if (not isinstance(router, str) or router not in ROUTERS or
+        not isinstance(mode, str) or mode not in MODES or
         not isinstance(request_id, str) or not 1 <= len(request_id) <= 256):
         raise QuoteFailure("PROVIDER_V2_PROVENANCE_INVALID")
     # RFQ routers may lack Metis routePlan or contextSlot. Do NOT require either.
