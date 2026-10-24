@@ -24,7 +24,7 @@ values('ci-signer-lease:1','coffer:isolated:ci','jhadina:ci','session:ci',
  array['22222222222222222222222222222222'],array['ci:lease']);
 do $$
 declare h public.money_sniper_coffer_research_holds%rowtype;
- r record;n integer;
+ r record;n integer;p_nonce text;
 begin
  select * into h from public.money_sniper_coffer_research_holds limit 1;
  if not found then raise exception 'SNIPER_PRESIGN_RESEARCH_HOLD_REQUIRED'; end if;
@@ -58,6 +58,12 @@ begin
   'ci-signer-lease:1',h.intent_hash,repeat('b',64));
  if r.admitted then raise exception 'SNIPER_PRESIGN_REPLAY_ADMITTED'; end if;
 
+ select nonce into p_nonce from public.money_execution_permits
+   where permit_id=h.permit_id;
+ select * into r from public.money_sniper_signer_atomic_begin(
+   'ci-presign:1',p_nonce,1);
+ if r.acquired or r.reason<>'OWNER_LIVE_SIGNER_NOT_COMMISSIONED'
+ then raise exception 'SNIPER_LIVE_SIGNER_PREMATURELY_ENABLED'; end if;
  select count(*) into n from public.money_sniper_signer_presign_intents;
  if n<>1 then raise exception 'SNIPER_DURABLE_PRESIGN_CONFLICT'; end if;
  select count(*) into n from public.money_sniper_signer_presign_intents
@@ -75,6 +81,12 @@ begin
  or has_function_privilege('service_role',
    'public.money_sniper_signer_stage_presign(text,text,text,text,text,text,text,text,text,text,text)',
    'EXECUTE')
+ or has_function_privilege('anon',
+   'public.money_sniper_signer_atomic_begin(text,text,integer)','EXECUTE')
+ or has_function_privilege('authenticated',
+   'public.money_sniper_signer_atomic_begin(text,text,integer)','EXECUTE')
+ or has_function_privilege('service_role',
+   'public.money_sniper_signer_atomic_begin(text,text,integer)','EXECUTE')
  or has_table_privilege('service_role','public.money_sniper_signer_presign_intents','INSERT')
  then raise exception 'SNIPER_PRESIGN_PRIVATE_ACL_FAILED'; end if;
 
