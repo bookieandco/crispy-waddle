@@ -6,7 +6,7 @@ NO production migration, key installation, signer call, funding, broadcast,
 Telegram listener, autonomous trade, or deployment. New code is draft only.
 
 ## .51 — pre-sign persistence before any wallet signer call
-Migration `032_sniper_signer_presign_hold.sql` introduces a private
+Migration `033_sniper_signer_presign_hold.sql` introduces a private
 `money_sniper_signer_presign_intents` table. The stage function locks the
 wallet-wide .46 research policy row before inspecting the original research
 hold, original Money permit, active signer lease, fresh Money risk state,
