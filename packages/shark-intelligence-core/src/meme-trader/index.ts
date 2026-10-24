@@ -77,3 +77,7 @@ export * from './stalkchain-research-runtime'
 export * from './attention-research'
 export * from './attention-position'
 export * from './attention-paper-evaluation'
+// SHARK-ATTENTION.LIVE-PAPER.07–.10: public pair read, paper cycle, prospective ablation.
+export * from './attention-public-dex'
+export * from './attention-live-paper-cycle'
+export * from './attention-prospective-paper'
