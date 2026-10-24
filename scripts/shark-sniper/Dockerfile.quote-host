@@ -1,0 +1,11 @@
+# Build with repository root as context. Dedicated one-shot SHARK quote worker.
+# No deployment is implied by this Dockerfile; default mode is HOLD.
+FROM python:3.11-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
+    SHARK_QUOTE_WORKER_MODE=hold
+WORKDIR /app
+RUN useradd --create-home --shell /usr/sbin/nologin quoteprobe
+COPY --chown=quoteprobe:quoteprobe scripts/shark-sniper/quote_probe.py /app/quote_probe.py
+COPY --chown=quoteprobe:quoteprobe scripts/shark-sniper/worker_once.py /app/worker_once.py
+USER quoteprobe
+ENTRYPOINT ["python", "/app/worker_once.py"]
