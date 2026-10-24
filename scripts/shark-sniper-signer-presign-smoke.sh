@@ -76,10 +76,10 @@ begin
    'public.money_sniper_signer_stage_presign(text,text,text,text,text,text,text,text,text,text)',
    'EXECUTE')
  or has_function_privilege('authenticated',
-   'public.money_sniper_signer_stage_presign(text,text,text,text,text,text,text,text,text,text,text)',
+   'public.money_sniper_signer_stage_presign(text,text,text,text,text,text,text,text,text,text)',
    'EXECUTE')
  or has_function_privilege('service_role',
-   'public.money_sniper_signer_stage_presign(text,text,text,text,text,text,text,text,text,text,text)',
+   'public.money_sniper_signer_stage_presign(text,text,text,text,text,text,text,text,text,text)',
    'EXECUTE')
  or has_function_privilege('anon',
    'public.money_sniper_signer_atomic_begin(text,text,integer)','EXECUTE')
