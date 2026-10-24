@@ -31,6 +31,19 @@ try {
     page.on('pageerror',e=>errors.push(e.message.slice(0,300)));
     const response=await page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:40000});
     assert.equal(response?.status(),200,`${item.name}: homepage status`);
+    // The local Next build must actually SERVE all six approved GLBs, not
+    // just contain their filenames in Git. The deployed Worker has its own
+    // equivalent binary canary.
+    if (complete === 0) {
+      for (const model of ['shirt_baked','hoodie','mug','pillow','bottle','tote']) {
+        const res = await page.request.get(origin + '/models/' + model + '.glb');
+        assert.equal(res.status(),200,`3D model ${model}: missing asset`);
+        const bytes = await res.body();
+        assert.equal(bytes.subarray(0,4).toString('ascii'),'glTF',`3D model ${model}: not a GLB binary`);
+        assert.equal(bytes.readUInt32LE(4),2,`3D model ${model}: wrong glTF version`);
+        assert.equal(bytes.readUInt32LE(8),bytes.length,`3D model ${model}: invalid byte count`);
+      }
+    }
     const image=page.locator('img[alt^="PupsonStuff boutique"]');
     await image.waitFor({state:'visible',timeout:15000});
     await image.evaluate(async img=>{
@@ -62,6 +75,16 @@ try {
     assert.ok(measured.hotspots>10,`${item.name}: product tap targets missing`);
     assert.deepEqual(measured.invalid,[],`${item.name}: hotspots detached from photo`);
     assert.ok(!measured.hasRings,`${item.name}: scattered glow rings returned`);
+    // Decorative masks must not revert to angular silhouette polygons.
+    const glowProof = await page.evaluate(() => ({
+      productGlowCount: document.querySelectorAll('.pupson-product-glow').length,
+      serviceGlowCount: document.querySelectorAll('[data-hotspot-product="checkout"] .pupson-product-glow, [data-hotspot-product="upload"] .pupson-product-glow').length,
+      polygonGlowCount: [...document.querySelectorAll('.pupson-product-glow')].filter((el) =>
+        getComputedStyle(el).clipPath.includes('polygon')).length,
+    }));
+    assert.equal(glowProof.serviceGlowCount,0,`${item.name}: checkout or studio wrongly glows`);
+    assert.equal(glowProof.polygonGlowCount,0,`${item.name}: polygon sticker outline returned`);
+    assert.ok(glowProof.productGlowCount>=10,`${item.name}: all product glows missing`);
     assert.ok(!measured.pageOverflow,`${item.name}: body spills off screen`);
     assert.ok(Math.abs(measured.width/measured.height-1568/1003)<0.003,
       `${item.name}: image-space aspect ratio changed`);
@@ -119,6 +142,53 @@ try {
       const control=page.getByRole('button',{name:'Explore boutique up close'});
       assert.ok(!(await control.isVisible()),`${item.name}: portrait-only toggle shown in landscape`);
       assert.ok(measured.width<=item.width+2,`${item.name}: default landscape should fit`);
+    }
+    if(item.name === 'desktop-1440') {
+      // The user must be able to escape a broken or slow WebGL preview and
+      // see their artwork without generating new content or paying anyone.
+      await page.getByRole('button',{name:'White Hoodie',exact:true}).click();
+      const previewModes=page.getByRole('group',{name:'Product preview mode'});
+      await previewModes.waitFor({state:'visible',timeout:10000});
+      const artworkTab=previewModes.getByRole('button',{name:'Artwork',exact:true});
+      const modelTab=previewModes.getByRole('button',{name:'3D product',exact:true});
+      assert.ok(await artworkTab.isVisible() && await modelTab.isVisible(),
+        '3D and flat artwork must both be reachable');
+      await artworkTab.click();
+      assert.equal(await artworkTab.getAttribute('aria-pressed'),'true');
+      assert.equal(await page.locator('canvas').count(),0,'Artwork tab must actually unmount the WebGL canvas');
+      assert.ok(await page.getByText('Upload a photo and generate a preview to see it here').isVisible(),
+        'Flat preview should show an honest empty state before generation');
+      await page.screenshot({path:`${output}/desktop-artwork-fallback.png`,fullPage:false});
+      await modelTab.click();
+      assert.equal(await modelTab.getAttribute('aria-pressed'),'true');
+      await page.locator('canvas').first().waitFor({state:'visible',timeout:15000});
+      await page.getByRole('button',{name:'Reset 3D camera'}).waitFor({timeout:15000});
+      await page.screenshot({path:`${output}/desktop-3d-preview.png`,fullPage:false});
+      const dialog=page.getByRole('dialog',{name:'White Hoodie'});
+      assert.ok(await dialog.isVisible(),'Product dialog semantics missing');
+      await page.keyboard.press('Escape');
+      await dialog.waitFor({state:'hidden',timeout:5000});
+      assert.ok(await page.getByRole('button',{name:'White Hoodie',exact:true}).evaluate(el=>document.activeElement===el),
+        'Closing with Escape should restore focus to the selected garment');
+      await page.route('**/models/bottle.glb',route => route.fulfill({
+        status:404,contentType:'text/plain',body:'missing model fixture',
+      }));
+      await page.getByRole('button',{name:'Insulated Bottle',exact:true}).click();
+      const bottleDialog=page.getByRole('dialog',{name:'Insulated Bottle'});
+      await bottleDialog.getByRole('button',{name:'Try 3D again'}).waitFor({timeout:15000});
+      await bottleDialog.getByRole('button',{name:'Artwork',exact:true}).click();
+      assert.equal(await bottleDialog.locator('canvas').count(),0,
+        'Missing GLB must not trap visitor inside WebGL');
+      await page.screenshot({path:`${output}/desktop-missing-glb-fallback.png`,fullPage:false});
+      await page.unroute('**/models/bottle.glb');
+      // The injected 404 can surface as a browser pageerror even though the
+      // viewer's error boundary recovered correctly. Accept ONLY this
+      // deliberate request failure, never mask unrelated JS exceptions.
+      const expectedMissingAsset = errors.filter(message =>
+        message.includes('/models/bottle.glb') && message.includes('404'));
+      assert.equal(expectedMissingAsset.length,1,
+        'Missing GLB fixture must report exactly one expected load failure');
+      errors.splice(errors.indexOf(expectedMissingAsset[0]),1);
     }
     assert.deepEqual(errors,[],`${item.name}: browser console JS exceptions`);
     console.log(JSON.stringify({viewport:item.name,pass:true,geometry:measured}));

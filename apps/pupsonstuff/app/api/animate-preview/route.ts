@@ -1,62 +1,41 @@
-// app/api/animate-preview/route.ts
-//
-// POST /api/animate-preview
-// JSON body: { imageBase64: string } — either a raw base64 string or a
-// full data: URL (what the client actually has on hand: previewUrl is
-// built as `data:image/png;base64,${data.imageBase64}` in ProductModal.tsx)
-//
-// Turns an already-generated static portrait into a short looping video
-// via lib/animation.ts (Hugging Face image-to-video). A separate route
-// from /api/generate-preview on purpose — animation is an optional second
-// step on top of a static image the customer has already seen and can
-// re-run independently, not part of the initial generation call.
+import { NextRequest, NextResponse } from 'next/server';
+import { animatePetPortrait } from '@/lib/animation';
+import { downloadOwnedCreativeImage } from '@/lib/creative-media';
+import { OWNER_COOKIE } from '@/lib/platform';
 
-import { NextRequest, NextResponse } from "next/server";
-import { animatePetPortrait } from "@/lib/animation";
+export const runtime = 'nodejs';
 
-export async function POST(req: NextRequest) {
-  let body: { imageBase64?: string };
+/** The old route accepted arbitrary base64 and had no owner or cost guard.
+ * Animate only an already-persisted portrait belonging to this cookie.
+ * External image-to-video remains disabled until explicitly approved.
+ */
+export async function POST(request: NextRequest) {
+  if (process.env.PUPSON_ANIMATION_APPROVED !== 'true' ||
+      process.env.PUPSON_CREATIVE_JOBS_ENABLED !== 'true') {
+    return NextResponse.json({success:false,error:'Animation is not activated on this private prototype.'},
+      {status:503,headers:{'Cache-Control':'no-store'}});
+  }
+  const ownerToken = request.cookies.get(OWNER_COOKIE)?.value;
+  if (!ownerToken) return NextResponse.json({success:false,error:'Creative session required.'},
+    {status:401,headers:{'Cache-Control':'no-store'}});
   try {
-    body = await req.json();
+    const body = await request.json() as {creativeOutputId?:unknown};
+    if (typeof body.creativeOutputId !== 'string') {
+      return NextResponse.json({success:false,error:'An approved session portrait is required.'},
+        {status:400,headers:{'Cache-Control':'no-store'}});
+    }
+    const bytes = await downloadOwnedCreativeImage(body.creativeOutputId,ownerToken);
+    if (!bytes) return NextResponse.json({success:false,error:'Portrait not found.'},
+      {status:404,headers:{'Cache-Control':'no-store'}});
+    const result = await animatePetPortrait({
+      imageBuffer:Buffer.from(bytes),imageMimeType:'image/png'
+    });
+    if (!result.success) return NextResponse.json(
+      {success:false,error:'Animation provider could not complete this preview.'},
+      {status:502,headers:{'Cache-Control':'no-store'}});
+    return NextResponse.json(result,{headers:{'Cache-Control':'private, no-store'}});
   } catch {
-    return NextResponse.json(
-      { success: false, error: "Expected a JSON body." },
-      { status: 400 }
-    );
+    return NextResponse.json({success:false,error:'Animation is temporarily unavailable.'},
+      {status:503,headers:{'Cache-Control':'no-store'}});
   }
-
-  if (typeof body.imageBase64 !== "string" || !body.imageBase64) {
-    return NextResponse.json(
-      { success: false, error: "Missing 'imageBase64'." },
-      { status: 400 }
-    );
-  }
-
-  // No `s` (dotAll) flag needed/available at this tsconfig's target — a
-  // base64 data URL is a single line, so plain `.` already matches it all.
-  const dataUrlMatch = body.imageBase64.match(/^data:([^;]+);base64,(.*)$/);
-  const mimeType = dataUrlMatch?.[1] ?? "image/png";
-  const rawBase64 = dataUrlMatch ? dataUrlMatch[2] : body.imageBase64;
-
-  let imageBuffer: Buffer;
-  try {
-    imageBuffer = Buffer.from(rawBase64, "base64");
-    if (imageBuffer.length === 0) throw new Error("empty");
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "'imageBase64' is not valid base64 image data." },
-      { status: 400 }
-    );
-  }
-
-  const result = await animatePetPortrait({
-    imageBuffer,
-    imageMimeType: mimeType,
-  });
-
-  if (!result.success) {
-    return NextResponse.json(result, { status: 502 });
-  }
-
-  return NextResponse.json(result);
 }

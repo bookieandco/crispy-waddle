@@ -38,6 +38,14 @@ beforeEach(() => {
   resolvePrintifyShopId.mockResolvedValue('1234');
   findOrderByExternalId.mockResolvedValue({ pagesScanned: 1, exhaustive: true });
   vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'dry_run');
+  // All live behavior here uses mocked Printify. The production release
+  // approval flags are never configured by default in deployments.
+  vi.stubEnv('PUPSON_LIVE_COMMERCE_APPROVED', 'true');
+  vi.stubEnv('PUPSON_PAYMENT_OPERATIONS_READY', 'true');
+  vi.stubEnv('PUPSON_PUBLIC_RELEASE_APPROVED', 'true');
+  vi.stubEnv('PUPSON_PRINTIFY_SUBMISSION_APPROVED', 'true');
+  vi.stubEnv('STRIPE_SECRET_KEY', 'sk_live_synthetic_fixture');
+  vi.stubEnv('VERCEL_ENV', 'production');
 });
 
 afterEach(() => {
@@ -598,5 +606,29 @@ describe('PupsonStuff fulfillment safety', () => {
     expect(findOrderByExternalId).toHaveBeenCalledWith('1234', 'fulfillment-race');
   });
 
+  it('quarantines a previously ambiguous order without contacting Printify in dry run', async () => {
+    rest.mockResolvedValueOnce([{
+      id: 'unknown-dry', order_id: 'paid-order', status: 'submission_unknown',
+      attempt_count: 1, provider: 'printify',
+    }]);
+    await expect(submitFulfillment('unknown-dry')).resolves.toEqual({
+      status: 'submission_unknown',
+    });
+    expect(resolvePrintifyShopId).not.toHaveBeenCalled();
+    expect(findOrderByExternalId).not.toHaveBeenCalled();
+    expect(submitOrder).not.toHaveBeenCalled();
+  });
+
+  it('refuses live Printify calls when an independent release approval is removed', async () => {
+    vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'live');
+    vi.stubEnv('PUPSON_PRINTIFY_SUBMISSION_APPROVED', 'false');
+    rest.mockResolvedValueOnce([{
+      id: 'unknown-live', order_id: 'paid-order', status: 'submission_unknown',
+      attempt_count: 1, provider: 'printify',
+    }]);
+    await expect(submitFulfillment('unknown-live')).rejects.toThrow(/separately approved/);
+    expect(resolvePrintifyShopId).not.toHaveBeenCalled();
+    expect(findOrderByExternalId).not.toHaveBeenCalled();
+  });
 
 });

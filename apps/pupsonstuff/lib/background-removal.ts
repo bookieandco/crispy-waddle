@@ -29,6 +29,16 @@ async function removeWithBackgroundRemover(
   const baseUrl = env.PUPSON_BACKGROUND_REMOVER_URL?.replace(/\/$/, '');
   if (!baseUrl) throw new Error('PUPSON_BACKGROUND_REMOVER_URL is not configured.');
   const url = new URL(baseUrl);
+  const loopback = url.hostname === 'localhost' || url.hostname === '127.0.0.1' ||
+    url.hostname === '[::1]';
+  if (!(url.protocol === 'https:' ||
+        (env.NODE_ENV !== 'production' && loopback && url.protocol === 'http:')) ||
+      url.username || url.password || url.hash) {
+    throw new Error('Background remover must use a clean HTTPS endpoint (development loopback permitted).');
+  }
+  if (!loopback && !env.PUPSON_BACKGROUND_REMOVER_TOKEN?.trim()) {
+    throw new Error('Remote background remover requires a private bearer token.');
+  }
   url.searchParams.set('model', env.PUPSON_BACKGROUND_REMOVER_MODEL?.trim() || 'u2net');
   url.searchParams.set('a', 'true');
   url.searchParams.set('ae', env.PUPSON_BACKGROUND_REMOVER_ERODE?.trim() || '12');
@@ -41,11 +51,16 @@ async function removeWithBackgroundRemover(
   }
   const response = await fetch(url, { method: 'POST', headers, body: form });
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`BackgroundRemover failed (${response.status}): ${detail.slice(0, 300)}`);
+    // Never echo remote response bodies: they may contain pet photos or prompts.
+    throw new Error(`Background remover failed (HTTP ${response.status}).`);
+  }
+  if (Number(response.headers.get('content-length') || 0) > 20 * 1024 * 1024) {
+    throw new Error('Background remover response is too large.');
   }
   const out = Buffer.from(await response.arrayBuffer());
-  if (!out.length) throw new Error('BackgroundRemover returned an empty image.');
+  if (!out.length || out.length > 20*1024*1024 || contentType(response) !== 'image/png') {
+    throw new Error('Background remover returned unsupported image data.');
+  }
   return {
     bytes: out,
     mimeType: contentType(response),
@@ -71,11 +86,12 @@ async function removeWithKnockout(
     body: form,
   });
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Knockout background removal failed (${response.status}): ${detail.slice(0, 300)}`);
+    throw new Error(`Knockout background removal failed (HTTP ${response.status}).`);
   }
   const out = Buffer.from(await response.arrayBuffer());
-  if (!out.length) throw new Error('Knockout returned an empty image.');
+  if (!out.length || out.length > 20*1024*1024 || contentType(response) !== 'image/png') {
+    throw new Error('Knockout returned unsupported image data.');
+  }
   return { bytes: out, mimeType: contentType(response), provider: 'knockout', model: 'BiRefNet' };
 }
 

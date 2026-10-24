@@ -8,6 +8,7 @@ import {
 } from '@/types/creative';
 import { ensureSourceResolution } from '@/lib/image-upscale';
 import { removeBackground } from '@/lib/background-removal';
+import { clampArtworkCenter } from '@/lib/product3d/placement';
 
 export interface ProductPrintProfile extends PrintProfile {
   targetDpi: number;
@@ -170,8 +171,13 @@ export async function buildPrintMaster(input: {
     .png()
     .toBuffer();
 
-  const centerX = margin + transform.x * safeWidth;
-  const centerY = margin + transform.y * safeHeight;
+  // Both the final Sharp master and the 3D projector clamp normalized
+  // placement before rasterizing. Actual image aspect ratio controls the
+  // Sharp half-extents, so production bounds remain authoritative.
+  const boundedCenter = clampArtworkCenter(transform,
+    artworkWidth / (2 * safeWidth), artworkHeight / (2 * safeHeight));
+  const centerX = margin + boundedCenter.x * safeWidth;
+  const centerY = margin + boundedCenter.y * safeHeight;
   const left = Math.round(
     clamp(centerX - artworkWidth / 2, margin, targetWidth - margin - artworkWidth)
   );

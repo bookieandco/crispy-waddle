@@ -16,7 +16,7 @@ export default function CartButton({ onClick }: Props) {
       type="button"
       onClick={onClick}
       aria-label={`Open cart${itemCount > 0 ? `, ${itemCount} item${itemCount === 1 ? "" : "s"}` : ""}`}
-      className="fixed right-5 top-5 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-ink/80 text-cream shadow-lg backdrop-blur transition hover:bg-ink"
+      className="fixed right-5 top-[max(1.25rem,env(safe-area-inset-top))] z-30 flex h-11 w-11 items-center justify-center rounded-full bg-ink/80 text-cream shadow-lg backdrop-blur transition hover:bg-ink"
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
         <circle cx="9" cy="21" r="1" />
