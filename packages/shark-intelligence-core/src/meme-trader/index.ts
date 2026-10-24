@@ -81,3 +81,5 @@ export * from './attention-paper-evaluation'
 export * from './attention-public-dex'
 export * from './attention-live-paper-cycle'
 export * from './attention-prospective-paper'
+// SHARK-ATTENTION.COMMISSION.11–.15: evidence-only staged acceptance controls.
+export * from './attention-commission'
