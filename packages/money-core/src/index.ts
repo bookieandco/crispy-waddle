@@ -374,6 +374,7 @@ export * from './sniper-signer-certification.js';
 export * from './sniper-coffer-rpc-evidence.js';
 export * from './sniper-coffer-research-ledger.js';
 export * from './sniper-coffer-recovery-review.js';
+export * from './sniper-signer-presign-gate.js';
 export * from './postgres-sniper-coffer-research-gate.js';
 export * from './sniper-live-commission-readiness.js';
 export * from './sniper-live-source-cohort.js';
