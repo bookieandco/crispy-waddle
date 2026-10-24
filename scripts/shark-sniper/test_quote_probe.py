@@ -59,4 +59,41 @@ class Tests(unittest.TestCase):
         self.assertEqual(data["failures"], {"PROVIDER_RATE_LIMIT": 1})
 
 
+    def test_partial_reverse_failure_keeps_forward_latency(self):
+        clock = [0.0]
+        records = []
+        def now(): return clock[0]
+        def sleep(value): clock[0] += value
+        def quote(mint_in, _mint_out, _amount, _timeout):
+            clock[0] += 0.14 if mint_in == p.SOL else 0.42
+            if mint_in == p.USDC:
+                raise p.QuoteFailure("PROVIDER_UNREACHABLE")
+            return {"outAmount": 200, "elapsedMs": 140, "contextSlot": 100}
+        outcome = p.run_probe(1, 2.5, 5, p.SOL, p.USDC, 100,
+                              quote=quote, clock=now, sleeper=sleep,
+                              emit=lambda line: records.append(json.loads(line)))
+        self.assertEqual(outcome["successfulPairs"], 0)
+        self.assertEqual(outcome["requestAttempts"], {"forward": 1, "reverse": 1})
+        self.assertEqual(outcome["forwardAttemptMsIncludingErrors"]["p99"], 140)
+        self.assertEqual(outcome["reverseAttemptMsIncludingErrors"]["p99"], 420)
+        self.assertEqual(outcome["failuresByStage"]["reverse"], 1)
+        self.assertEqual(records[0]["status"], "NO_QUOTE")
+        self.assertEqual(records[0]["failureStage"], "reverse")
+        self.assertFalse(records[0]["canSign"])
+
+    def test_nonfinite_policy_and_unusable_reverse_amount_fail_closed(self):
+        for pause, timeout in ((float("nan"), 5), (2.5, float("inf")), (float("inf"), 5)):
+            with self.assertRaises(ValueError):
+                p.run_probe(1, pause, timeout, p.SOL, p.USDC, 100, emit=lambda _: None)
+        calls = []
+        def quote(mint_in, _mint_out, _amount, _timeout):
+            calls.append(mint_in)
+            return {"outAmount": 10**20, "elapsedMs": 5, "contextSlot": 150}
+        report = p.run_probe(1, 2.5, 5, p.SOL, p.USDC, 100, quote=quote, emit=lambda _: None)
+        self.assertEqual(calls, [p.SOL])
+        self.assertEqual(report["requestAttempts"], {"forward": 1, "reverse": 0})
+        self.assertEqual(report["failuresByStage"]["forward"], 1)
+        self.assertEqual(report["successfulPairs"], 0)
+
+
 if __name__ == "__main__": unittest.main()
