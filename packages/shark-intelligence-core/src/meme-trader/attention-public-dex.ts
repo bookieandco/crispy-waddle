@@ -55,7 +55,7 @@ function normalized(mint:string,pairs:unknown,observedAt:string):AttentionDexSna
     if(!Number.isFinite(price)||price===undefined||price<=0||
        !Number.isFinite(liquidity)||liquidity===undefined||liquidity<0)
       continue
-    const receiptId='dex-public:'+mint+':'+address+':'+observedAt
+    const receiptId='dex-public:'+mint+':'+address+':'+observedAt+':'+price+':'+liquidity
     valid.push(Object.freeze({chainId:'solana' as const,mint,pairAddress:address,
       priceUsd:price,liquidityUsd:liquidity,observedAt,receiptId,
       source:'DEXSCREENER_PUBLIC_PAIR' as const,sourceAuthenticated:false as const,
@@ -86,11 +86,26 @@ export async function readPublicDexSnapshot(input:Readonly<{
     const length=response.headers.get('content-length')
     if(length!==null&&(!/^[0-9]+$/.test(length)||Number(length)>MAX_BODY))
       throw new Error('ATTENTION_DEX_BODY_TOO_LARGE')
-    // text() occurs only after content-length precheck. The adapter rejects
-    // oversized unknown-length replies after receipt; deployer must impose a
-    // streaming body cap at its network boundary before commissioning.
-    const raw=await response.text()
-    if(raw.length>MAX_BODY)throw new Error('ATTENTION_DEX_BODY_TOO_LARGE')
+    // Enforce a byte ceiling while streaming, even if Content-Length is absent
+    // or dishonest. Never buffer an unbounded third-party response.
+    if(response.headers.get('content-type')&&
+       !response.headers.get('content-type')!.toLowerCase().includes('application/json'))
+      throw new Error('ATTENTION_DEX_CONTENT_TYPE_INVALID')
+    if(!response.body)throw new Error('ATTENTION_DEX_EMPTY_BODY')
+    const reader=response.body.getReader()
+    const decoder=new TextDecoder('utf-8',{fatal:true})
+    let bytes=0
+    let raw=''
+    try{
+      for(;;){
+        const next=await reader.read()
+        if(next.done)break
+        bytes+=next.value.byteLength
+        if(bytes>MAX_BODY)throw new Error('ATTENTION_DEX_BODY_TOO_LARGE')
+        raw+=decoder.decode(next.value,{stream:true})
+      }
+      raw+=decoder.decode()
+    }finally{reader.releaseLock()}
     const at=input.clock() // after network receipt; never invent provider event time
     return normalized(input.mint,JSON.parse(raw) as unknown,at)
   }finally{clearTimeout(timeout)}

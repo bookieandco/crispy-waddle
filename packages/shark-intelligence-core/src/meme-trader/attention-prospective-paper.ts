@@ -88,7 +88,9 @@ export function gradeProspectiveAttentionPaper(rows:readonly ProspectiveAttentio
     const observed=millis(mark.observedAt),reported=millis(mark.availableAt)
     if(reported<observed)throw new Error('ATTENTION_PROSPECTIVE_MARK_TIME_INVALID')
     const delta=observed-decision
-    if(delta<24*3600_000||delta>30*3600_000||
+    // A late-arriving record cannot be treated as an in-window prospective
+    // outcome merely because its self-reported market timestamp is old.
+    if(delta<24*3600_000||delta>30*3600_000||reported-decision>30*3600_000||
       mark.pairAddress!==row.pairAddress){
       perCase.push({caseId:row.caseId,status:'CENSORED_NO_ELIGIBLE_MARK',reason:'OUTSIDE_SAME_PAIR_24_30H_WINDOW'})
       continue

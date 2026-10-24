@@ -8,6 +8,8 @@ on:
       - 'ops/meme/test_shark_live_intelligence.py'
       - 'ops/meme/shark_live_commission.py'
       - 'ops/meme/test_shark_live_commission.py'
+      - 'ops/meme/shark_attention_operator_audit.py'
+      - 'ops/meme/test_shark_attention_operator_audit.py'
       - 'ops/meme/shark_host_acceptance.py'
       - 'ops/meme/test_shark_host_acceptance.py'
       - 'ops/meme/shark_ephemeral_once.py'
@@ -33,6 +35,8 @@ on:
       - 'ops/meme/test_shark_live_intelligence.py'
       - 'ops/meme/shark_live_commission.py'
       - 'ops/meme/test_shark_live_commission.py'
+      - 'ops/meme/shark_attention_operator_audit.py'
+      - 'ops/meme/test_shark_attention_operator_audit.py'
       - 'ops/meme/shark_host_acceptance.py'
       - 'ops/meme/test_shark_host_acceptance.py'
       - 'ops/meme/shark_ephemeral_once.py'
@@ -75,6 +79,8 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq age
       - name: Test fail-closed host gate and REAL local age SQLite roundtrip
         run: python -m unittest discover -s ops/meme -p 'test_shark_host_acceptance.py' -v
+      - name: Read-only existing SHARK attention ledger commissioning audit (NO NETWORK)
+        run: python -m unittest discover -s ops/meme -p 'test_shark_attention_operator_audit.py' -v
       - name: Owner-only ephemeral public acceptance privacy contracts (NO NETWORK)
         run: python -m unittest discover -s ops/meme -p 'test_shark_ephemeral_once.py' -v
       - name: Reopened-ledger synthetic acceptance, interruption and notification guards
@@ -86,7 +92,7 @@ jobs:
       - name: Railway mount and nonroot privilege-drop safety contracts (NO NETWORK)
         run: python -m unittest discover -s ops/meme -p 'test_shark_railway_bootstrap.py' -v
       - name: Static Python syntax safety check
-        run: python -m compileall -q ops/meme/shark_live_intelligence.py ops/meme/shark_live_commission.py ops/meme/shark_host_acceptance.py ops/meme/shark_ephemeral_once.py ops/meme/shark_acceptance_multicycle.py ops/meme/shark_final_commission.py ops/meme/shark_railway_bootstrap.py
+        run: python -m compileall -q ops/meme/shark_live_intelligence.py ops/meme/shark_live_commission.py ops/meme/shark_attention_operator_audit.py ops/meme/shark_host_acceptance.py ops/meme/shark_ephemeral_once.py ops/meme/shark_acceptance_multicycle.py ops/meme/shark_final_commission.py ops/meme/shark_railway_bootstrap.py
 
   isolated-container-rehearsal:
     # CI is an EPHEMERAL host; does not certify a production host or
